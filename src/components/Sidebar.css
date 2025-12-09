@@ -1,0 +1,140 @@
+.sidebar {
+  width: 260px;
+  background-color: #e5e7eb;
+  height: calc(100vh - 60px);
+  position: fixed;
+  left: 0;
+  top: 60px;
+  transition: transform 0.3s ease;
+  z-index: 100;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af #e5e7eb;
+  border-right: 1px solid #d1d5db;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: #e5e7eb;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+.sidebar.closed {
+  transform: translateX(-260px);
+}
+
+.sidebar.open {
+  transform: translateX(0);
+}
+
+.sidebar-nav {
+  padding: 0;
+}
+
+.menu-item-wrapper {
+  width: 100%;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  color: #374151;
+  text-decoration: none;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+  position: relative;
+  border-left: 3px solid transparent;
+}
+
+.menu-item:hover {
+  background-color: #d1d5db;
+  color: #111827;
+}
+
+.menu-item.active {
+  background-color: #3b82f6;
+  color: #fff;
+  border-left-color: #2563eb;
+}
+
+.menu-item .icon {
+  margin-right: 12px;
+  font-size: 18px;
+  width: 24px;
+  display: inline-block;
+  text-align: center;
+}
+
+.menu-item .label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.menu-item.expandable {
+  justify-content: space-between;
+}
+
+.menu-item .arrow {
+  font-size: 10px;
+  transition: transform 0.3s;
+  margin-left: auto;
+}
+
+.menu-item .arrow.expanded {
+  transform: rotate(180deg);
+}
+
+.submenu {
+  background-color: #f3f4f6;
+  padding: 4px 0;
+  border-left: 3px solid #d1d5db;
+}
+
+.submenu-item {
+  display: block;
+  padding: 10px 20px 10px 56px;
+  color: #4b5563;
+  text-decoration: none;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.submenu-item:hover {
+  background-color: #e5e7eb;
+  color: #111827;
+  padding-left: 60px;
+}
+
+.submenu-item.active {
+  background-color: #3b82f6;
+  color: #fff;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
