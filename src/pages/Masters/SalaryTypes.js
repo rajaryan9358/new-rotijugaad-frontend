@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import SalaryTypeForm from '../../components/Forms/SalaryTypeForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import salaryTypesApi from '../../api/masters/salaryTypesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -177,13 +178,21 @@ export default function SalaryTypes() {
             ) : !showForm ? (
               <>
                 <div className="list-header">
-                  <h1>Salary Types Management</h1>
+  <h1>Salary Types Management</h1>
+  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {canManageMasters && (
                     <button className="btn-primary small" onClick={() => { setEditingId(null); setShowForm(true); }}>
                       + Add Type
                     </button>
                   )}
-                </div>
+    {canViewMasters && (
+      <LogsAction
+        category="salary types"
+        title="Salary Type Logs"
+      />
+    )}
+  </div>
+</div>
 
                 <div className="table-container">
                   <table className="data-table draggable">

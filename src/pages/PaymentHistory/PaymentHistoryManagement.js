@@ -6,18 +6,32 @@ import paymentHistoryApi from '../../api/paymentHistoryApi';
 import employeeSubscriptionPlansApi from '../../api/subscriptions/employeeSubscriptionPlansApi'; // added
 import employerSubscriptionPlansApi from '../../api/subscriptions/employerSubscriptionPlansApi'; // added
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import LogsAction from '../../components/LogsAction';
+import logsApi from '../../api/logsApi';
 
 export default function PaymentHistoryManagement() {
   const navigate = useNavigate();
   const location = useLocation();
+
   const normalizedStatusFromQuery = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const status = (params.get('status') || '').trim().toLowerCase();
     return ['active', 'pending', 'completed', 'failed'].includes(status) ? status : '';
   }, [location.search]);
+
+  // NEW: hydrate created date range from URL (supports both key styles)
+  const createdRangeFromQuery = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const ymd = (v) => String(v || '').slice(0, 10);
+    return {
+      from: ymd(params.get('created_from') || params.get('created_date_start') || ''),
+      to: ymd(params.get('created_to') || params.get('created_date_end') || '')
+    };
+  }, [location.search]);
+
   const querySignature = useMemo(
-    () => JSON.stringify({ status: normalizedStatusFromQuery }),
-    [normalizedStatusFromQuery]
+    () => JSON.stringify({ status: normalizedStatusFromQuery, ...createdRangeFromQuery }),
+    [normalizedStatusFromQuery, createdRangeFromQuery]
   );
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -28,6 +42,27 @@ export default function PaymentHistoryManagement() {
   const [planFilter, setPlanFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState(normalizedStatusFromQuery);
   const [expiryStatus, setExpiryStatus] = useState('');
+
+  // NEW: define these (were referenced but not declared)
+  const [createdFrom, setCreatedFrom] = useState('');
+  const [createdTo, setCreatedTo] = useState('');
+
+  // NEW: date-only formatter (used by chips)
+  const formatDateOnly = (val) => {
+    if (!val) return '';
+    try {
+      if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) return '';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    } catch {
+      return '';
+    }
+  };
+
   const [message, setMessage] = useState(null);
   const [viewItem, setViewItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,7 +77,9 @@ export default function PaymentHistoryManagement() {
     userType: '',
     plan: '',
     status: normalizedStatusFromQuery,
-    expiryStatus: ''
+    expiryStatus: '',
+    createdFrom: '',
+    createdTo: ''
   });
   const [planOptions, setPlanOptions] = useState({});
   const [queryHydrated, setQueryHydrated] = useState(false);
@@ -57,6 +94,8 @@ export default function PaymentHistoryManagement() {
       if (!queryHydrated) setQueryHydrated(true);
       return;
     }
+
+    // existing status/expiry hydration
     if (normalizedStatusFromQuery === 'active') {
       setExpiryStatus('active');
       setStatusFilter('');
@@ -66,9 +105,19 @@ export default function PaymentHistoryManagement() {
       setStatusFilter(normalizedStatusFromQuery);
       setDraftFilters((prev) => ({ ...prev, status: normalizedStatusFromQuery, expiryStatus: '' }));
     }
+
+    // NEW: created date hydration
+    setCreatedFrom(createdRangeFromQuery.from);
+    setCreatedTo(createdRangeFromQuery.to);
+    setDraftFilters((prev) => ({
+      ...prev,
+      createdFrom: createdRangeFromQuery.from,
+      createdTo: createdRangeFromQuery.to
+    }));
+
     setAppliedQuerySignature(querySignature);
     setQueryHydrated(true);
-  }, [appliedQuerySignature, querySignature, normalizedStatusFromQuery, queryHydrated]);
+  }, [appliedQuerySignature, querySignature, normalizedStatusFromQuery, queryHydrated, createdRangeFromQuery]);
 
   useEffect(() => {
     if (!canViewPayments) return;
@@ -121,8 +170,10 @@ export default function PaymentHistoryManagement() {
     user_type: userType || undefined,
     plan_id: planFilter || undefined,
     status: statusFilter || undefined,
-    expiry_status: expiryStatus || undefined
-  }), [currentPage, pageSize, sortField, sortDir, searchTerm, userType, planFilter, statusFilter, expiryStatus]);
+    expiry_status: expiryStatus || undefined,
+    created_from: createdFrom || undefined,
+    created_to: createdTo || undefined
+  }), [currentPage, pageSize, sortField, sortDir, searchTerm, userType, planFilter, statusFilter, expiryStatus, createdFrom, createdTo]);
 
   const fetchRows = React.useCallback(async () => {
     if (!canViewPayments) return;
@@ -152,17 +203,91 @@ export default function PaymentHistoryManagement() {
 
   const toggleFilterPanel = () => {
     if (showFilterPanel) return setShowFilterPanel(false);
-    setDraftFilters({ userType, plan: planFilter, status: statusFilter, expiryStatus });
+    setDraftFilters({
+      userType,
+      plan: planFilter,
+      status: statusFilter,
+      expiryStatus,
+      createdFrom,
+      createdTo
+    });
     setShowFilterPanel(true);
   };
 
+  // NEW: keep URL shareable; removing filters removes params (no refresh)
+  const syncUrlWithFilters = React.useCallback((overrides = {}) => {
+    const next = {
+      search: overrides.search ?? searchTerm,
+      userType: overrides.userType ?? userType,
+      plan: overrides.plan ?? planFilter,
+      status: overrides.status ?? statusFilter,
+      expiryStatus: overrides.expiryStatus ?? expiryStatus,
+      createdFrom: overrides.createdFrom ?? createdFrom,
+      createdTo: overrides.createdTo ?? createdTo
+    };
+
+    const qs = new URLSearchParams();
+
+    if (next.search?.trim()) qs.set('search', next.search.trim());
+    if (next.userType) qs.set('user_type', next.userType);
+    if (next.plan) qs.set('plan_id', String(next.plan));
+
+    // preserve existing behavior: status=active is a shortcut for expiryStatus=active
+    if (next.status) {
+      qs.set('status', next.status);
+    } else if (next.expiryStatus === 'active') {
+      qs.set('status', 'active');
+    }
+
+    // include explicit expiry_status only for non-active (active is covered by status=active)
+    if (next.expiryStatus && next.expiryStatus !== 'active') qs.set('expiry_status', next.expiryStatus);
+
+    // use Dashboard-style keys in URL
+    if (next.createdFrom) qs.set('created_date_start', String(next.createdFrom).slice(0, 10));
+    if (next.createdTo) qs.set('created_date_end', String(next.createdTo).slice(0, 10));
+
+    const nextSearch = qs.toString() ? `?${qs.toString()}` : '';
+    if ((location.search || '') === nextSearch) return;
+
+    navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
+  }, [
+    navigate,
+    location.pathname,
+    location.search,
+    searchTerm,
+    userType,
+    planFilter,
+    statusFilter,
+    expiryStatus,
+    createdFrom,
+    createdTo
+  ]);
+
   const applyFilters = () => {
-    setUserType(draftFilters.userType);
-    setPlanFilter(draftFilters.userType ? draftFilters.plan : '');
-    setStatusFilter(draftFilters.status);
-    setExpiryStatus(draftFilters.expiryStatus);
+    const nextUserType = draftFilters.userType;
+    const nextPlan = nextUserType ? draftFilters.plan : '';
+    const nextStatus = draftFilters.status;
+    const nextExpiry = draftFilters.expiryStatus;
+    const nextCreatedFrom = draftFilters.createdFrom;
+    const nextCreatedTo = draftFilters.createdTo;
+
+    setUserType(nextUserType);
+    setPlanFilter(nextPlan);
+    setStatusFilter(nextStatus);
+    setExpiryStatus(nextExpiry);
+    setCreatedFrom(nextCreatedFrom);
+    setCreatedTo(nextCreatedTo);
     setCurrentPage(1);
     setShowFilterPanel(false);
+
+    syncUrlWithFilters({
+      userType: nextUserType,
+      plan: nextPlan,
+      status: nextStatus,
+      expiryStatus: nextExpiry,
+      createdFrom: nextCreatedFrom,
+      createdTo: nextCreatedTo
+    });
   };
 
   const clearFilters = () => {
@@ -170,20 +295,43 @@ export default function PaymentHistoryManagement() {
     setPlanFilter('');
     setStatusFilter('');
     setExpiryStatus('');
-    setDraftFilters({ userType: '', plan: '', status: '', expiryStatus: '' });
+    setCreatedFrom('');
+    setCreatedTo('');
+    setDraftFilters({ userType: '', plan: '', status: '', expiryStatus: '', createdFrom: '', createdTo: '' });
     setSortField('id');
     setSortDir('desc');
     setCurrentPage(1);
     setShowFilterPanel(false);
+
+    syncUrlWithFilters({ search: '', userType: '', plan: '', status: '', expiryStatus: '', createdFrom: '', createdTo: '' });
   };
 
   const removeChip = (key) => {
-    if (key === 'search') setSearchTerm('');
-    if (key === 'user_type') setUserType('');
-    if (key === 'plan') setPlanFilter('');
-    if (key === 'status') setStatusFilter('');
-    if (key === 'expiry') setExpiryStatus('');
+    const next = {
+      search: searchTerm,
+      userType,
+      plan: planFilter,
+      status: statusFilter,
+      expiryStatus,
+      createdFrom,
+      createdTo
+    };
+
+    if (key === 'search') { setSearchTerm(''); next.search = ''; }
+    if (key === 'user_type') {
+      setUserType('');
+      setPlanFilter(''); // plan depends on user_type
+      next.userType = '';
+      next.plan = '';
+    }
+    if (key === 'plan') { setPlanFilter(''); next.plan = ''; }
+    if (key === 'status') { setStatusFilter(''); next.status = ''; }
+    if (key === 'expiry') { setExpiryStatus(''); next.expiryStatus = ''; }
+    if (key === 'created_from') { setCreatedFrom(''); next.createdFrom = ''; }
+    if (key === 'created_to') { setCreatedTo(''); next.createdTo = ''; }
+
     setCurrentPage(1);
+    syncUrlWithFilters(next);
   };
 
   const handleSort = (field) => {
@@ -254,7 +402,7 @@ export default function PaymentHistoryManagement() {
       return;
     }
 
-    const headers = ['ID','User Type','User','Plan','Total Price','Status','Order ID','Payment ID','Expiry','Created At'];
+    const headers = ['ID','Invoice #','User Type','User','Plan','Total Price','Status','Order ID','Payment ID','Expiry','Created At'];
     const escapeCsv = (val) => {
       if (val === null || val === undefined) return '';
       const str = String(val);
@@ -272,6 +420,7 @@ export default function PaymentHistoryManagement() {
     };
     const rowsCsv = exportRows.map((row) => [
       row.id,
+      row.invoice_number || '',
       row.user_type || '',
       row.entity?.name || row.user?.name || '',
       row.plan?.plan_name_english || row.plan?.plan_name_hindi || row.plan_id || '',
@@ -292,9 +441,28 @@ export default function PaymentHistoryManagement() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    try {
+      await logsApi.create({
+        category: 'payment history',
+        type: 'export',
+        redirect_to: '/payment-history',
+        log_text: 'Exported payment history',
+      });
+    } catch (e) {
+      // do not break export flow if logging fails
+    }
   };
 
-  const activeFilterCount = [searchTerm.trim(), userType, planFilter, statusFilter, expiryStatus].filter(Boolean).length;
+  const activeFilterCount = [
+    searchTerm.trim(),
+    userType,
+    planFilter,
+    statusFilter,
+    expiryStatus,
+    createdFrom,
+    createdTo
+  ].filter(Boolean).length;
   const pageSummary = totalCount > 0
     ? {
         start: Math.min((currentPage - 1) * pageSize + 1, totalCount),
@@ -302,11 +470,13 @@ export default function PaymentHistoryManagement() {
       }
     : { start: 0, end: 0 };
 
-  useEffect(() => { setCurrentPage(1); }, [userType, planFilter, statusFilter, expiryStatus, pageSize]);
+  useEffect(() => { setCurrentPage(1); }, [userType, planFilter, statusFilter, expiryStatus, createdFrom, createdTo, pageSize]);
 
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
+    const v = e.target.value;
+    setSearchTerm(v);
     setCurrentPage(1);
+    syncUrlWithFilters({ search: v });
   };
 
   const handlePageChange = (delta) => {
@@ -343,6 +513,48 @@ export default function PaymentHistoryManagement() {
     localStorage.removeItem('admin');
     navigate('/login');
   };
+
+  const handleShareInvoice = React.useCallback(async (invoiceNumber) => {
+    const inv = (invoiceNumber || '').toString().trim();
+    if (!inv) {
+      setMessage({ type: 'error', text: 'Invoice number not available.' });
+      return;
+    }
+
+    const url = `${window.location.origin}/invoice/${encodeURIComponent(inv)}`;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setMessage({ type: 'success', text: 'Invoice link copied to clipboard.' });
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to copy invoice link.' });
+    }
+  }, []);
+
+  const handleViewInvoice = React.useCallback(async (invoiceNumber) => {
+    const inv = (invoiceNumber || '').toString().trim();
+    if (!inv) {
+      setMessage({ type: 'error', text: 'Invoice not available.' });
+      return;
+    }
+
+    try {
+      const url = `/invoice/${encodeURIComponent(inv)}`;
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      const msg = e?.message || 'Failed to open invoice.';
+      setMessage({ type: 'error', text: msg });
+    }
+  }, []);
 
   const linkButtonStyle = {
     background: 'none',
@@ -517,7 +729,7 @@ export default function PaymentHistoryManagement() {
                   className="state-filter-select"
                   value={searchTerm}
                   onChange={handleSearchChange}
-                  placeholder="id, order id, payment id..."
+                  placeholder="id, invoice #, order id, payment id..."
                   style={{ maxWidth:'260px' }}
                 />
               </div>
@@ -525,6 +737,7 @@ export default function PaymentHistoryManagement() {
                 <button className="btn-secondary btn-small" onClick={toggleFilterPanel}>
                   Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
                 </button>
+                <LogsAction category="payment history" />
                 {canExportPayments && (
                   <button className="btn-secondary btn-small" onClick={exportToCSV}>
                     Export CSV
@@ -565,6 +778,18 @@ export default function PaymentHistoryManagement() {
                 <span className="badge chip" style={chipBaseStyle}>
                   Expiry: {expiryStatus}
                   <button style={chipCloseStyle} onClick={() => removeChip('expiry')}>×</button>
+                </span>
+              )}
+              {createdFrom && (
+                <span className="badge chip" style={chipBaseStyle}>
+                  Created From: {formatDateOnly(createdFrom)}
+                  <button style={chipCloseStyle} onClick={() => removeChip('created_from')}>×</button>
+                </span>
+              )}
+              {createdTo && (
+                <span className="badge chip" style={chipBaseStyle}>
+                  Created To: {formatDateOnly(createdTo)}
+                  <button style={chipCloseStyle} onClick={() => removeChip('created_to')}>×</button>
                 </span>
               )}
               {!activeFilterCount && <span style={{ fontSize:'12px', color:'#64748b' }}>No filters applied</span>}
@@ -645,6 +870,31 @@ export default function PaymentHistoryManagement() {
                       <option value="expired">Expired</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="filter-label" style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                      Created Date From
+                    </label>
+                    <input
+                      className="state-filter-select"
+                      type="date"
+                      value={draftFilters.createdFrom}
+                      onChange={(e) => setDraftFilters(f => ({ ...f, createdFrom: e.target.value }))}
+                      style={{ width:'100%', minWidth:0 }}
+                    />
+                  </div>
+                  <div>
+                    <label className="filter-label" style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>
+                      Created Date To
+                    </label>
+                    <input
+                      className="state-filter-select"
+                      type="date"
+                      value={draftFilters.createdTo}
+                      onChange={(e) => setDraftFilters(f => ({ ...f, createdTo: e.target.value }))}
+                      min={draftFilters.createdFrom || undefined}
+                      style={{ width:'100%', minWidth:0 }}
+                    />
+                  </div>
                 </div>
                 <div
                   className="filter-actions"
@@ -662,6 +912,7 @@ export default function PaymentHistoryManagement() {
                 <thead>
                   <tr>
                     <th onClick={() => handleSort('id')} style={{ cursor:'pointer' }}>ID{sortField === 'id' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th onClick={() => handleSort('invoice_number')} style={{ cursor:'pointer' }}>Invoice #{sortField === 'invoice_number' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th onClick={() => handleSort('user_type')} style={{ cursor:'pointer' }}>User Type{sortField === 'user_type' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th>User</th>
                     <th>Plan</th>
@@ -675,16 +926,20 @@ export default function PaymentHistoryManagement() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="10">Loading...</td></tr>
+                    <tr><td colSpan="11">Loading...</td></tr>
                   ) : rows.length ? (
                     rows.map(r => {
                       const entityName = r.user?.name || r.entity?.name || '—';
                       const detailPath = r.user_type === 'employee'
                         ? `/employees/${r.user_id}`
                         : `/employers/${r.user_id}`;
+                      const invoiceNumber = (r.invoice_number || `INV-${r.id}`).toString().trim();
+                      const hasInvoice = Boolean(invoiceNumber);
+
                       return (
                         <tr key={r.id}>
                           <td>{r.id}</td>
+                          <td>{(r.invoice_number || `INV-${r.id}`) || '-'}</td>
                           <td>{r.user_type || '-'}</td>
                           <td>
                             {entityName === '—' ? '—' : (
@@ -702,6 +957,27 @@ export default function PaymentHistoryManagement() {
                           <td>
                             <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
                               <button className="btn-small" onClick={() => viewRow(r.id)}>View</button>
+
+                              {/* NEW */}
+                              <button
+                                className="btn-small"
+                                disabled={!hasInvoice}
+                                onClick={() => handleViewInvoice(invoiceNumber)}
+                                title={hasInvoice ? 'Open invoice' : 'Invoice number not available'}
+                              >
+                                View Invoice
+                              </button>
+
+                              {/* NEW */}
+                              <button
+                                className="btn-small"
+                                disabled={!hasInvoice}
+                                onClick={() => handleShareInvoice(invoiceNumber)}
+                                title={hasInvoice ? 'Copy invoice link' : 'Invoice number not available'}
+                              >
+                                Share Invoice
+                              </button>
+
                               {canDeletePayments && (
                                 <button className="btn-small btn-delete" onClick={() => deleteRow(r.id)}>Delete</button>
                               )}
@@ -711,7 +987,7 @@ export default function PaymentHistoryManagement() {
                       );
                     })
                   ) : (
-                    <tr><td colSpan="10">No data</td></tr>
+                    <tr><td colSpan="11">No data</td></tr>
                   )}
                 </tbody>
               </table>
@@ -812,6 +1088,9 @@ export default function PaymentHistoryManagement() {
                         fontSize: '14px'
                       }}
                     >
+                      <strong style={{ textAlign: 'right', color: '#64748b' }}>Invoice #:</strong>
+                      <span>{viewItem.invoice_number || '—'}</span>
+
                       <strong style={{ textAlign: 'right', color: '#64748b' }}>User Type:</strong>
                       <span>{viewItem.user_type}</span>
                       <strong style={{ textAlign: 'right', color: '#64748b' }}>User ID:</strong>

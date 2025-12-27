@@ -45,8 +45,15 @@ export default function CityForm({ cityId, onClose, onSuccess }) {
   const fetchCity = async () => {
     setLoading(true);
     try {
-      const response = getCityById(cityId);
-      setFormData(response.data.data);
+      const response = await getCityById(cityId);
+      const city = response?.data?.data;
+      setFormData({
+        state_id: city?.state_id ?? '',
+        city_english: city?.city_english ?? '',
+        city_hindi: city?.city_hindi ?? '',
+        sequence: city?.sequence ?? '',
+        is_active: city?.is_active ?? true,
+      });
     } catch (error) {
       console.error('Error fetching city:', error);
       setError('Failed to fetch city details');

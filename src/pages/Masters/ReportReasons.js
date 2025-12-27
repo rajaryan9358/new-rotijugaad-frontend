@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import ReportReasonForm from '../../components/Forms/ReportReasonForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import reportReasonsApi from '../../api/masters/reportReasonsApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -177,7 +178,8 @@ export default function ReportReasons() {
             ) : !showForm ? (
               <>
                 <div className="list-header">
-                  <h1>Report Reasons Management</h1>
+  <h1>Report Reasons Management</h1>
+  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {canManageMasters && (
                     <button
                       className="btn-primary small"
@@ -189,7 +191,14 @@ export default function ReportReasons() {
                       + Add Reason
                     </button>
                   )}
-                </div>
+    {canViewMasters && (
+      <LogsAction
+        category="report reason"
+        title="Report Reason Logs"
+      />
+    )}
+  </div>
+</div>
 
                 <div className="table-container">
                   <table className="data-table draggable">

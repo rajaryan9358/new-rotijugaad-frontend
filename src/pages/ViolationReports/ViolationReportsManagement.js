@@ -6,6 +6,8 @@ import reportsApi from '../../api/reportsApi';
 import employeeReportReasonsApi from '../../api/masters/employeeReportReasonsApi';
 import employerReportReasonsApi from '../../api/masters/employerReportReasonsApi';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import LogsAction from '../../components/LogsAction';
+import logsApi from '../../api/logsApi';
 
 export default function ViolationReportsManagement() {
   const navigate = useNavigate();
@@ -386,6 +388,20 @@ export default function ViolationReportsManagement() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    try {
+      const typeLabel = reportTypeFilter || 'all';
+      const reasonLabel = reasonFilter || 'all';
+      const readLabel = readStatusFilter || 'all';
+      await logsApi.create({
+        category: 'voilation reports',
+        type: 'export',
+        redirect_to: '/violation-reports',
+        log_text: `Exported violation reports (type=${typeLabel}, reason=${reasonLabel}, read=${readLabel})`,
+      });
+    } catch (e) {
+      // do not break export flow if logging fails
+    }
   };
 
   useEffect(() => {
@@ -461,6 +477,7 @@ export default function ViolationReportsManagement() {
                 <button className="btn-secondary btn-small" onClick={toggleFilterPanel}>
                   Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
                 </button>
+                <LogsAction category="voilation reports" />
                 {canExportViolations && (
                   <button className="btn-secondary btn-small" onClick={exportToCSV}>
                     Export CSV

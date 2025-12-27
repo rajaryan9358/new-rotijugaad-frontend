@@ -5,10 +5,11 @@ import '../Masters/MasterPage.css';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 
-const TABS = ['Job detail', 'Applicants', 'Violation Reports']; // changed 'Reports' to 'Violation Reports'
+const TABS = ['Job detail', 'Recommended Candidates', 'Applicants', 'Violation Reports']; // changed 'Reports' to 'Violation Reports'
 const APPLICANT_TABS = [
   { key: 'sent', label: 'Sent Interest' },
   { key: 'received', label: 'Received Interest' },
@@ -17,16 +18,31 @@ const APPLICANT_TABS = [
   { key: 'rejected', label: 'Rejected' }
 ];
 
-const statusBadge = (status) => {
+const statusBadge = (jobOrStatus) => {
+  if (jobOrStatus === null || jobOrStatus === undefined) {
+    return (
+      <span style={{ display:'inline-flex', alignItems:'center', padding:'4px 12px', borderRadius:'999px', fontSize:12, fontWeight:600, background:'#e5e7eb', color:'#0f172a' }}>
+        -
+      </span>
+    );
+  }
+
+  const job = (jobOrStatus && typeof jobOrStatus === 'object') ? jobOrStatus : { status: jobOrStatus };
+  const status = String(job.status || '').toLowerCase();
+  const expired = Boolean(job.expired_at) || status === 'expired';
+
   const palette = {
     active: { bg: '#dcfce7', color: '#166534', label: 'Active' },
-    inactive: { bg: '#fee2e2', color: '#b91c1c', label: 'Inactive' }
+    inactive: { bg: '#fee2e2', color: '#b91c1c', label: 'Inactive' },
+    expired: { bg: '#fef3c7', color: '#92400e', label: 'Expired' }
   };
-  const key = (status || '').toLowerCase();
-  const tone = palette[key] || { bg: '#e5e7eb', color: '#0f172a', label: status || '-' };
+
+  const tone = palette[status] || { bg: '#e5e7eb', color: '#0f172a', label: status || '-' };
+  const label = (expired && status === 'inactive') ? 'Expired • Inactive' : (expired ? 'Expired' : tone.label);
+
   return (
-    <span style={{ display:'inline-flex', alignItems:'center', padding:'4px 12px', borderRadius:'999px', fontSize:12, fontWeight:600, background:tone.bg, color:tone.color }}>
-      {tone.label}
+    <span style={{ display:'inline-flex', alignItems:'center', padding:'4px 12px', borderRadius:'999px', fontSize:12, fontWeight:600, background: expired ? palette.expired.bg : tone.bg, color: expired ? palette.expired.color : tone.color }}>
+      {label}
     </span>
   );
 };
@@ -127,34 +143,79 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const toggleJobStatus = async () => {
+  // NOTE: treat expired_at != null as expired (matches backend filtering).
+  const isExpiredJob = React.useCallback((j) => Boolean(j?.expired_at) || String(j?.status || '').toLowerCase() === 'expired', []);
+
+  const setJobStatus = async (nextStatus) => {
     if (!job || !jobPerms.canStatusToggle) {
       setOptionsOpen(false);
       if (!jobPerms.canStatusToggle) alert('You do not have permission to update job status.');
       return;
     }
-    const nextStatus = (job.status || '').toLowerCase() === 'active' ? 'inactive' : 'active';
     try {
       await jobApi.toggleStatus(job.id, nextStatus);
-      setJob(prev => ({ ...prev, status: nextStatus }));
+
+      // avoid crashing if prev becomes null during re-renders
+      setJob(prev => ({
+        ...(prev || {}),
+        status: nextStatus,
+        expired_at: nextStatus === 'active' ? null : (prev?.expired_at ?? null)
+      }));
+
+      const res = await jobApi.getById(jobId);
+      setJob(res.data?.data || null);
     } catch {
       alert('Failed to update job status');
     } finally {
       setOptionsOpen(false);
     }
   };
-  const handleRepost = () => {
-    if (!jobPerms.canRepost) {
+
+  const toggleJobStatus = async () => {
+    // keep existing behavior for quick active<->inactive, but route through setJobStatus
+    const nextStatus = (job?.status || '').toLowerCase() === 'active' ? 'inactive' : 'active';
+    await setJobStatus(nextStatus);
+  };
+
+  const handleMarkExpired = async () => setJobStatus('expired');
+
+  const isApprovedJob = React.useCallback(
+    (j) => String(j?.verification_status || 'pending').toLowerCase() === 'approved',
+    []
+  );
+
+  const isPendingJob = React.useCallback(
+    (j) => String(j?.verification_status || 'pending').toLowerCase() === 'pending',
+    []
+  );
+
+  const setJobVerificationStatus = async (next) => {
+    if (!job || !jobPerms.canManage) {
       setOptionsOpen(false);
-      alert('You do not have permission to repost jobs.');
+      if (!jobPerms.canManage) alert('You do not have permission to verify jobs.');
       return;
     }
-    setOptionsOpen(false);
-    navigate('/jobs', { state: { cloneJobId: job.id } });
+    try {
+      await jobApi.setVerificationStatus(job.id, next);
+      const res = await jobApi.getById(jobId);
+      setJob(res.data?.data || null);
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Failed to update verification status');
+    } finally {
+      setOptionsOpen(false);
+    }
   };
-  const handleShare = async () => { // add
-    setOptionsOpen(false);
-    const link = 'https://google.com';
+
+  // CHANGED: share job should work same as EmployeeDetail (copy-to-clipboard + fallback)
+  const buildJobShareUrl = (id) => `${window.location.origin}/jobs/${id}`;
+  const handleShareJob = async () => {
+    const id = job?.id || jobId;
+    if (!id) {
+      setOptionsOpen(false);
+      return;
+    }
+
+    const link = buildJobShareUrl(id);
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(link);
@@ -169,48 +230,10 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
       setNotice({ type: 'success', text: 'Share link copied to clipboard.' });
     } catch {
       setNotice({ type: 'error', text: 'Failed to copy share link.' });
+    } finally {
+      setOptionsOpen(false);
     }
   };
-
-  if (!jobPerms.canView) {
-    return (
-      <div className="dashboard-container">
-        <Header onMenuClick={handleMenuClick} />
-        <div className="dashboard-content">
-          <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
-            <div className="content-wrapper" style={{ padding: 16 }}>You do not have permission to view this job.</div>
-          </main>
-        </div>
-      </div>
-    );
-  }
-  if (loading) {
-    return (
-      <div className="dashboard-container">
-        <Header onMenuClick={handleMenuClick} />
-        <div className="dashboard-content">
-          <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
-            <div className="content-wrapper">Loading...</div>
-          </main>
-        </div>
-      </div>
-    );
-  }
-  if (!job) {
-    return (
-      <div className="dashboard-container">
-        <Header onMenuClick={handleMenuClick} />
-        <div className="dashboard-content">
-          <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
-            <div className="content-wrapper" style={{ padding: 16 }}>Job not found.</div>
-          </main>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="dashboard-container">
@@ -235,6 +258,7 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
                 >
                   Back
                 </button>
+                <LogsAction category="jobs" buttonStyle={{ padding: '4px 10px' }} />
                 {jobPerms.canManage && (
                   <button
                     className="btn-primary small"
@@ -244,7 +268,7 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
                     Edit
                   </button>
                 )}
-                {(jobPerms.canStatusToggle || jobPerms.canRepost) && (
+                {(jobPerms.canStatusToggle || jobPerms.canRepost || jobPerms.canManage) && (
                   <div ref={optionsRef} style={{ position:'relative' }}>
                     <button
                       className="btn-secondary small"
@@ -269,28 +293,96 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
                           padding:'6px 0'
                         }}
                       >
-                        {jobPerms.canStatusToggle && (
-                          <button
-                            style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
-                            onClick={toggleJobStatus}
-                          >
-                            {(job.status || '').toLowerCase() === 'active' ? 'Deactivate' : 'Activate'} job
-                          </button>
-                        )}
-                        {jobPerms.canRepost && (
-                          <button
-                            style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
-                            onClick={handleRepost}
-                          >
-                            Repost job
-                          </button>
-                        )}
-                        <button // add
+                        {/* NEW: share job (restored) */}
+                        <button
                           style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
-                          onClick={handleShare}
+                          onClick={handleShareJob}
                         >
                           Share job
                         </button>
+
+                        <div style={{ height: 1, background: '#e2e8f0', margin: '6px 0' }} />
+
+                        {/* CHANGED: Approve/Reject only when pending */}
+                        {jobPerms.canManage && isPendingJob(job) && (
+                          <>
+                            <button
+                              style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
+                              onClick={() => setJobVerificationStatus('approved')}
+                            >
+                              Approve job
+                            </button>
+                            <button
+                              style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
+                              onClick={() => setJobVerificationStatus('rejected')}
+                            >
+                              Reject job
+                            </button>
+                            <div style={{ height: 1, background: '#e2e8f0', margin: '6px 0' }} />
+                          </>
+                        )}
+
+                        {/* unchanged: status actions only when approved */}
+                        {jobPerms.canStatusToggle && isApprovedJob(job) && (
+                          <>
+                            {/* Active: Deactivate + Mark Expired */}
+                            {(job.status || '').toLowerCase() === 'active' && (
+                              <>
+                                <button
+                                  style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
+                                  onClick={toggleJobStatus}
+                                >
+                                  Deactivate job
+                                </button>
+                                <button
+                                  style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
+                                  onClick={handleMarkExpired}
+                                >
+                                  Mark expired
+                                </button>
+                              </>
+                            )}
+
+                            {/* Inactive (not expired): Activate + Mark Expired */}
+                            {(job.status || '').toLowerCase() === 'inactive' && !isExpiredJob(job) && (
+                              <>
+                                <button
+                                  style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
+                                  onClick={() => setJobStatus('active')}
+                                >
+                                  Activate job
+                                </button>
+                                <button
+                                  style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
+                                  onClick={handleMarkExpired}
+                                >
+                                  Mark expired
+                                </button>
+                              </>
+                            )}
+
+                            {/* Expired: Activate or Inactive */}
+                            {isExpiredJob(job) && (
+                              <>
+                                <button
+                                  style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
+                                  onClick={() => setJobStatus('active')}
+                                >
+                                  Activate job
+                                </button>
+                                {(job.status || '').toLowerCase() !== 'inactive' && (
+                                  <button
+                                    style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
+                                    onClick={() => setJobStatus('inactive')}
+                                  >
+                                    Mark inactive
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </>
+                        )}
+                        {/* (no changes needed; jobs search fix is backend-only) */}
                       </div>
                     )}
                   </div>
@@ -332,6 +424,9 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
               {activeTab === 'Job detail' && (
                 <JobDetailTab job={job} />
               )}
+              {activeTab === 'Recommended Candidates' && (
+                <RecommendedCandidatesTab jobId={jobId} />
+              )}
               {activeTab === 'Applicants' && (
                 <ApplicantsTab
                   applicants={applicants}
@@ -358,6 +453,24 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
 }
 
 function JobDetailTab({ job }) {
+  if (!job) return <div style={{ fontSize: '13px', color: '#666' }}>Loading...</div>;
+
+  // CHANGED: render verification as a chip
+  const verificationChip = (() => {
+    const v = String(job.verification_status || 'pending').toLowerCase();
+    const palette = {
+      pending: { bg: '#e5e7eb', color: '#0f172a', label: 'Pending' },
+      approved: { bg: '#dcfce7', color: '#166534', label: 'Approved' },
+      rejected: { bg: '#fee2e2', color: '#b91c1c', label: 'Rejected' }
+    };
+    const tone = palette[v] || palette.pending;
+    return (
+      <span style={{ display:'inline-flex', alignItems:'center', padding:'4px 10px', borderRadius:'999px', fontSize:'12px', fontWeight:700, background:tone.bg, color:tone.color }}>
+        {tone.label}
+      </span>
+    );
+  })();
+
   // Helper to map day numbers to names (for legacy/array support)
   const dayNumberToName = (d) => {
     const map = {
@@ -373,6 +486,16 @@ function JobDetailTab({ job }) {
     if (typeof d === 'string' && map[d.toLowerCase()]) return map[d.toLowerCase()];
     if (typeof d === 'number' && map[d]) return map[d];
     return d;
+  };
+
+  const dayToShort = (d) => {
+    const name = dayNumberToName(d);
+    const key = String(name || '').toLowerCase();
+    const map = {
+      monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
+      thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun'
+    };
+    return map[key] || null;
   };
 
   // Use direct fields from backend if present, fallback to legacy/joined data
@@ -424,6 +547,34 @@ function JobDetailTab({ job }) {
     jobDays = job.job_days;
   }
 
+  // Short format for job days (Mon, Tue, ...)
+  const jobDaysShort = Array.isArray(job.job_days) && job.job_days.length
+    ? job.job_days.map(dayToShort).filter(Boolean).join(',')
+    : '';
+
+  const formatTime12h = (t) => {
+    if (!t) return '';
+    const s = String(t).trim();
+    const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (!m) return s; // fallback
+    let hh = parseInt(m[1], 10);
+    const mm = m[2];
+    if (Number.isNaN(hh)) return s;
+    const suffix = hh >= 12 ? 'PM' : 'AM';
+    hh = hh % 12 || 12;
+    return `${hh}:${mm} ${suffix}`;
+  };
+
+  const start12 = formatTime12h(job.work_start_time);
+  const end12 = formatTime12h(job.work_end_time);
+
+  const timeRange =
+    (start12 && end12)
+      ? `${start12} - ${end12}`
+      : (start12 || end12 || '');
+
+  const shiftTiming = [jobDaysShort || null, timeRange || null].filter(Boolean).join(' • ') || '-';
+
   // State and City
   const state = job.job_state || job.State?.state_english || '-';
   const city = job.job_city || job.City?.city_english || '-';
@@ -451,14 +602,23 @@ function JobDetailTab({ job }) {
           <Detail label="Skills" value={skills} />
           <Detail label="Benefits" value={benefits} />
           <Detail label="Working Days" value={jobDays} />
-          <Detail label="Vacancy" value={job.no_vacancy} />
-          <Detail label="Hired" value={job.hired_total} />
+
+          {/* CHANGED: show combined hired/total */}
+          <Detail
+            label="Vacancies (Hired/Total)"
+            value={`${Number(job.hired_total ?? 0)}/${Number(job.no_vacancy ?? 0)}`}
+          />
+
           <Detail label="State" value={state} />
           <Detail label="City" value={city} />
           <Detail label="Salary" value={job.salary_min && job.salary_max ? `${job.salary_min} - ${job.salary_max}` : (job.salary_min || job.salary_max || '-')} />
-          <Detail label="Status" value={statusBadge(job.status)} />
+          <Detail label="Status" value={statusBadge(job)} />
+          <Detail label="Expired At" value={job.expired_at ? new Date(job.expired_at).toLocaleString() : '-'} />
           <Detail label="Status Time" value={job.updated_at ? new Date(job.updated_at).toLocaleString() : '-'} />
           <Detail label="Created" value={job.created_at ? new Date(job.created_at).toLocaleString() : '-'} />
+          <Detail label="Interviewer Contact" value={job.interviewer_contact || '-'} />
+          <Detail label="Shift Timing" value={shiftTiming} />
+          <Detail label="Verification Status" value={verificationChip} /> {/* CHANGED */}
         </div>
         <div style={{ marginTop: 16 }}>
           <strong>Description (English):</strong>
@@ -484,6 +644,159 @@ function JobDetailTab({ job }) {
           <strong>Other Benefit (Hindi):</strong>
           <div style={{ fontSize: '13px', lineHeight: '1.4', marginTop: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{job.other_benefit_hindi}</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+function RecommendedCandidatesTab({ jobId }) {
+  const canViewEmployees = useMemo(() => hasPermission(PERMISSIONS.EMPLOYEES_VIEW), []);
+  const canShowPhone = useMemo(() => hasPermission(PERMISSIONS.EMPLOYEES_SHOW_PHONE_ADDRESS), []);
+
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!canViewEmployees) return;
+    if (!jobId) return;
+
+    let mounted = true;
+    setLoading(true);
+    setError(null);
+
+    jobApi
+      .getRecommendedCandidates(jobId)
+      .then((res) => {
+        const data = res.data?.data || [];
+        if (mounted) setRows(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (mounted) {
+          setRows([]);
+          setError('Failed to load recommended candidates');
+        }
+      })
+      .finally(() => mounted && setLoading(false));
+
+    return () => {
+      mounted = false;
+    };
+  }, [jobId, canViewEmployees]);
+
+  if (!canViewEmployees) {
+    return <div style={{ fontSize: '13px', color: '#666' }}>You do not have permission to view employees.</div>;
+  }
+
+  const chipBase = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '3px 10px',
+    borderRadius: '999px',
+    fontSize: '11px',
+    fontWeight: 700,
+    border: '1px solid transparent',
+    whiteSpace: 'nowrap'
+  };
+
+  const renderVerificationChip = (value) => {
+    const v = String(value || 'pending').toLowerCase();
+    const palette = {
+      pending: { bg: '#fef9c3', color: '#854d0e', border: '#fde68a', label: 'Pending' },
+      approved: { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Approved' },
+      rejected: { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca', label: 'Rejected' }
+    };
+    const tone = palette[v] || { bg: '#e5e7eb', color: '#0f172a', border: '#cbd5e1', label: value || '-' };
+    return <span style={{ ...chipBase, background: tone.bg, color: tone.color, border: `1px solid ${tone.border}` }}>{tone.label}</span>;
+  };
+
+  const renderKycChip = (value) => {
+    const v = String(value || 'pending').toLowerCase();
+    // handle common aliases
+    const normalized = (v === 'granted' || v === 'verified') ? 'approved' : (v === 'rejected' ? 'rejected' : (v === 'pending' ? 'pending' : v));
+    const palette = {
+      pending: { bg: '#fef9c3', color: '#854d0e', border: '#fde68a', label: 'Pending' },
+      approved: { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Approved' },
+      rejected: { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca', label: 'Rejected' }
+    };
+    const tone = palette[normalized] || { bg: '#e5e7eb', color: '#0f172a', border: '#cbd5e1', label: value || '-' };
+    return <span style={{ ...chipBase, background: tone.bg, color: tone.color, border: `1px solid ${tone.border}` }}>{tone.label}</span>;
+  };
+
+  const renderUserStatusChip = (isActive) => {
+    if (isActive === null || isActive === undefined) {
+      return <span style={{ ...chipBase, background: '#e5e7eb', color: '#0f172a', border: '1px solid #cbd5e1' }}>-</span>;
+    }
+    const active = Boolean(isActive);
+    const tone = active
+      ? { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Active' }
+      : { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca', label: 'Inactive' };
+    return <span style={{ ...chipBase, background: tone.bg, color: tone.color, border: `1px solid ${tone.border}` }}>{tone.label}</span>;
+  };
+
+
+  if (loading) return <div style={{ fontSize: '13px' }}>Loading...</div>;
+  if (error) return <div style={{ color: '#b91c1c', fontSize: '12px' }}>{error}</div>;
+  if (!rows.length) return <div style={{ fontSize: '13px', color: '#666' }}>No matching candidates found.</div>;
+
+  return (
+    <div>
+      <h2 style={{ marginTop: 0, fontSize: '16px' }}>Recommended Candidates</h2>
+      <div style={{ overflow: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <thead>
+            <tr style={{ background: '#f5f5f5' }}>
+              <th style={thStyle}>ID</th>
+              <th style={thStyle}>Name</th>
+              <th style={thStyle}>Mobile</th>
+              <th style={thStyle}>Gender</th>
+              <th style={thStyle}>Qualification</th>
+              <th style={thStyle}>Expected Salary</th>
+              <th style={thStyle}>Salary Freq</th>
+              <th style={thStyle}>Preferred State</th>
+              <th style={thStyle}>Preferred City</th>
+              <th style={thStyle}>Job Profiles</th>
+              <th style={thStyle}>Verification</th>
+              <th style={thStyle}>KYC</th>
+              <th style={thStyle}>User Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const profiles = Array.isArray(r.job_profiles)
+                ? r.job_profiles
+                    .map((p) => p?.profile_english || p?.profile_hindi)
+                    .filter(Boolean)
+                    .join(', ')
+                : '-';
+
+              return (
+                <tr key={r.id}>
+                  <td style={tdStyle}>{r.id}</td>
+                  <td style={tdStyle}>
+                    <Link to={`/employees/${r.id}`} style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                      {r.name || '-'}
+                    </Link>
+                  </td>
+                  <td style={tdStyle}>{canShowPhone ? (r.mobile || '-') : '-'}</td>
+                  <td style={tdStyle}>{r.gender || '-'}</td>
+                  <td style={tdStyle}>{r.qualification || '-'}</td>
+                  <td style={tdStyle}>{r.expected_salary ?? '-'}</td>
+                  <td style={tdStyle}>{r.expected_salary_frequency || '-'}</td>
+                  <td style={tdStyle}>{r.preferred_state || '-'}</td>
+                  <td style={tdStyle}>{r.preferred_city || '-'}</td>
+                  <td style={tdStyle}>{profiles || '-'}</td>
+                  <td style={tdStyle}>{renderVerificationChip(r.verification_status)}</td>
+                  <td style={tdStyle}>{renderKycChip(r.kyc_status)}</td>
+                  <td style={tdStyle}>{renderUserStatusChip(r.is_active)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -593,8 +906,8 @@ function ApplicantTable({ applicants, type, navigate }) {
 function ApplicantRow({ applicant, timeField, navigate }) {
   const emp = applicant.employee || {};
   const name = emp.name || applicant.name || '-';
-  const verification = emp.verification_status || '-';
-  const kyc = emp.kyc_status || '-';
+  const verification = emp.kyc_status || '-';
+  const kyc = emp.verification_status || '-';
   const salary = emp.expected_salary ? `${emp.expected_salary}` : '-';
   const state = emp.PreferredState?.state_english || emp.preferred_state || '-';
   const city = emp.PreferredCity?.city_english || emp.preferred_city || '-';
@@ -642,8 +955,8 @@ function ReceivedInterestRow({ applicant }) {
   const emp = applicant.employee || {};
   // Fallbacks for direct fields
   const name = emp.name || applicant.name || '-';
-  const verification = emp.verification_status || '-';
-  const kyc = emp.kyc_status || '-';
+  const verification = emp.kyc_status || '-';
+  const kyc = emp.verification_status || '-';
   const salary = emp.expected_salary ? `${emp.expected_salary}` : '-';
   const state = emp.PreferredState?.state_english || emp.preferred_state || '-';
   const city = emp.PreferredCity?.city_english || emp.preferred_city || '-';
@@ -738,7 +1051,9 @@ function ViolationReportsTab({ reports, loading, error, onMarkAsRead }) {
 
   return (
     <div>
-      <h2 style={{ marginTop: 0, fontSize: '16px' }}>Violation Reports</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        <h2 style={{ marginTop: 0, fontSize: '16px' }}>Violation Reports</h2>
+      </div>
       {error && (
         <div style={{ color: '#b91c1c', fontSize: '12px', marginBottom: '8px' }}>{error}</div>
       )}

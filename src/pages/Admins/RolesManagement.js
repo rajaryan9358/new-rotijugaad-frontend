@@ -6,6 +6,7 @@ import { hasPermission, PERMISSIONS, PERMISSION_GROUPS } from '../../utils/permi
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import '../Masters/MasterPage.css';
 import { rolesApi } from '../../api/roles';
+import LogsAction from '../../components/LogsAction';
 
 const PERMISSION_OPTIONS = ['*', ...new Set(Object.values(PERMISSIONS))];
 
@@ -192,6 +193,7 @@ export default function RolesManagement() {
 
             <div className="list-header">
               <h1>Roles & Permissions</h1>
+              <LogsAction category="roles" title="Roles Logs" />
             </div>
 
             <div

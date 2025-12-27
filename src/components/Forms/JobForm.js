@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import jobApi from '../../api/jobApi';
+import employersApi from '../../api/employersApi';
 import skillsApi from '../../api/masters/skillsApi';
 import experiencesApi from '../../api/masters/experiencesApi';
 import qualificationsApi from '../../api/masters/qualificationsApi';
@@ -173,6 +174,8 @@ export default function JobForm({
   const { translating, translate } = useAutoTranslation();
   const [employerResults, setEmployerResults] = useState(Array.isArray(employers) ? employers : []);
   const [employerLoading, setEmployerLoading] = useState(false);
+  const [showNoCreditDialog, setShowNoCreditDialog] = useState(false);
+  const [noCreditMessage, setNoCreditMessage] = useState('No credit found');
 
   // Multi-select states
   const [selectedSkills, setSelectedSkills] = useState([]);
@@ -325,6 +328,33 @@ export default function JobForm({
         setSaving(false);
         return;
       }
+
+      // Credit gate (create/repost only): require 1 unexpired ad credit
+      if (!jobId) {
+        try {
+          const employerId = parseInt(form.employer_id, 10);
+          const res = await employersApi.getById(employerId);
+          const employer = res.data?.data || {};
+
+          const remainingAd = Number(employer.ad_credit || 0);
+
+          const expiryAt = employer.credit_expiry_at ? new Date(employer.credit_expiry_at) : null;
+          const isExpired = expiryAt && !Number.isNaN(expiryAt.getTime()) && expiryAt.getTime() <= Date.now();
+
+          if (isExpired || remainingAd < 1) {
+            setNoCreditMessage(isExpired ? 'Employer ad credits have expired' : 'No credit found');
+            setShowNoCreditDialog(true);
+            setSaving(false);
+            return;
+          }
+        } catch (creditErr) {
+          // If credit check fails to load, fail safe (don’t create job)
+          setError(creditErr?.response?.data?.message || 'Failed to verify employer credits');
+          setSaving(false);
+          return;
+        }
+      }
+
       const job_days = (selectedDays || []).map(d =>
         typeof d === 'object' && d.value ? String(d.value) : String(d)
       );
@@ -353,7 +383,13 @@ export default function JobForm({
       onSuccess && onSuccess();
       onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save job');
+      const code = err.response?.data?.code;
+      if (code === 'NO_AD_CREDIT') {
+        setNoCreditMessage(err.response?.data?.message || 'No credit found');
+        setShowNoCreditDialog(true);
+      } else {
+        setError(err.response?.data?.message || 'Failed to save job');
+      }
     } finally {
       setSaving(false);
     }
@@ -738,6 +774,33 @@ export default function JobForm({
           </button>
         </div>
       </form>
+
+      {showNoCreditDialog && (
+        <div
+          className="form-container"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 4000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <div style={{ width: '92%', maxWidth: '420px', background: '#fff', borderRadius: '10px', padding: '18px' }}>
+            <h2 style={{ marginTop: 0, fontSize: '16px' }}>No credit found</h2>
+            <div style={{ fontSize: '13px', color: '#475569', marginBottom: 12 }}>
+              {noCreditMessage}
+            </div>
+            <div className="form-actions">
+              <button className="btn-primary" type="button" onClick={() => setShowNoCreditDialog(false)}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ export default function ExperienceForm({ experienceId, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     title_english: '',
     title_hindi: '',
+    exp_type: 'year',
     exp_from: '',
     exp_to: '',
     sequence: '',
@@ -23,6 +24,7 @@ export default function ExperienceForm({ experienceId, onClose, onSuccess }) {
       setFormData({
         title_english: '',
         title_hindi: '',
+        exp_type: 'year',
         exp_from: '',
         exp_to: '',
         sequence: '',
@@ -35,7 +37,10 @@ export default function ExperienceForm({ experienceId, onClose, onSuccess }) {
     setLoading(true);
     try {
       const response = await experiencesApi.getById(experienceId);
-      setFormData(response.data.data);
+      setFormData({
+        ...response.data.data,
+        exp_type: response.data.data?.exp_type || 'year',
+      });
     } catch (error) {
       console.error('Error fetching experience:', error);
       setError('Failed to fetch experience details');
@@ -88,6 +93,13 @@ export default function ExperienceForm({ experienceId, onClose, onSuccess }) {
     }
   };
 
+  const unitLabel = formData.exp_type === 'month' ? 'Months' : 'Years';
+  const unitLabelHindi = formData.exp_type === 'month' ? 'महीने' : 'साल';
+  const titleExampleEnglish = formData.exp_type === 'month' ? 'e.g., 0-24 Months' : 'e.g., 0-2 Years';
+  const titleExampleHindi = formData.exp_type === 'month' ? 'e.g., 0-24 महीने' : 'e.g., 0-2 साल';
+  const fromExample = formData.exp_type === 'month' ? 'e.g., 0' : 'e.g., 0';
+  const toExample = formData.exp_type === 'month' ? 'e.g., 24' : 'e.g., 2';
+
   if (loading && experienceId) {
     return <div className="loading">Loading...</div>;
   }
@@ -110,7 +122,7 @@ export default function ExperienceForm({ experienceId, onClose, onSuccess }) {
             name="title_english"
             value={formData.title_english}
             onChange={handleChange}
-            placeholder="e.g., 0-2 Years"
+            placeholder={titleExampleEnglish}
             required
           />
         </div>
@@ -123,36 +135,54 @@ export default function ExperienceForm({ experienceId, onClose, onSuccess }) {
             name="title_hindi"
             value={formData.title_hindi}
             onChange={handleChange}
-            placeholder="e.g., 0-2 साल"
+            placeholder={titleExampleHindi}
             required
             onDoubleClick={handleHindiDoubleTap}
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="exp_from">Experience From (Years) *</label>
+          <label htmlFor="exp_type">Type *</label>
+          <select
+            id="exp_type"
+            name="exp_type"
+            value={formData.exp_type || 'year'}
+            onChange={handleChange}
+            required
+          >
+            <option value="year">Year (साल)</option>
+            <option value="month">Month (महीने)</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="exp_from">Experience From ({unitLabel}) *</label>
           <input
             type="number"
             id="exp_from"
             name="exp_from"
             value={formData.exp_from}
             onChange={handleChange}
-            placeholder="e.g., 0"
+            placeholder={fromExample}
+            min="0"
             required
           />
+          <small className="hint">Enter value in {unitLabel} ({unitLabelHindi})</small>
         </div>
 
         <div className="form-group">
-          <label htmlFor="exp_to">Experience To (Years) *</label>
+          <label htmlFor="exp_to">Experience To ({unitLabel}) *</label>
           <input
             type="number"
             id="exp_to"
             name="exp_to"
             value={formData.exp_to}
             onChange={handleChange}
-            placeholder="e.g., 2"
+            placeholder={toExample}
+            min="0"
             required
           />
+          <small className="hint">Enter value in {unitLabel} ({unitLabelHindi})</small>
         </div>
 
         <div className="form-group">

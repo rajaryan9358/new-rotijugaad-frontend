@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import DistanceForm from '../../components/Forms/DistanceForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import distancesApi from '../../api/masters/distancesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -178,17 +179,25 @@ export default function Distances() {
               <>
                 <div className="list-header">
                   <h1>Distances Management</h1>
-                  {canManageMasters && (
-                    <button
-                      className="btn-primary small"
-                      onClick={() => {
-                        setEditingId(null);
-                        setShowForm(true);
-                      }}
-                    >
-                      + Add Distance
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {canManageMasters && (
+                      <button
+                        className="btn-primary small"
+                        onClick={() => {
+                          setEditingId(null);
+                          setShowForm(true);
+                        }}
+                      >
+                        + Add Distance
+                      </button>
+                    )}
+                    {canViewMasters && (
+                      <LogsAction
+                        category="distance"
+                        title="Distance Logs"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="table-container">

@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import usersApi from '../../api/usersApi';
+import logsApi from '../../api/logsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { useLocation } from 'react-router-dom';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -25,7 +27,9 @@ export default function DeletedUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [userTypeFilter, setUserTypeFilter] = useState(normalizedUserTypeFromQuery);
   const [newUserFilter, setNewUserFilter] = useState('');
-  const [draftFilters, setDraftFilters] = useState({ searchTerm: '', userTypeFilter, newUserFilter: '' });
+  const [createdFromFilter, setCreatedFromFilter] = useState('');
+  const [createdToFilter, setCreatedToFilter] = useState('');
+  const [draftFilters, setDraftFilters] = useState({ searchTerm: '', userTypeFilter, newUserFilter: '', createdFromFilter: '', createdToFilter: '' });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const querySignature = useMemo(
     () => JSON.stringify({ user_type: normalizedUserTypeFromQuery }),
@@ -87,8 +91,10 @@ export default function DeletedUsers() {
     if (userTypeFilter) params.user_type = userTypeFilter;
     if (searchTerm.trim()) params.search = searchTerm.trim();
     if (newUserFilter) params.newFilter = newUserFilter;
+    if (createdFromFilter) params.created_from = createdFromFilter;
+    if (createdToFilter) params.created_to = createdToFilter;
     return params;
-  }, [userTypeFilter, searchTerm, newUserFilter]);
+  }, [userTypeFilter, searchTerm, newUserFilter, createdFromFilter, createdToFilter]);
 
   const fetchRows = React.useCallback(async () => {
     if (!canView) { setLoading(false); return; }
@@ -115,26 +121,32 @@ export default function DeletedUsers() {
 
   const toggleFilterPanel = () => {
     if (showFilterPanel) return setShowFilterPanel(false);
-    setDraftFilters({ searchTerm, userTypeFilter, newUserFilter });
+    setDraftFilters({ searchTerm, userTypeFilter, newUserFilter, createdFromFilter, createdToFilter });
     setShowFilterPanel(true);
   };
   const applyFilters = () => {
     setSearchTerm(draftFilters.searchTerm);
     setUserTypeFilter(draftFilters.userTypeFilter);
     setNewUserFilter(draftFilters.newUserFilter);
+    setCreatedFromFilter(draftFilters.createdFromFilter);
+    setCreatedToFilter(draftFilters.createdToFilter);
     setShowFilterPanel(false);
   };
   const clearFilters = () => {
     setSearchTerm('');
     setUserTypeFilter('');
     setNewUserFilter('');
-    setDraftFilters({ searchTerm: '', userTypeFilter: '', newUserFilter: '' });
+    setCreatedFromFilter('');
+    setCreatedToFilter('');
+    setDraftFilters({ searchTerm: '', userTypeFilter: '', newUserFilter: '', createdFromFilter: '', createdToFilter: '' });
     setShowFilterPanel(false);
   };
   const removeChip = (key) => {
     if (key === 'search') setSearchTerm('');
     if (key === 'user_type') setUserTypeFilter('');
     if (key === 'new_user') setNewUserFilter('');
+    if (key === 'created_from') setCreatedFromFilter('');
+    if (key === 'created_to') setCreatedToFilter('');
   };
 
   const buildExportFilename = () => {
@@ -201,7 +213,7 @@ export default function DeletedUsers() {
         return;
       }
 
-      const headers = ['ID', 'Name', 'Mobile', 'Type', 'Entity', 'Deleted At'];
+      const headers = ['ID','Name','Mobile','Referred By','Deleted By','User Type','Deleted At','Last Seen','User Life','Organization Type','Organization Name','Business Category','Email','Created At'];
       const escape = (value) => {
         if (value === null || value === undefined) return '';
         const str = String(value);
@@ -211,9 +223,17 @@ export default function DeletedUsers() {
         row.id,
         row.name || '',
         row.mobile || '',
+        row.referred_by || '',
+        (row.DeletedBy?.name || row.deleted_by_name || (row.deleted_by ?? '')),
         row.user_type || '',
-        row.entity?.name || '',
-        formatExportDateTime(row.deleted_at)
+        formatExportDateTime(row.deleted_at),
+        formatExportDateTime(row.last_seen),
+        row.user_life ?? '',
+        row.organization_type || '',
+        row.organization_name || '',
+        row.business_category || '',
+        row.email || '',
+        formatExportDateTime(row.created_at)
       ]);
       const csv = [headers.map(escape).join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -225,6 +245,17 @@ export default function DeletedUsers() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
+      try {
+        await logsApi.create({
+          category: 'deleted users',
+          type: 'export',
+          log_text: `Exported deleted users (${exportRows.length})`,
+          redirect_to: '/users/deleted'
+        });
+      } catch (e) {
+        // ignore logging failures
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to export deleted users');
     }
@@ -255,6 +286,12 @@ export default function DeletedUsers() {
                 />
               </div>
               <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                <LogsAction
+                  category="deleted users"
+                  title="Deleted Users Logs"
+                  buttonLabel="Logs"
+                  buttonClassName="btn-small"
+                />
                 <button className="btn-secondary btn-small" onClick={toggleFilterPanel}>
                   Filters
                 </button>
@@ -288,7 +325,19 @@ export default function DeletedUsers() {
                   <button style={chipCloseStyle} onClick={() => removeChip('new_user')}>×</button>
                 </span>
               )}
-              {!searchTerm && !userTypeFilter && !newUserFilter && (
+              {createdFromFilter && (
+                <span style={chipBaseStyle}>
+                  Created from: {createdFromFilter}
+                  <button style={chipCloseStyle} onClick={() => removeChip('created_from')}>×</button>
+                </span>
+              )}
+              {createdToFilter && (
+                <span style={chipBaseStyle}>
+                  Created to: {createdToFilter}
+                  <button style={chipCloseStyle} onClick={() => removeChip('created_to')}>×</button>
+                </span>
+              )}
+              {!searchTerm && !userTypeFilter && !newUserFilter && !createdFromFilter && !createdToFilter && (
                 <span style={{ fontSize: '12px', color: '#64748b' }}>No filters applied</span>
               )}
             </div>
@@ -308,6 +357,7 @@ export default function DeletedUsers() {
                       <option value="employer">Employer</option>
                     </select>
                   </div>
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label className="filter-label">User Recency</label>
                     <select
@@ -319,7 +369,28 @@ export default function DeletedUsers() {
                       <option value="new">New</option>
                     </select>
                   </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label className="filter-label">Created From</label>
+                    <input
+                      type="date"
+                      className="state-filter-select"
+                      value={draftFilters.createdFromFilter}
+                      onChange={(e) => setDraftFilters(f => ({ ...f, createdFromFilter: e.target.value }))}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label className="filter-label">Created To</label>
+                    <input
+                      type="date"
+                      className="state-filter-select"
+                      value={draftFilters.createdToFilter}
+                      onChange={(e) => setDraftFilters(f => ({ ...f, createdToFilter: e.target.value }))}
+                    />
+                  </div>
                 </div>
+
                 <div className="filter-actions" style={{ marginTop: '18px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                   <button className="btn-primary btn-small" onClick={applyFilters}>Apply</button>
                   <button className="btn-secondary btn-small" onClick={clearFilters}>Clear</button>
@@ -345,13 +416,19 @@ export default function DeletedUsers() {
                   <thead>
                     <tr>
                       <th>ID</th>
-                      <th>User</th>
+                      <th>Name</th>
                       <th>Mobile</th>
-                      <th>Type</th>
-                      <th>Entity</th>
+                      <th>Referred by</th>
+                      <th>Deleted by</th>
+                      <th>User type</th>
                       <th>Deleted at</th>
                       <th>Last seen</th>
-                      <th>User life (days)</th>
+                      <th>User life</th>
+                      <th>Organization type</th>
+                      <th>Organization name</th>
+                      <th>Business category</th>
+                      <th>Email</th>
+                      <th>Created at</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -370,16 +447,22 @@ export default function DeletedUsers() {
                             </span>
                           </td>
                           <td>{row.mobile || '-'}</td>
+                          <td>{row.referred_by || '-'}</td>
+                          <td>{row.DeletedBy?.name || row.deleted_by_name || (row.deleted_by ?? '-') }</td>
                           <td style={{ textTransform: 'capitalize' }}>{row.user_type || '-'}</td>
-                          <td>{row.entity?.name || '-'}</td>
                           <td>{formatDateTime(row.deleted_at)}</td>
-                          <td>{formatDateTime(row.last_active_at)}</td>
-                          <td>{getUserLifeDays(row.created_at, row.deleted_at)}</td>
+                          <td>{formatDateTime(row.last_seen)}</td>
+                          <td>{row.user_life ?? '-'}</td>
+                          <td>{row.organization_type || '-'}</td>
+                          <td>{row.organization_name || '-'}</td>
+                          <td>{row.business_category || '-'}</td>
+                          <td>{row.email || '-'}</td>
+                          <td>{formatDateTime(row.created_at)}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="8" className="no-data">No deleted users</td>
+                        <td colSpan="14" className="no-data">No deleted users</td>
                       </tr>
                     )}
                   </tbody>

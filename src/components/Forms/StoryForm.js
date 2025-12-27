@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getStoryById, createStory, updateStory, uploadStoryImage } from '../../api/storiesApi';
+import LogsAction from '../LogsAction';
 import './MasterForm.css';
 import { useAutoTranslation } from '../../hooks/useAutoTranslation';
 
@@ -145,8 +146,19 @@ export default function StoryForm({ storyId, onClose, onSuccess }) {
 
   return (
     <div className="form-container">
-      <div className="form-header">
-        <h1>{isEdit ? 'Edit Story' : 'Add New Story'}</h1>
+      <div className="form-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h1 style={{ margin: 0 }}>{isEdit ? 'Edit Story' : 'Add New Story'}</h1>
+          {isEdit && (
+            <LogsAction
+              category="stories"
+              title="Story Logs"
+              buttonLabel="Logs"
+              buttonClassName=""
+              buttonStyle={{ padding: '4px 10px' }}
+            />
+          )}
+        </div>
         <button className="btn-close" onClick={onClose}>✕</button>
       </div>
       {error && <div className="error-message">{error}</div>}

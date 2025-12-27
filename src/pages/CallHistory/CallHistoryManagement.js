@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import callHistoryApi from '../../api/callHistoryApi';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import LogsAction from '../../components/LogsAction';
+import logsApi from '../../api/logsApi';
 
 export default function CallHistoryManagement() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,11 +23,25 @@ export default function CallHistoryManagement() {
   const [pageSize, setPageSize] = useState(25);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [userTypeFilter, setUserTypeFilter] = useState('');
+
+  // NEW: wait until URL params are applied before first load
+  const [urlFiltersReady, setUrlFiltersReady] = useState(false);
+
+  // Global filter (mandatory) to control dataset + columns
+  const [globalUserType, setGlobalUserType] = useState('employee');
+
   const [callExperienceFilter, setCallExperienceFilter] = useState('');
   const [readStatusFilter, setReadStatusFilter] = useState('');
+  const [createdFromFilter, setCreatedFromFilter] = useState(''); // YYYY-MM-DD
+  const [createdToFilter, setCreatedToFilter] = useState(''); // YYYY-MM-DD
+
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [draftFilters, setDraftFilters] = useState({ userTypeFilter: '', callExperienceFilter: '', readStatusFilter: '' });
+  const [draftFilters, setDraftFilters] = useState({
+    callExperienceFilter: '',
+    readStatusFilter: '',
+    createdFromFilter: '',
+    createdToFilter: ''
+  });
   const [experienceCache, setExperienceCache] = useState({});
   const linkButtonStyle = {
     background: 'none',
@@ -76,10 +93,15 @@ export default function CallHistoryManagement() {
     search: searchTerm.trim() || undefined,
     sortField,
     sortDir,
-    user_type: userTypeFilter || undefined,
+    user_type: globalUserType, // global filter drives dataset
     call_experience_id: callExperienceFilter || undefined,
-    read_status: readStatusFilter || undefined
-  }), [currentPage, pageSize, searchTerm, sortField, sortDir, userTypeFilter, callExperienceFilter, readStatusFilter]);
+    read_status: readStatusFilter || undefined,
+    created_from: createdFromFilter || undefined,
+    created_to: createdToFilter || undefined
+  }), [
+    currentPage, pageSize, searchTerm, sortField, sortDir, globalUserType,
+    callExperienceFilter, readStatusFilter, createdFromFilter, createdToFilter
+  ]);
 
   const load = React.useCallback(async () => {
     if (!canViewCallHistory) return;
@@ -110,63 +132,238 @@ export default function CallHistoryManagement() {
     }
   }, [experienceCache]);
 
-  useEffect(() => { if (canViewCallHistory) load(); }, [canViewCallHistory, load]);
-  useEffect(() => { fetchExperiences(userTypeFilter); }, [userTypeFilter, fetchExperiences]);
-  useEffect(() => { if (showFilterPanel) fetchExperiences(draftFilters.userTypeFilter); }, [showFilterPanel, draftFilters.userTypeFilter, fetchExperiences]);
+  useEffect(() => { if (canViewCallHistory && urlFiltersReady) load(); }, [canViewCallHistory, urlFiltersReady, load]);
+  useEffect(() => { fetchExperiences(globalUserType); }, [globalUserType, fetchExperiences]);
 
-  const experiencesForApplied = userTypeFilter ? experienceCache[userTypeFilter] || [] : [];
-  const experiencesForDraft = draftFilters.userTypeFilter ? experienceCache[draftFilters.userTypeFilter] || [] : [];
-  const activeFilterCount = [searchTerm.trim(), userTypeFilter, callExperienceFilter, readStatusFilter].filter(Boolean).length;
+  // When global user type changes, reset dependent filters + pagination
+  useEffect(() => {
+    // IMPORTANT: don't clobber URL-initialized state during first hydration
+    if (!urlFiltersReady) return;
+
+    setCallExperienceFilter('');
+    setDraftFilters(f => ({ ...f, callExperienceFilter: '' }));
+    setCurrentPage(1);
+  }, [globalUserType, urlFiltersReady]);
+
+  const syncUrlWithFilters = React.useCallback((overrides = {}) => {
+    const next = {
+      // NOTE: user_type is intentionally NOT persisted in URL
+      search: overrides.search ?? searchTerm,
+      experience: overrides.experience ?? callExperienceFilter,
+      readStatus: overrides.readStatus ?? readStatusFilter,
+      createdFrom: overrides.createdFrom ?? createdFromFilter,
+      createdTo: overrides.createdTo ?? createdToFilter
+    };
+
+    const qs = new URLSearchParams();
+
+    // only include applied filters (but never user_type)
+    if (next.search?.trim()) qs.set('search', next.search.trim());
+    if (next.experience) qs.set('call_experience_id', String(next.experience));
+    if (next.readStatus) qs.set('read_status', String(next.readStatus));
+    if (next.createdFrom) qs.set('created_date_start', String(next.createdFrom).slice(0, 10));
+    if (next.createdTo) qs.set('created_date_end', String(next.createdTo).slice(0, 10));
+
+    const nextSearch = qs.toString() ? `?${qs.toString()}` : '';
+    if ((location.search || '') === nextSearch) return;
+
+    // SPA navigation; no page refresh
+    navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
+  }, [
+    navigate,
+    location.pathname,
+    location.search,
+    searchTerm,
+    callExperienceFilter,
+    readStatusFilter,
+    createdFromFilter,
+    createdToFilter
+  ]);
+
+  // Apply URL query params (created_from/created_to or created_date_start/created_date_end)
+  useEffect(() => {
+    const qs = new URLSearchParams(location.search || '');
+    const createdFromRaw = qs.get('created_from') ?? qs.get('created_date_start') ?? '';
+    const createdToRaw = qs.get('created_to') ?? qs.get('created_date_end') ?? '';
+    const userType = (qs.get('user_type') || '').toLowerCase();
+
+    let touched = false;
+
+    // Apply user_type if present (but do NOT keep it in URL)
+    if (userType === 'employee' || userType === 'employer') {
+      setGlobalUserType(userType);
+      touched = true;
+    }
+
+    if (createdFromRaw !== null && createdFromRaw !== '') {
+      setCreatedFromFilter(String(createdFromRaw).slice(0, 10));
+      setDraftFilters(f => ({ ...f, createdFromFilter: String(createdFromRaw).slice(0, 10) }));
+      touched = true;
+    } else if (qs.has('created_from') || qs.has('created_date_start')) {
+      setCreatedFromFilter('');
+      setDraftFilters(f => ({ ...f, createdFromFilter: '' }));
+      touched = true;
+    }
+
+    if (createdToRaw !== null && createdToRaw !== '') {
+      setCreatedToFilter(String(createdToRaw).slice(0, 10));
+      setDraftFilters(f => ({ ...f, createdToFilter: String(createdToRaw).slice(0, 10) }));
+      touched = true;
+    } else if (qs.has('created_to') || qs.has('created_date_end')) {
+      setCreatedToFilter('');
+      setDraftFilters(f => ({ ...f, createdToFilter: '' }));
+      touched = true;
+    }
+
+    const urlSearch = (qs.get('search') || '').trim();
+    const urlReadStatus = (qs.get('read_status') || '').toLowerCase();
+    const urlCallExp = qs.get('call_experience_id') || '';
+
+    if (urlSearch) {
+      setSearchTerm(urlSearch);
+      touched = true;
+    } else if (qs.has('search')) {
+      setSearchTerm('');
+      touched = true;
+    }
+
+    if (urlReadStatus === 'read' || urlReadStatus === 'unread') {
+      setReadStatusFilter(urlReadStatus);
+      setDraftFilters(f => ({ ...f, readStatusFilter: urlReadStatus }));
+      touched = true;
+    } else if (qs.has('read_status')) {
+      setReadStatusFilter('');
+      setDraftFilters(f => ({ ...f, readStatusFilter: '' }));
+      touched = true;
+    }
+
+    if (urlCallExp) {
+      setCallExperienceFilter(urlCallExp);
+      setDraftFilters(f => ({ ...f, callExperienceFilter: urlCallExp }));
+      touched = true;
+    } else if (qs.has('call_experience_id')) {
+      setCallExperienceFilter('');
+      setDraftFilters(f => ({ ...f, callExperienceFilter: '' }));
+      touched = true;
+    }
+
+    if (touched) setCurrentPage(1);
+    setUrlFiltersReady(true);
+
+    // NEW: strip user_type from URL after applying it (no refresh)
+    if (qs.has('user_type')) {
+      qs.delete('user_type');
+      const cleaned = qs.toString();
+      const nextSearch = cleaned ? `?${cleaned}` : '';
+      if (nextSearch !== (location.search || '')) {
+        navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
+      }
+    }
+  }, [location.search, location.pathname, navigate]);
+
+  const experiencesForApplied = experienceCache[globalUserType] || [];
+  const experiencesForDraft = experienceCache[globalUserType] || [];
+  const activeFilterCount = [
+    searchTerm.trim(),
+    callExperienceFilter,
+    readStatusFilter,
+    createdFromFilter,
+    createdToFilter
+  ].filter(Boolean).length;
   const pageSummary = totalCount > 0
-    ? { start: Math.min((currentPage - 1) * pageSize + 1, totalCount), end: Math.min((currentPage - 1) * pageSize + rows.length, totalCount) }
+    ? {
+        start: Math.min((currentPage - 1) * pageSize + 1, totalCount),
+        end: Math.min((currentPage - 1) * pageSize + rows.length, totalCount)
+      }
     : { start: 0, end: 0 };
 
   const toggleFilterPanel = () => {
     if (showFilterPanel) return setShowFilterPanel(false);
-    setDraftFilters({ userTypeFilter, callExperienceFilter, readStatusFilter });
+    setDraftFilters({ callExperienceFilter, readStatusFilter, createdFromFilter, createdToFilter });
     setShowFilterPanel(true);
   };
 
   const applyFilters = () => {
-    setUserTypeFilter(draftFilters.userTypeFilter);
-    setCallExperienceFilter(draftFilters.userTypeFilter ? draftFilters.callExperienceFilter : '');
-    setReadStatusFilter(draftFilters.readStatusFilter);
+    const nextExperience = draftFilters.callExperienceFilter;
+    const nextReadStatus = draftFilters.readStatusFilter;
+    const nextCreatedFrom = draftFilters.createdFromFilter;
+    const nextCreatedTo = draftFilters.createdToFilter;
+
+    setCallExperienceFilter(nextExperience);
+    setReadStatusFilter(nextReadStatus);
+    setCreatedFromFilter(nextCreatedFrom);
+    setCreatedToFilter(nextCreatedTo);
     setCurrentPage(1);
     setShowFilterPanel(false);
+
+    syncUrlWithFilters({
+      experience: nextExperience,
+      readStatus: nextReadStatus,
+      createdFrom: nextCreatedFrom,
+      createdTo: nextCreatedTo
+    });
   };
 
   const clearFilters = () => {
-    setUserTypeFilter('');
     setCallExperienceFilter('');
     setReadStatusFilter('');
-    setDraftFilters({ userTypeFilter: '', callExperienceFilter: '', readStatusFilter: '' });
+    setCreatedFromFilter('');
+    setCreatedToFilter('');
+    setDraftFilters({ callExperienceFilter: '', readStatusFilter: '', createdFromFilter: '', createdToFilter: '' });
     setSortField('id');
     setSortDir('desc');
     setCurrentPage(1);
     setShowFilterPanel(false);
+
+    syncUrlWithFilters({ experience: '', readStatus: '', createdFrom: '', createdTo: '' });
   };
 
   const removeChip = (key) => {
-    if (key === 'search') setSearchTerm('');
-    if (key === 'user_type') { setUserTypeFilter(''); setCallExperienceFilter(''); }
-    if (key === 'experience') setCallExperienceFilter('');
-    if (key === 'read_status') setReadStatusFilter('');
+    const next = {
+      search: searchTerm,
+      experience: callExperienceFilter,
+      readStatus: readStatusFilter,
+      createdFrom: createdFromFilter,
+      createdTo: createdToFilter
+    };
+
+    if (key === 'search') { setSearchTerm(''); next.search = ''; }
+    if (key === 'experience') { setCallExperienceFilter(''); next.experience = ''; }
+    if (key === 'read_status') { setReadStatusFilter(''); next.readStatus = ''; }
+    if (key === 'created_from') { setCreatedFromFilter(''); next.createdFrom = ''; }
+    if (key === 'created_to') { setCreatedToFilter(''); next.createdTo = ''; }
+
     setCurrentPage(1);
+    syncUrlWithFilters(next);
+  };
+
+  const calledIdLabel = globalUserType === 'employee' ? 'Job ID' : 'Employee ID';
+
+  const getJobProfileLabel = (jp) =>
+    jp?.profile_english || jp?.profile_hindi || (jp?.id ? `#${jp.id}` : '-');
+
+  const getBusinessCategoryLabel = (bc) =>
+    bc?.category_english || bc?.category_hindi || bc?.name_english || bc?.name_hindi || bc?.name || (bc?.id ? `#${bc.id}` : '-');
+
+  const getStateLabel = (s) =>
+    s?.state_english || s?.state_hindi || (s?.id ? `#${s.id}` : '');
+
+  const getCityLabel = (c) =>
+    c?.city_english || c?.city_hindi || (c?.id ? `#${c.id}` : '');
+
+  const openJob = (row) => {
+    if (!row?.called_id) return;
+    navigate(`/jobs/${row.called_id}`);
+  };
+
+  const openCalledEmployee = (row) => {
+    if (!row?.called_id) return; // called_id is employee_id when globalUserType === 'employer'
+    navigate(`/employees/${row.called_id}`);
   };
 
   const buildExportFilename = () => {
-    const pad = (val) => String(val).padStart(2, '0');
-    const now = new Date();
-    const dd = pad(now.getDate());
-    const MM = pad(now.getMonth() + 1);
-    const yyyy = now.getFullYear();
-    let hours = now.getHours();
-    const suffix = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    const hh = pad(hours);
-    const mm = pad(now.getMinutes());
-    const ss = pad(now.getSeconds());
-    return `call_history_${dd}-${MM}-${yyyy}_${hh}_${mm}_${ss}_${suffix}_.csv`;
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-'); // YYYY-MM-DD-HH-mm-ss
+    return `call-history_${globalUserType}_${ts}.csv`;
   };
 
   const exportToCSV = async () => {
@@ -213,7 +410,14 @@ export default function CallHistoryManagement() {
       return;
     }
 
-    const headers = ['ID','User Type','User ID','Name','Mobile','Experience','Review','Read At','Created At'];
+    const baseHeaders = ['ID','User Type','User ID', calledIdLabel,'Name','Mobile','Experience','Review','Read At','Created At'];
+
+    const extraHeaders = globalUserType === 'employee'
+      ? ['Job Profile','Organization Name','Organization Category','Organization Contact']
+      : ['Employee Name','Preferred State','Preferred City','Employee Mobile','Employee Job Profile'];
+
+    const headers = [...baseHeaders, ...extraHeaders];
+
     const escapeCell = (val) => {
       if (val === null || val === undefined) return '';
       const s = String(val);
@@ -229,19 +433,39 @@ export default function CallHistoryManagement() {
         return '';
       }
     };
-    const rows = exportRows.map((r) => [
-      r.id,
-      r.user_type || '',
-      r.user_id || '',
-      r.user_name || r.entity?.name || r.user?.name || '',
-      r.user_mobile || r.user?.mobile || '',
-      r.experience
-        ? (r.experience.experience_english || r.experience.experience_hindi || r.call_experience_id || '')
-        : (r.call_experience_id || ''),
-      r.review || '',
-      formatExportDateTime(r.read_at),
-      formatExportDateTime(r.created_at)
-    ]);
+    const rows = exportRows.map((r) => {
+      const base = [
+        r.id,
+        r.user_type || '',
+        r.user_id || '',
+        r.called_id || '',
+        r.user_name || r.entity?.name || r.user?.name || '',
+        r.user_mobile || r.user?.mobile || '',
+        r.experience
+          ? (r.experience.experience_english || r.experience.experience_hindi || r.call_experience_id || '')
+          : (r.call_experience_id || ''),
+        r.review || '',
+        formatExportDateTime(r.read_at),
+        formatExportDateTime(r.created_at)
+      ];
+
+      const extra = (globalUserType === 'employee')
+        ? [
+            getJobProfileLabel(r.called_job_profile),
+            (r.called_employer?.organization_name || r.called_employer?.name || ''),
+            getBusinessCategoryLabel(r.called_business_category),
+            (r.called_employer_user?.mobile || '')
+          ]
+        : [
+            (r.called_employee?.name || r.called_employee_user?.name || ''),
+            getStateLabel(r.preferred_state),
+            getCityLabel(r.preferred_city),
+            (r.called_employee_user?.mobile || ''),
+            getJobProfileLabel(r.called_employee_job_profile)
+          ];
+
+      return [...base, ...extra];
+    });
     const csv = [headers.map(escapeCell).join(','), ...rows.map((row) => row.map(escapeCell).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -252,6 +476,17 @@ export default function CallHistoryManagement() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    try {
+      await logsApi.create({
+        category: 'call history',
+        type: 'export',
+        redirect_to: '/call-history',
+        log_text: `Exported call history (${globalUserType})`,
+      });
+    } catch (e) {
+      // do not break export flow if logging fails
+    }
   };
 
   const handleSort = (field) => {
@@ -325,6 +560,8 @@ export default function CallHistoryManagement() {
     return <div style={{ padding:40 }}>You do not have permission to view this page.</div>;
   }
 
+  const tableColCount = 10 + (globalUserType === 'employee' ? 4 : 5);
+
   return (
     <div className="dashboard-container">
       <Header onMenuClick={() => setSidebarOpen(o => !o)} />
@@ -332,8 +569,27 @@ export default function CallHistoryManagement() {
         <Sidebar isOpen={sidebarOpen} />
         <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
-            <div className="list-header">
-              <h1>Call History</h1>
+            <div className="list-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <h1 style={{ margin: 0 }}>Call History</h1>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>View:</label>
+                <select
+                  className="state-filter-select"
+                  value={globalUserType}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+
+                    setGlobalUserType(nextType);
+                    // keep URL in sync (but user_type is never written); also clear experience across types
+                    syncUrlWithFilters({ experience: '' });
+                  }}
+                  style={{ maxWidth: '180px' }}
+                >
+                  <option value="employee">Employee</option>
+                  <option value="employer">Employer</option>
+                </select>
+              </div>
             </div>
 
             {message && (
@@ -360,6 +616,7 @@ export default function CallHistoryManagement() {
                 <button className="btn-secondary btn-small" onClick={toggleFilterPanel}>
                   Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
                 </button>
+                <LogsAction category="call history" />
                 {canExportCallHistory && (
                   <button className="btn-secondary btn-small" onClick={exportToCSV}>
                     Export CSV
@@ -375,12 +632,6 @@ export default function CallHistoryManagement() {
                   <button style={chipCloseStyle} onClick={() => removeChip('search')}>×</button>
                 </span>
               )}
-              {userTypeFilter && (
-                <span className="badge chip" style={chipBaseStyle}>
-                  User Type: {userTypeFilter}
-                  <button style={chipCloseStyle} onClick={() => removeChip('user_type')}>×</button>
-                </span>
-              )}
               {callExperienceFilter && (
                 <span className="badge chip" style={chipBaseStyle}>
                   Experience: {experiencesForApplied.find(exp => exp.id === Number(callExperienceFilter))?.experience_english || callExperienceFilter}
@@ -393,6 +644,18 @@ export default function CallHistoryManagement() {
                   <button style={chipCloseStyle} onClick={() => removeChip('read_status')}>×</button>
                 </span>
               )}
+              {createdFromFilter && (
+                <span className="badge chip" style={chipBaseStyle}>
+                  Created From: {createdFromFilter}
+                  <button style={chipCloseStyle} onClick={() => removeChip('created_from')}>×</button>
+                </span>
+              )}
+              {createdToFilter && (
+                <span className="badge chip" style={chipBaseStyle}>
+                  Created To: {createdToFilter}
+                  <button style={chipCloseStyle} onClick={() => removeChip('created_to')}>×</button>
+                </span>
+              )}
               {!activeFilterCount && <span style={{ fontSize: '12px', color: '#64748b' }}>No filters applied</span>}
             </div>
 
@@ -400,24 +663,11 @@ export default function CallHistoryManagement() {
               <div className="filter-panel" style={{ marginBottom: '16px', padding: '16px', border: '1px solid #ddd', borderRadius: '8px', background: '#f8fafc' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label className="filter-label">User Type</label>
-                    <select
-                      className="state-filter-select"
-                      value={draftFilters.userTypeFilter}
-                      onChange={(e) => setDraftFilters(f => ({ ...f, userTypeFilter: e.target.value, callExperienceFilter: '' }))}
-                    >
-                      <option value="">All</option>
-                      <option value="employee">Employee</option>
-                      <option value="employer">Employer</option>
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label className="filter-label">Call Experience</label>
                     <select
                       className="state-filter-select"
                       value={draftFilters.callExperienceFilter}
                       onChange={(e) => setDraftFilters(f => ({ ...f, callExperienceFilter: e.target.value }))}
-                      disabled={!draftFilters.userTypeFilter}
                     >
                       <option value="">All</option>
                       {experiencesForDraft.map(exp => (
@@ -427,6 +677,7 @@ export default function CallHistoryManagement() {
                       ))}
                     </select>
                   </div>
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label className="filter-label">Read Status</label>
                     <select
@@ -439,7 +690,28 @@ export default function CallHistoryManagement() {
                       <option value="read">Read</option>
                     </select>
                   </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label className="filter-label">Created Date From</label>
+                    <input
+                      type="date"
+                      className="state-filter-select"
+                      value={draftFilters.createdFromFilter}
+                      onChange={(e) => setDraftFilters(f => ({ ...f, createdFromFilter: e.target.value }))}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label className="filter-label">Created Date To</label>
+                    <input
+                      type="date"
+                      className="state-filter-select"
+                      value={draftFilters.createdToFilter}
+                      onChange={(e) => setDraftFilters(f => ({ ...f, createdToFilter: e.target.value }))}
+                    />
+                  </div>
                 </div>
+
                 <div className="filter-actions" style={{ marginTop: '18px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                   <button className="btn-primary btn-small" onClick={applyFilters}>Apply</button>
                   <button className="btn-secondary btn-small" onClick={clearFilters}>Clear</button>
@@ -456,16 +728,36 @@ export default function CallHistoryManagement() {
                     <th onClick={() => handleSort('user_type')} style={{ cursor: 'pointer' }}>User Type{headerIndicator('user_type')}</th>
                     <th>Name</th>
                     <th>Mobile</th>
+
+                    {globalUserType === 'employee' ? (
+                      <>
+                        <th>Job Profile</th>
+                        <th>Organization Name</th>
+                        <th>Organization Category</th>
+                        <th>Organization Contact</th>
+                      </>
+                    ) : (
+                      <>
+                        <th>Employee Name</th>
+                        <th>Preferred State</th>
+                        <th>Preferred City</th>
+                        <th>Employee Mobile</th>
+                        <th>Employee Job Profile</th>
+                      </>
+                    )}
+
                     <th>Experience</th>
+                    <th>{calledIdLabel}</th>
                     <th>Review</th>
                     <th onClick={() => handleSort('read_at')} style={{ cursor: 'pointer' }}>Read At{headerIndicator('read_at')}</th>
                     <th onClick={() => handleSort('created_at')} style={{ cursor: 'pointer' }}>Created{headerIndicator('created_at')}</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="8">Loading...</td></tr>
+                    <tr><td colSpan={tableColCount}>Loading...</td></tr>
                   ) : rows.length ? (
                     rows.map(r => {
                       const isRead = !!r.read_at;
@@ -479,6 +771,7 @@ export default function CallHistoryManagement() {
                         >
                           <td>{r.id}</td>
                           <td>{r.user_type}</td>
+
                           <td>
                             {r.user_id && r.user_type ? (
                               <button type="button" style={linkButtonStyle} onClick={() => openProfile(r)}>
@@ -488,17 +781,57 @@ export default function CallHistoryManagement() {
                               r.user_name || r.entity?.name || r.user?.name || '-'
                             )}
                           </td>
+
                           <td>{r.user_mobile || r.user?.mobile || '-'}</td>
+
+                          {globalUserType === 'employee' ? (
+                            <>
+                              <td>
+                                {r.called_id ? (
+                                  <button type="button" style={linkButtonStyle} onClick={() => openJob(r)}>
+                                    {getJobProfileLabel(r.called_job_profile)}
+                                  </button>
+                                ) : (
+                                  getJobProfileLabel(r.called_job_profile)
+                                )}
+                              </td>
+                              <td>{r.called_employer?.organization_name || r.called_employer?.name || '-'}</td>
+                              <td>{getBusinessCategoryLabel(r.called_business_category)}</td>
+                              <td>{r.called_employer_user?.mobile || '-'}</td>
+                            </>
+                          ) : (
+                            <>
+                              <td>
+                                {r.called_id ? (
+                                  <button type="button" style={linkButtonStyle} onClick={() => openCalledEmployee(r)}>
+                                    {r.called_employee?.name || r.called_employee_user?.name || '-'}
+                                  </button>
+                                ) : (
+                                  r.called_employee?.name || r.called_employee_user?.name || '-'
+                                )}
+                              </td>
+                              <td>{getStateLabel(r.preferred_state) || '-'}</td>
+                              <td>{getCityLabel(r.preferred_city) || '-'}</td>
+                              <td>{r.called_employee_user?.mobile || '-'}</td>
+                              <td>{getJobProfileLabel(r.called_employee_job_profile)}</td>
+                            </>
+                          )}
+
                           <td>
                             {r.experience
                               ? (r.experience.experience_english || r.experience.experience_hindi || r.call_experience_id)
                               : (r.call_experience_id || '-')}
                           </td>
+
+                          <td>{r.called_id || '-'}</td>
+
                           <td style={{ maxWidth:'260px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                             {r.review || '-'}
                           </td>
+
                           <td>{r.read_at ? new Date(r.read_at).toLocaleString() : '-'}</td>
                           <td>{r.created_at ? new Date(r.created_at).toLocaleDateString() : '-'}</td>
+
                           <td>
                             <button
                               className="btn-small"
@@ -524,7 +857,7 @@ export default function CallHistoryManagement() {
                       );
                     })
                   ) : (
-                    <tr><td colSpan="8">No data</td></tr>
+                    <tr><td colSpan={tableColCount}>No data</td></tr>
                   )}
                 </tbody>
               </table>
@@ -620,15 +953,7 @@ export default function CallHistoryManagement() {
                     </button>
                   </div>
                   <div style={{ padding: '22px 26px', overflowY: 'auto', background: '#ffffff' }}>
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '140px 1fr',
-                        rowGap: '16px',
-                        columnGap: '18px',
-                        fontSize: '14px'
-                      }}
-                    >
+                    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: '16px', columnGap: '18px', fontSize: '14px' }}>
                       <strong style={{ textAlign: 'right', color: '#64748b' }}>User Type:</strong>
                       <span>{viewItem.user_type}</span>
                       <strong style={{ textAlign: 'right', color: '#64748b' }}>Name:</strong>
@@ -641,6 +966,8 @@ export default function CallHistoryManagement() {
                           ? (viewItem.experience.experience_english || viewItem.experience.experience_hindi || viewItem.experience.id)
                           : (viewItem.call_experience_id || '—')}
                       </span>
+                      <strong style={{ textAlign: 'right', color: '#64748b' }}>Called ID:</strong>
+                      <span>{viewItem.called_id || '—'}</span>
                       <strong style={{ textAlign: 'right', color: '#64748b', alignSelf: 'start' }}>Review:</strong>
                       <div
                         style={{

@@ -1,3 +1,6 @@
+/* NOTE: "Recent additions" cards may grow (now includes KYC Verified Employers too); stats-grid is responsive via auto-fill minmax. */
+/* NOTE: Employer status chips can now show timestamps (verification_at / kyc_verification_at). */
+
 .dashboard-container {
   display: flex;
   flex-direction: column;

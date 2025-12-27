@@ -28,13 +28,26 @@ export default function DocumentTypeForm({ typeId, onClose, onSuccess }) {
   }, [typeId]);
 
   const fetchType = async () => {
+    if (!typeId) return;
     setLoading(true);
     try {
       const response = await documentTypesApi.getById(typeId);
-      setFormData(response.data.data);
+      const type = response?.data?.data;
+
+      if (!type) {
+        setError('Document Type not found');
+        return;
+      }
+
+      setFormData({
+        type_english: type?.type_english ?? '',
+        type_hindi: type?.type_hindi ?? '',
+        sequence: type?.sequence ?? '',
+        is_active: type?.is_active ?? true,
+      });
     } catch (error) {
       console.error('Error fetching document type:', error);
-      setError('Failed to fetch document type details');
+      setError(error.response?.data?.message || 'Failed to fetch document type details');
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import referralsApi from '../../api/referralsApi';
+import logsApi from '../../api/logsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import '../Masters/MasterPage.css';
@@ -41,6 +43,10 @@ export default function ReferralsPage({ title, userType }) {
   const canView = hasPermission(PERMISSIONS.REFERRALS_VIEW);
   const canExport = hasPermission(PERMISSIONS.REFERRALS_EXPORT);
   const showAdsColumn = userType !== 'employee';
+
+  const logsCategory = userType === 'employer' ? 'employer referrals' : 'employee referrals';
+  const logsTitle = userType === 'employer' ? 'Employer Referrals Logs' : 'Employee Referrals Logs';
+  const redirectTo = userType === 'employer' ? '/referrals/employers' : '/referrals/employees';
 
   const fetchReferrals = useCallback(async () => {
     setLoading(true);
@@ -177,6 +183,17 @@ export default function ReferralsPage({ title, userType }) {
       anchor.click();
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
+
+      // audit log: export
+      logsApi
+        .create({
+          category: logsCategory,
+          type: 'export',
+          redirect_to: redirectTo,
+          log_text: `Exported ${logsCategory} CSV${searchTerm.trim() ? ` (search: ${searchTerm.trim()})` : ''}`,
+        })
+        .catch(() => {});
+
       setMessage({ type: 'success', text: 'Export ready' });
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Export failed' });
@@ -241,9 +258,16 @@ export default function ReferralsPage({ title, userType }) {
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <LogsAction
+                  category={logsCategory}
+                  title={logsTitle}
+                  sizeClassName="btn-small"
+                  buttonStyle={{ marginRight: 0 }}
+                />
                 {canExport && (
                   <button
                     className="btn-secondary btn-small"
+                    style={{ marginRight: 0 }}
                     onClick={handleExportCsv}
                     disabled={exporting || !meta.total}
                   >

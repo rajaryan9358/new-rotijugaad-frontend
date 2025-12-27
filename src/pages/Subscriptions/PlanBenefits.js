@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import PlanBenefitForm from '../../components/Forms/PlanBenefitForm';
 import planBenefitsApi from '../../api/subscriptions/planBenefitsApi';
@@ -308,11 +309,14 @@ export default function PlanBenefits() {
               <>
                 <div className="list-header">
                   <h1>Plan Benefits</h1>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <LogsAction category="plan benefits" title="Plan Benefits Logs" />
                   {canManageSubs && (
                     <button className="btn-primary small" onClick={() => { setEditingId(null); setShowForm(true); }}>
                       + Add Benefit
                     </button>
                   )}
+                  </div>
                 </div>
 
                 <div className="search-filter-row" style={{ marginBottom: '12px', display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap', justifyContent: 'space-between' }}>

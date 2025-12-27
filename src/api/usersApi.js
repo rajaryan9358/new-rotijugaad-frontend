@@ -36,14 +36,36 @@ export const deleteUser = async (id) => {
   return client.delete(`/users/${id}`);
 };
 
-export const updateUserStatus = async (id, isActive) => {
+const getStoredAdminId = () => {
+  try {
+    const raw = localStorage.getItem('admin');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const id = Number(parsed?.id);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+};
+
+export const updateUserStatus = async (id, isActive, deactivationReason) => {
   console.log('[usersApi] updateUserStatus id=', id, 'is_active=', isActive);
-  return client.patch(`/users/${id}/status`, { is_active: isActive });
+  const payload = { is_active: isActive };
+  if (isActive === false) payload.deactivation_reason = (deactivationReason || '').toString();
+
+  const adminId = getStoredAdminId();
+  const config = adminId ? { headers: { 'x-admin-id': String(adminId) } } : undefined;
+
+  return client.patch(`/users/${id}/status`, payload, config);
 };
 
 // New methods for backend endpoints
 export const getPendingDeletionUsers = (params = {}) => client.get('/users/deletion-requests', { params });
-export const purgeUserData = (userId) => client.post(`/users/${userId}/delete-permanently`);
+export const purgeUserData = (userId) => {
+  const adminId = getStoredAdminId();
+  const config = adminId ? { headers: { 'x-admin-id': String(adminId) } } : undefined;
+  return client.post(`/users/${userId}/delete-permanently`, undefined, config);
+};
 export const getDeletedUsers = (params = {}) => client.get('/users/deleted', { params });
 
 // Backward compatibility aliases (old code expecting these)

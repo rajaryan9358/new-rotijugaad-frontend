@@ -1,108 +1,114 @@
-import client from './client';
+import axios from 'axios';
+// NOTE: Employers now also show status timestamps similar to Employees (verification_at / kyc_verification_at).
 
-export const getEmployees = async (params = {}) => {
-  return client.get('/employees', { params });
-};
+const stripTrailingSlash = (s) => (s || '').replace(/\/+$/, '');
 
-export const getEmployeeById = async (id) => {
-  return client.get(`/employees/${id}`);
-};
+const api = axios.create({
+	baseURL: stripTrailingSlash(process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || '/api')
+});
 
-export const createEmployee = async (data) => {
-  return client.post('/employees', data);
-};
-
-export const updateEmployee = async (id, data) => {
-  return client.put(`/employees/${id}`, data);
-};
-
-export const deleteEmployee = async (id) => {
-  return client.delete(`/employees/${id}`);
-};
-
-export const getEmployeeHiredJobs = async (id) => {
-  return client.get(`/employees/${id}/hired-jobs`);
-};
-
-export const getEmployeeWishlist = async (id) => {
-  return client.get(`/employees/${id}/wishlist`);
-};
-
-export const getEmployeePaymentHistory = async (employeeId) => {
-  return client.get('/payment-history', {
-    params: { user_type: 'employee', user_id: employeeId }
-  });
-};
-
-export const activateEmployee = (id) => client.post(`/employees/${id}/activate`);
-export const deactivateEmployee = (id) => client.post(`/employees/${id}/deactivate`);
-export const approveEmployee = (id) => client.post(`/employees/${id}/approve`);
-export const rejectEmployee = (id) => client.post(`/employees/${id}/reject`);
-export const grantEmployeeKyc = (id) => client.post(`/employees/${id}/kyc/grant`);
-export const rejectEmployeeKyc = (id) => client.post(`/employees/${id}/kyc/reject`);
-export const changeEmployeeSubscription = (id, payload) => client.post(`/employees/${id}/change-subscription`, payload);
-export const addEmployeeCredits = (id, payload) => client.post(`/employees/${id}/add-credits`, payload);
-export const getEmployeeJobProfiles = (id) => client.get(`/employees/${id}/job-profiles`);
-export const saveEmployeeJobProfiles = (id, job_profile_ids) => client.post(`/employees/${id}/job-profiles`, { job_profile_ids });
-export const getEmployeeExperiences = (id) => client.get(`/employees/${id}/experiences`);
-export const createEmployeeExperience = (id, data) => client.post(`/employees/${id}/experiences`, data);
-export const updateEmployeeExperience = (id, expId, data) => client.put(`/employees/${id}/experiences/${expId}`, data);
-export const deleteEmployeeExperience = (id, expId) => client.delete(`/employees/${id}/experiences/${expId}`);
-export const uploadExperienceCertificate = (formData) =>
-  client.post('/employees/experiences/upload/certificate', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-export const getDocumentTypes = () => client.get('/masters/document-types');
-export const getWorkNatures = () => client.get('/masters/work-natures');
-export const getEmployeeDocuments = (id) => client.get(`/employees/${id}/documents`);
-export const uploadEmployeeDocument = (id, type, formData) =>
-  client.post(`/employees/${id}/documents/upload?type=${type}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-export const deleteEmployeeDocument = (id, docId) => client.delete(`/employees/${id}/documents/${docId}`);
-export const getEmployeeApplications = (id) => client.get(`/employees/${id}/applications`);
-export const getEmployeeCreditHistory = (id) => client.get(`/employees/${id}/credit-history`);
-export const getEmployeeCallExperiences = (id) => client.get(`/employees/${id}/call-experiences`);
-export const getEmployeeCallReviews = (id) => client.get(`/employees/${id}/call-reviews`);
-export const getEmployeeVoilationsReported = (id) => client.get(`/employees/${id}/voilations-reported`);
-export const getEmployeeReferrals = (id, params = {}) => client.get(`/employees/${id}/referrals`, { params });
-export const getHiredEmployees = (params = {}) => client.get('/hired-employees', { params });
-export const uploadEmployeeSelfie = (formData) =>
-  client.post('/subscriptions/upload/selfie', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+api.interceptors.request.use((config) => {
+	const token = localStorage.getItem('token');
+	if (token) config.headers.Authorization = `Bearer ${token}`;
+	return config;
+});
 
 const employeesApi = {
-  getEmployees,
-  getEmployeeById,
-  createEmployee,
-  updateEmployee,
-  deleteEmployee,
-  getEmployeeHiredJobs,
-  getEmployeeWishlist,
-  getEmployeePaymentHistory,
-  activateEmployee,
-  deactivateEmployee,
-  approveEmployee,
-  rejectEmployee,
-  grantEmployeeKyc,
-  rejectEmployeeKyc,
-  changeEmployeeSubscription,
-  addEmployeeCredits,
-  getEmployeeJobProfiles,
-  saveEmployeeJobProfiles,
-  getEmployeeExperiences,
-  createEmployeeExperience,
-  updateEmployeeExperience,
-  deleteEmployeeExperience,
-  uploadExperienceCertificate,
-  getDocumentTypes,
-  getWorkNatures,
-  getEmployeeDocuments,
-  uploadEmployeeDocument,
-  deleteEmployeeDocument,
-  getEmployeeApplications,
-  getEmployeeCreditHistory,
-  getEmployeeCallExperiences,
-  getEmployeeCallReviews,
-  getEmployeeVoilationsReported,
-  getEmployeeReferrals,
-  getHiredEmployees,
-  uploadEmployeeSelfie
+	// list + CRUD
+	// Supported list params include: kyc_verified_from (YYYY-MM-DD), kyc_verified_to (YYYY-MM-DD) (filters Employee.kyc_verification_at)
+	getEmployees: (params = {}) => api.get('/employees', { params }),
+	getEmployeeById: (id) => api.get(`/employees/${id}`),
+	createEmployee: (payload) => api.post('/employees', payload),
+	updateEmployee: (id, payload) => api.put(`/employees/${id}`, payload),
+	deleteEmployee: (id) => api.delete(`/employees/${id}`),
+
+	// status/actions
+	activateEmployee: (id) => api.post(`/employees/${id}/activate`),
+	deactivateEmployee: (id, payload = {}) => api.post(`/employees/${id}/deactivate`, payload),
+	kycGrant: (id) => api.post(`/employees/${id}/kyc/grant`),
+	kycReject: (id) => api.post(`/employees/${id}/kyc/reject`),
+	changeSubscription: (id, subscription_plan_id) =>
+		api.post(`/employees/${id}/change-subscription`, { subscription_plan_id }),
+	addCredits: (id, { contact_credits, interest_credits, credit_expiry_at } = {}) =>
+		api.post(`/employees/${id}/add-credits`, { contact_credits, interest_credits, credit_expiry_at }),
+
+	// job profiles
+	getEmployeeJobProfiles: (id) => api.get(`/employees/${id}/job-profiles`),
+	setEmployeeJobProfiles: (id, job_profile_ids) => api.post(`/employees/${id}/job-profiles`, { job_profile_ids }),
+
+	// experiences
+	getEmployeeExperiences: (id) => api.get(`/employees/${id}/experiences`),
+	createEmployeeExperience: (id, payload) => api.post(`/employees/${id}/experiences`, payload),
+	updateEmployeeExperience: (id, expId, payload) => api.put(`/employees/${id}/experiences/${expId}`, payload),
+	deleteEmployeeExperience: (id, expId) => api.delete(`/employees/${id}/experiences/${expId}`),
+	uploadExperienceCertificate: (fileOrFormData) => {
+		const form = fileOrFormData instanceof FormData ? fileOrFormData : new FormData();
+		if (!(fileOrFormData instanceof FormData)) form.append('certificate', fileOrFormData);
+		return api.post('/employees/experiences/upload/certificate', form, {
+			headers: { 'Content-Type': 'multipart/form-data' }
+		});
+	},
+
+	// documents
+	getEmployeeDocuments: (id) => api.get(`/employees/${id}/documents`),
+	uploadEmployeeDocument: (id, type, fileOrFormData) => {
+		const form = fileOrFormData instanceof FormData ? fileOrFormData : new FormData();
+		if (!(fileOrFormData instanceof FormData)) form.append('file', fileOrFormData);
+		return api.post(`/employees/${id}/documents/upload`, form, {
+			params: { type },
+			headers: { 'Content-Type': 'multipart/form-data' }
+		});
+	},
+	deleteEmployeeDocument: (id, docId) => api.delete(`/employees/${id}/documents/${docId}`),
+
+	// tabs
+	getEmployeeApplications: (id) => api.get(`/employees/${id}/applications`),
+	getEmployeeHiredJobs: (id) => api.get(`/employees/${id}/hired-jobs`),
+	getEmployeeWishlist: (id) => api.get(`/employees/${id}/wishlist`),
+	getEmployeeRecommendedJobs: (id) => api.get(`/employees/${id}/recommended-jobs`),
+
+
+	// CHANGED: use the existing global payment-history API (fixes 404)
+	getEmployeePaymentHistory: (id) =>
+		api.get('/payment-history', { params: { user_type: 'employee', user_id: id } }),
+	getEmployeeCreditHistory: (id) => api.get(`/employees/${id}/credit-history`),
+	getEmployeeCallExperiences: (id) => api.get(`/employees/${id}/call-experiences`),
+	getEmployeeCallReviews: (id) => api.get(`/employees/${id}/call-reviews`),
+	getEmployeeReferrals: (id) => api.get(`/employees/${id}/referrals`),
+
+	// hired employees list
+	// Supports: search (includes organization_name), status, job_profile_id, created_from, created_to, pagination
+	getHiredEmployees: (params = {}) => api.get('/hired-employees', { params }),
+
+	// masters/helpers (used by EmployeeDetail + EmployeesManagement)
+	getWorkNatures: () => api.get('/work-natures'),
+	getDocumentTypes: () => api.get('/document-types'),
+
+	// verify/KYC (used by EmployeeDetail actions menu)
+	approveEmployee: (id) => api.post(`/employees/${id}/approve`),
+	rejectEmployee: (id) => api.post(`/employees/${id}/reject`),
+	grantEmployeeKyc: (id) => api.post(`/employees/${id}/kyc/grant`),
+	rejectEmployeeKyc: (id) => api.post(`/employees/${id}/kyc/reject`),
+
+	// subscription/credits (match EmployeeDetail call sites)
+	changeEmployeeSubscription: (id, { subscription_plan_id } = {}) =>
+		api.post(`/employees/${id}/change-subscription`, { subscription_plan_id }),
+	addEmployeeCredits: (id, { contact_credits, interest_credits, credit_expiry_at } = {}) =>
+		api.post(`/employees/${id}/add-credits`, { contact_credits, interest_credits, credit_expiry_at }),
+
+	// job profiles (alias used by EmployeeDetail)
+	saveEmployeeJobProfiles: (id, job_profile_ids) => api.post(`/employees/${id}/job-profiles`, { job_profile_ids }),
+
+	// violations reported (method referenced by EmployeeDetail; endpoint name may vary)
+	getEmployeeVoilationsReported: async (id) => {
+		try {
+			return await api.get(`/employees/${id}/voilations-reported`);
+		} catch (e) {
+			if (e?.response?.status === 404) return api.get(`/employees/${id}/violations-reported`);
+			throw e;
+		}
+	}
 };
 
+export const getHiredEmployees = (params = {}) => employeesApi.getHiredEmployees(params); // named export for HiredEmployees.js
 export default employeesApi;

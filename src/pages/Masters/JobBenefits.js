@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import JobBenefitForm from '../../components/Forms/JobBenefitForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import jobBenefitsApi from '../../api/masters/jobBenefitsApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -178,17 +179,25 @@ export default function JobBenefits() {
               <>
                 <div className="list-header">
                   <h1>Job Benefits Management</h1>
-                  {canManageMasters && (
-                    <button
-                      className="btn-primary small"
-                      onClick={() => {
-                        setEditingId(null);
-                        setShowForm(true);
-                      }}
-                    >
-                      + Add Benefit
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {canManageMasters && (
+                      <button
+                        className="btn-primary small"
+                        onClick={() => {
+                          setEditingId(null);
+                          setShowForm(true);
+                        }}
+                      >
+                        + Add Benefit
+                      </button>
+                    )}
+                    {canViewMasters && (
+                      <LogsAction
+                        category="job benefits"
+                        title="Job Benefit Logs"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="table-container">

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import settingsApi from '../../api/settingsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import '../Masters/MasterPage.css';
 
 const fieldGroups = {
   support: [
@@ -133,8 +135,15 @@ export default function SettingsPage() {
               <div>Loading settings...</div>
             ) : (
               <div className="form-container">
-                <div className="form-header">
+                <div className="list-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                   <h1>Settings</h1>
+                  <LogsAction
+                    category="setting"
+                    title="Settings Logs"
+                    baseButtonClassName="btn-secondary"
+                    sizeClassName="small"
+                    buttonStyle={{ marginLeft: 'auto' }}
+                  />
                 </div>
                 <form onSubmit={handleSubmit} className="master-form">
                   {error && <div className="error-message">{error}</div>}

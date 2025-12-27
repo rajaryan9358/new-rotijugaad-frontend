@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import JobProfileForm from '../../components/Forms/JobProfileForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import jobProfilesApi from '../../api/masters/jobProfilesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -178,11 +179,19 @@ export default function JobProfiles() {
               <>
                 <div className="list-header">
                   <h1>Job Profiles Management</h1>
-                  {canManageMasters && (
-                    <button className="btn-primary small" onClick={() => { setEditingId(null); setShowForm(true); }}>
-                      + Add Profile
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {canManageMasters && (
+                      <button className="btn-primary small" onClick={() => { setEditingId(null); setShowForm(true); }}>
+                        + Add Profile
+                      </button>
+                    )}
+                    {canViewMasters && (
+                      <LogsAction
+                        category="job profile"
+                        title="Job Profile Logs"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="table-container">

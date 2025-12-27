@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import EmployerCallExperienceForm from '../../components/Forms/EmployerCallExperienceForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import employerCallExperienceApi from '../../api/masters/employerCallExperienceApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -178,17 +179,25 @@ export default function EmployerCallExperience() {
               <>
                 <div className="list-header">
                   <h1>Employer Call Experience Management</h1>
-                  {canManageMasters && (
-                    <button
-                      className="btn-primary small"
-                      onClick={() => {
-                        setEditingId(null);
-                        setShowForm(true);
-                      }}
-                    >
-                      + Add Experience
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {canManageMasters && (
+                      <button
+                        className="btn-primary small"
+                        onClick={() => {
+                          setEditingId(null);
+                          setShowForm(true);
+                        }}
+                      >
+                        + Add Experience
+                      </button>
+                    )}
+                    {canViewMasters && (
+                      <LogsAction
+                        category="employer call experience"
+                        title="Employer Call Experience Logs"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="table-container">

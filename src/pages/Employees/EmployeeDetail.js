@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import JobDetail from '../Jobs/JobDetail';
+import RecommendedJobsTab from './RecommendedJobsTab';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import employeesApi from '../../api/employeesApi';
 import jobProfilesApi from '../../api/masters/jobProfilesApi';
 import employeeSubscriptionPlansApi from '../../api/subscriptions/employeeSubscriptionPlansApi';
@@ -18,15 +20,16 @@ const TABS = [
   'Job profiles',
   'Experiences',
   'Documents',
+  'Recommended Jobs',
   'Applications',
   'Hired jobs',
   'Wishlist',
   'Credit history',
   'Subscription history',
   'Call experiences',
-  'Call reviews',
+  'Call review by employer',          // CHANGED (was: 'Call reviews')
   'Referrals',
-  'Voilation reports',
+  'Voilation report by employer',     // CHANGED (was: 'Voilation reports')
   'Voilations reported'
 ];
 
@@ -52,6 +55,131 @@ const getReferralDetailRoute = (entityType, entityId) => {
   if (normalized.includes('employer')) return `/employers/${entityId}`;
   return `/employees/${entityId}`;
 };
+
+// FIXED: non-hook helper (was missing returns/braces, so suffix stayed empty/undefined)
+function getEmployeeHeadingSuffix(employee, canShowPhoneAddress) {
+  const name = (employee?.name || employee?.User?.name || '').toString().trim();
+  const mobile = (employee?.User?.mobile || '').toString().trim();
+
+  if (!name && !mobile) return '';
+
+  if (!canShowPhoneAddress) {
+    return name || '';
+  }
+
+  if (name && mobile) return `${name} (${mobile})`;
+  return name || mobile;
+}
+
+// NEW: used by UI where renderActiveBadge(...) is referenced
+function renderActiveBadge(value) {
+	const isActive =
+		value === true ||
+		value === 1 ||
+		value === '1' ||
+		(value || '').toString().toLowerCase() === 'active' ||
+		(value || '').toString().toLowerCase() === 'true';
+
+	const tone = isActive
+		? { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Active' }
+		: { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca', label: 'Inactive' };
+
+	return (
+		<span
+			style={{
+				display: 'inline-flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				padding: '2px 10px',
+				borderRadius: '999px',
+				fontSize: '11px',
+				fontWeight: 700,
+				background: tone.bg,
+				color: tone.color,
+				border: `1px solid ${tone.border}`,
+				whiteSpace: 'nowrap'
+			}}
+		>
+			{tone.label}
+		</span>
+	);
+}
+
+
+// Job status / Interest status chips (module-scope so they are always in scope)
+const JOB_STATUS_CHIP_PALETTE = {
+  active: { bg: '#dcfce7', color: '#166534', border: '#86efac' },
+  open: { bg: '#dcfce7', color: '#166534', border: '#86efac' },
+
+  paused: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  pending: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+
+  closed: { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca' },
+  inactive: { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca' },
+
+  draft: { bg: '#e5e7eb', color: '#0f172a', border: '#d1d5db' }
+};
+
+function renderJobStatusChip(value) {
+  const raw = (value || '').toString().trim();
+  const v = raw.toLowerCase();
+  if (!v) return <span>-</span>;
+  const tone = JOB_STATUS_CHIP_PALETTE[v] || { bg: '#e5e7eb', color: '#0f172a', border: '#d1d5db' };
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2px 10px',
+        borderRadius: '999px',
+        fontSize: '11px',
+        fontWeight: 700,
+        textTransform: 'capitalize',
+        background: tone.bg,
+        color: tone.color,
+        border: `1px solid ${tone.border}`,
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {raw}
+    </span>
+  );
+}
+
+const INTEREST_STATUS_CHIP_PALETTE = {
+  pending: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  shortlisted: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  hired: { bg: '#dcfce7', color: '#166534', border: '#86efac' },
+  rejected: { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca' }
+};
+
+function renderInterestStatusChip(value) {
+  const raw = (value || '').toString().trim();
+  const v = raw.toLowerCase();
+  if (!v) return <span>-</span>;
+  const tone = INTEREST_STATUS_CHIP_PALETTE[v] || { bg: '#e5e7eb', color: '#0f172a', border: '#d1d5db' };
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2px 10px',
+        borderRadius: '999px',
+        fontSize: '11px',
+        fontWeight: 700,
+        textTransform: 'capitalize',
+        background: tone.bg,
+        color: tone.color,
+        border: `1px solid ${tone.border}`,
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {raw}
+    </span>
+  );
+}
 
 export default function EmployeeDetail() {
   const { id } = useParams();
@@ -136,6 +264,12 @@ export default function EmployeeDetail() {
   const [addCreditsSaving, setAddCreditsSaving] = useState(false);
   const [addCreditsError, setAddCreditsError] = useState(null);
 
+  // NEW: Deactivate dialog state (no system prompt)
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [deactivateReason, setDeactivateReason] = useState('');
+  const [deactivateSaving, setDeactivateSaving] = useState(false);
+  const [deactivateError, setDeactivateError] = useState(null);
+
   const actionMenuRef = useRef(null);
 
   const perms = React.useMemo(() => ({
@@ -147,6 +281,10 @@ export default function EmployeeDetail() {
     canGrantKyc: hasPermission(PERMISSIONS.EMPLOYEES_KYC_GRANT),
     canAddCredit: hasPermission(PERMISSIONS.EMPLOYEES_ADD_CREDIT),
     canChangeSubscription: hasPermission(PERMISSIONS.EMPLOYEES_SUBSCRIPTION_CHANGE),
+
+    // Sensitive fields
+    canShowPhoneAddress: hasPermission(PERMISSIONS.EMPLOYEES_SHOW_PHONE_ADDRESS),
+    canShowEmployerPhoneAddress: hasPermission(PERMISSIONS.EMPLOYERS_SHOW_PHONE_ADDRESS),
   }), []);
 
   useEffect(() => {
@@ -206,7 +344,8 @@ export default function EmployeeDetail() {
   }, [employee, activeTab]);
 
   useEffect(() => {
-    if (employee && activeTab === 'Voilation reports') {
+    // FIX: tab label is "Voilation report by employer" (not "Voilation reports")
+    if (employee && (activeTab === 'Voilation report by employer' || activeTab === 'Voilation reports')) {
       fetchVoilationReports();
     }
   }, [employee, activeTab]);
@@ -215,7 +354,7 @@ export default function EmployeeDetail() {
     if (employee && activeTab === 'Call experiences') {
       fetchCallExperiences();
     }
-    if (employee && activeTab === 'Call reviews') {
+    if (employee && activeTab === 'Call review by employer') {
       fetchCallReviews();
     }
   }, [employee, activeTab]);
@@ -536,6 +675,25 @@ export default function EmployeeDetail() {
     }
   };
 
+  const confirmDeactivate = async () => {
+    if (!employee) return;
+    const reason = (deactivateReason || '').toString().trim();
+    if (!reason) { setDeactivateError('Deactivation reason is required.'); return; }
+
+    setDeactivateSaving(true);
+    setDeactivateError(null);
+    try {
+      await employeesApi.deactivateEmployee(employee.id, { deactivation_reason: reason });
+      await fetchEmployee();
+      setShowDeactivateDialog(false);
+      setNotice({ type: 'success', text: 'Employee deactivated.' });
+    } catch (err) {
+      setDeactivateError(err?.response?.data?.message || 'Failed to deactivate employee.');
+    } finally {
+      setDeactivateSaving(false);
+    }
+  };
+
   const handleEmployeeAction = async (actionKey) => {
     if (!employee) return;
     const ensure = (flag, msg) => {
@@ -552,9 +710,15 @@ export default function EmployeeDetail() {
         case 'activate':
         case 'deactivate':
           if (!ensure(perms.canStatusToggle, 'You do not have permission to change status.')) break;
-          await (actionKey === 'activate'
-            ? employeesApi.activateEmployee(employee.id)
-            : employeesApi.deactivateEmployee(employee.id));
+          if (actionKey === 'activate') {
+            await employeesApi.activateEmployee(employee.id);
+          } else {
+            // NEW: open custom dialog
+            setActionMenuOpen(false);
+            setShowDeactivateDialog(true);
+            setDeactivateReason('');
+            setDeactivateError(null);
+          }
           break;
         case 'approve':
         case 'reject':
@@ -589,6 +753,13 @@ export default function EmployeeDetail() {
         break;
       case 'addCredits':
         openAddCreditsDialog();
+        break;
+      case 'deactivate': // NEW: open custom dialog
+        if (!perms.canStatusToggle) { setError('You do not have permission to change status.'); return; }
+        setActionMenuOpen(false);
+        setShowDeactivateDialog(true);
+        setDeactivateReason('');
+        setDeactivateError(null);
         break;
       case 'shareEmployee': // add
         handleShareEmployee();
@@ -633,6 +804,23 @@ export default function EmployeeDetail() {
     }
   };
 
+  // NEW: date-only formatter (DOB etc.)
+  const formatDateOnly = (val) => {
+    if (!val) return '-';
+    try {
+      // if backend sends DATEONLY as "YYYY-MM-DD", keep it stable
+      if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) return '-';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    } catch {
+      return '-';
+    }
+  };
+
   const renderStatusBadge = (status) => {
     const normalized = (status || '').toLowerCase();
     const palette = {
@@ -661,62 +849,103 @@ export default function EmployeeDetail() {
     );
   };
 
-  const renderActiveBadge = (flag) => {
-    const isActive = Boolean(flag);
-    const tone = {
-      bg: isActive ? '#16a34a' : '#dc2626',
-      color: '#fff',
-      label: isActive ? 'Active' : 'Inactive'
-    };
+  // NEW: simple status chip (for employer_kyc_status; also usable for job_status if you want)
+  const statusChipPalette = {
+    pending: { bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+    verified: { bg: '#dcfce7', color: '#166534', border: '#86efac' },
+    rejected: { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca' }
+  };
+
+  function renderStatusChip(value) {
+    const v = (value || '').toString().trim().toLowerCase();
+    if (!v) return <span>-</span>;
+    const tone = statusChipPalette[v] || { bg: '#e5e7eb', color: '#0f172a', border: '#d1d5db' };
     return (
       <span
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          padding: '2px 8px',
+          justifyContent: 'center',
+          padding: '2px 10px',
           borderRadius: '999px',
           fontSize: '11px',
-          fontWeight: 600,
+          fontWeight: 700,
+          textTransform: 'capitalize',
           background: tone.bg,
-          color: tone.color
+          color: tone.color,
+          border: `1px solid ${tone.border}`,
+          whiteSpace: 'nowrap'
         }}
       >
-        {flag === undefined || flag === null ? 'Unknown' : tone.label}
+        {v}
       </span>
     );
-  };
+  }
 
   const basic = employee || {};
+
+  // NEW: compute age from DOB (employee.dob)
+  const calculateAge = React.useCallback((dob) => {
+    if (!dob) return '-';
+    const d = new Date(dob);
+    if (Number.isNaN(d.getTime())) return '-';
+    const today = new Date();
+    let age = today.getFullYear() - d.getFullYear();
+    const m = today.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age -= 1;
+    return age >= 0 ? age : '-';
+  }, []);
 
   const renderBasicDetails = () => (
     <div className="detail-section">
       <div className="grid-2col" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:'12px' }}>
         <Detail label="ID" value={basic.id} />
         <Detail label="Name" value={basic.name} />
-        <Detail label="Mobile" value={basic.User?.mobile || '-'} />
+        {perms.canShowPhoneAddress && (
+          <Detail label="Mobile" value={basic.User?.mobile || '-'} />
+        )}
         <Detail label="Email" value={basic.email} />
         <Detail label="Gender" value={basic.gender} />
-        <Detail label="DOB" value={basic.dob} />
+        <Detail label="DOB" value={formatDateOnly(basic.dob)} />
+        <Detail label="Age" value={calculateAge(basic.dob)} />
+        <Detail label="Aadhar Number" value={basic.aadhar_number || '-'} />
         <Detail label="User Status" value={renderActiveBadge(basic.User?.is_active)} />
+
+        {/* NEW: show reason if present */}
+        <Detail label="Deactivation Reason" value={basic.User?.deactivation_reason || '-'} />
+
+        {/* NEW: status changed by (admin) */}
+        <Detail label="Status Changed By" value={basic.User?.StatusChangedBy?.name || '-'} />
+
         <Detail label="Delete Status" value={basic.User?.delete_pending ? 'Pending deletion' : 'Active'} />
         <Detail label="Delete Requested At" value={formatDateTime(basic.User?.delete_requested_at)} />
         <Detail label="Referred By" value={basic.User?.referred_by || '-'} />
         <Detail label="Preferred Language" value={basic.User?.preferred_language || '-'} />
         <Detail label="Referral Code" value={basic.User?.referral_code || '-'} />
         <Detail label="Total Referred" value={basic.User?.total_referred ?? '-'} />
-        <Detail label="State" value={basic.State?.state_english} />            {/* joined */}
-        <Detail label="City" value={basic.City?.city_english} />               {/* joined */}
-        <Detail label="Preferred State" value={basic.PreferredState?.state_english} /> {/* joined */}
-        <Detail label="Preferred City" value={basic.PreferredCity?.city_english} />    {/* joined */}
+        {perms.canShowPhoneAddress && (
+          <Detail label="State" value={basic.State?.state_english || '-'} />
+        )}
+        {perms.canShowPhoneAddress && (
+          <Detail label="City" value={basic.City?.city_english || '-'} />
+        )}
+        {perms.canShowPhoneAddress && (
+          <Detail label="Preferred State" value={basic.PreferredState?.state_english || '-'} />
+        )}
+        {perms.canShowPhoneAddress && (
+          <Detail label="Preferred City" value={basic.PreferredCity?.city_english || '-'} />
+        )}
         <Detail label="Qualification" value={basic.Qualification?.qualification_english} /> {/* joined */}
         <Detail label="Preferred Shift" value={basic.Shift?.shift_english} />  {/* joined */}
         <Detail label="Subscription Plan" value={basic.SubscriptionPlan?.plan_name_english} /> {/* joined */}
         <Detail label="Expected Salary" value={basic.expected_salary} />
-        <Detail label="Salary Frequency" value={basic.expected_salary_frequency} />
+        <Detail label="Expected Salary Frequency" value={basic.expected_salary_frequency} />
         <Detail label="Job Profiles" value={basic.job_profiles_display} /> {/* added */}
         <Detail label="Work Nature" value={basic.work_natures_display} /> {/* added */}
         <Detail label="Verification" value={renderStatusBadge(basic.verification_status)} />
+        <Detail label="Verification At" value={formatDateTime(basic.verification_at)} /> {/* NEW */}
         <Detail label="KYC" value={renderStatusBadge(basic.kyc_status)} />
+        <Detail label="KYC Verification At" value={formatDateTime(basic.kyc_verification_at)} /> {/* NEW */}
         <Detail label="Contact Credits" value={`${basic.contact_credit || 0}/${basic.total_contact_credit || 0}`} />
         <Detail label="Interest Credits" value={`${basic.interest_credit || 0}/${basic.total_interest_credit || 0}`} />
         <Detail label="Credit Expiry" value={formatDateTime(basic.credit_expiry_at)} /> {/* formatted date-time */}
@@ -858,9 +1087,7 @@ export default function EmployeeDetail() {
     setUploadingCert(true);
     setExpError(null);
     try {
-      const fd = new FormData();
-      fd.append('certificate', file);
-      const res = await employeesApi.uploadExperienceCertificate(fd);
+      const res = await employeesApi.uploadExperienceCertificate(file); // CHANGED: pass File (not FormData)
       if (!res.data?.success) {
         setExpError(res.data?.message || 'Upload failed');
       } else {
@@ -885,14 +1112,8 @@ export default function EmployeeDetail() {
     setDocUploading(true);
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await employeesApi.uploadEmployeeDocument(employee.id, type, fd);
-      if (!res.data?.success) {
-        setError(res.data?.message || 'Upload failed');
-      } else {
-        await fetchEmployeeDocuments();
-      }
+      await employeesApi.uploadEmployeeDocument(employee.id, type, file); // CHANGED: pass File (not FormData)
+      await fetchEmployeeDocuments();
     } catch (e) {
       setError(e.response?.data?.message || 'Upload failed');
     } finally {
@@ -974,6 +1195,7 @@ export default function EmployeeDetail() {
           <thead>
             <tr style={{ background: '#f5f5f5' }}>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job Status</th> {/* NEW */}
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer</th>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Reason</th>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Description</th>
@@ -990,6 +1212,10 @@ export default function EmployeeDetail() {
                     </Link>
                   ) : (r.job_name || '-')}
                 </td>
+
+                {/* NEW */}
+                <td style={{ padding: '6px', border: '1px solid #eee' }}>{renderJobStatusChip(r.job_status)}</td>
+
                 <td style={{ padding: '6px', border: '1px solid #eee' }}>
                   {r.employer_id ? (
                     <Link to={`/employers/${r.employer_id}`} style={{ color: '#2563eb', textDecoration: 'underline' }}>
@@ -1028,7 +1254,7 @@ export default function EmployeeDetail() {
       {employeeJobProfiles.length === 0 ? (
         <div style={{ fontSize:'13px', color:'#666' }}>No job profiles selected.</div>
       ) : (
-        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
+        <table style={{ width:'100%', borderCollapse: 'collapse', fontSize:'12px' }}>
           <thead>
             <tr style={{ background:'#f5f5f5' }}>
               <th style={{ textAlign:'left', padding:'8px', border:'1px solid #ddd' }}>Image</th>
@@ -1148,7 +1374,7 @@ export default function EmployeeDetail() {
     </div>
   );
 
-  const renderExperiencesTab = () => ( // added
+  const renderExperiencesTab = () => (
     <div>
       <div style={{ display:'flex', alignItems:'center', marginBottom:'12px' }}>
         <h2 style={{ margin:0, fontSize:'16px' }}>Experiences</h2>
@@ -1171,48 +1397,62 @@ export default function EmployeeDetail() {
         <table style={{ width:'100%', borderCollapse: 'collapse', fontSize:'12px' }}>
           <thead>
             <tr style={{ background:'#f5f5f5' }}>
-              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Firm</th>
-              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Duration</th>
-              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Freq</th>
-              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Doc Type</th>
+              {/* CHANGED: column order */}
               <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Work Nature</th>
-              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Certificate</th>
+              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Firm Name</th>
+              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Duration</th>
+              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Document Type</th>
+              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Uploaded Document</th>
+              <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Created At</th>
               <th style={{ textAlign:'left', padding:'6px', border:'1px solid #ddd' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {experiences.map(exp => (
-              <tr key={exp.id}>
-                <td style={{ padding:'6px', border:'1px solid #eee' }}>{exp.previous_firm || '-'}</td>
-                <td style={{ padding:'6px', border:'1px solid #eee' }}>{exp.work_duration || '-'}</td>
-                <td style={{ padding:'6px', border:'1px solid #eee' }}>{exp.work_duration_frequency || '-'}</td>
-                <td style={{ padding:'6px', border:'1px solid #eee' }}>
-                  {documents.find(d => d.id === exp.document_type_id)?.type_english || '-'}
-                </td>
-                <td style={{ padding:'6px', border:'1px solid #eee' }}>
-                  {workNatures.find(w => w.id === exp.work_nature_id)?.nature_english || '-'}
-                </td>
-                <td style={{ padding:'6px', border:'1px solid #eee' }}>
-                  {exp.experience_certificate
-                    ? <a href={exp.experience_certificate} target="_blank" rel="noreferrer">View</a>
-                    : '-'}
-                </td>
-                <td style={{ padding:'6px', border:'1px solid #eee' }}>
-                  <button
-                    className="btn-small btn-edit"
-                    style={{ marginRight:'4px' }}
-                    onClick={() => openEditExperience(exp)}
-                    disabled={!perms.canManage}
-                  >Edit</button>
-                  {perms.canDelete && (
+            {experiences.map(exp => {
+              const durationLabel =
+                exp.work_duration
+                  ? `${exp.work_duration}${exp.work_duration_frequency ? ` ${exp.work_duration_frequency}` : ''}`
+                  : '-';
+
+              return (
+                <tr key={exp.id}>
+                  {/* CHANGED: column order + combined duration */}
+                  <td style={{ padding:'6px', border:'1px solid #eee' }}>
+                    {workNatures.find(w => w.id === exp.work_nature_id)?.nature_english || '-'}
+                  </td>
+                  <td style={{ padding:'6px', border:'1px solid #eee' }}>{exp.previous_firm || '-'}</td>
+                  <td style={{ padding:'6px', border:'1px solid #eee' }}>{durationLabel}</td>
+                  <td style={{ padding:'6px', border:'1px solid #eee' }}>
+                    {documents.find(d => d.id === exp.document_type_id)?.type_english || '-'}
+                  </td>
+                  <td style={{ padding:'6px', border:'1px solid #eee' }}>
+                    {exp.experience_certificate
+                      ? <a href={exp.experience_certificate} target="_blank" rel="noreferrer">View</a>
+                      : '-'}
+                  </td>
+
+                  {/* NEW */}
+                  <td style={{ padding:'6px', border:'1px solid #eee' }}>
+                    {formatDateTime(exp.created_at)}
+                  </td>
+
+                  <td style={{ padding:'6px', border:'1px solid #eee' }}>
                     <button
-                      className="btn-small btn-delete"
-                      onClick={() => deleteExperience(exp.id)}
-                    >Delete</button>
-                  )}
-                </td>
-              </tr>
-            ))}
+                      className="btn-small btn-edit"
+                      style={{ marginRight:'4px' }}
+                      onClick={() => openEditExperience(exp)}
+                      disabled={!perms.canManage}
+                    >Edit</button>
+                    {perms.canDelete && (
+                      <button
+                        className="btn-small btn-delete"
+                        onClick={() => deleteExperience(exp.id)}
+                      >Delete</button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -1236,138 +1476,187 @@ export default function EmployeeDetail() {
               <h1>{editingExp ? 'Edit Experience' : 'Add Experience'}</h1>
               <button className="btn-close" onClick={() => setShowExpDialog(false)}>✕</button>
             </div>
-            {expError && <div className="error-message">{expError}</div>}
-            <form className="master-form">
-              <div className="form-group">
-                <label htmlFor="document_type_id">Document Type</label>
-                <select
-                  id="document_type_id"
-                  value={expForm.document_type_id}
-                  onChange={e=>handleExpField('document_type_id', e.target.value)}
-                >
-                  <option value="">--</option>
-                  {documents.map(d => (
-                    <option key={d.id} value={d.id}>{d.type_english}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label htmlFor="work_nature_id">Work Nature</label>
-                <select
-                  id="work_nature_id"
-                  value={expForm.work_nature_id}
-                  onChange={e=>handleExpField('work_nature_id', e.target.value)}
-                >
-                  <option value="">--</option>
-                  {workNatures.map(w => (
-                    <option key={w.id} value={w.id}>{w.nature_english}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label htmlFor="previous_firm">Previous Firm *</label>
-                <input
-                  id="previous_firm"
-                  value={expForm.previous_firm}
-                  onChange={e=>handleExpField('previous_firm', e.target.value)}
-                  placeholder="Company / Firm name"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="work_duration">Work Duration</label>
-                <input
-                  id="work_duration"
-                  type="number"
-                  step="0.01"
-                  value={expForm.work_duration}
-                  onChange={e=>handleExpField('work_duration', e.target.value)}
-                  placeholder="e.g. 12"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="work_duration_frequency">Duration Freq</label>
-                <select
-                  id="work_duration_frequency"
-                  value={expForm.work_duration_frequency}
-                  onChange={e=>handleExpField('work_duration_frequency', e.target.value)}
-                >
-                  <option value="">--</option>
-                  <option value="days">Days</option>
-                  <option value="months">Months</option>
-                  <option value="years">Years</option>
-                </select>
-              </div>
-              <div className="form-group"> {/* modified certificate field */}
-                <label htmlFor="experience_certificate">Certificate (Image/PDF)</label>
-                <div style={{ marginBottom:'8px' }}>
-                  {expForm.experience_certificate ? (
-                    <div style={{ position:'relative', display:'inline-block' }}>
-                      <img
-                        src={expForm.experience_certificate}
-                        alt="Certificate"
-                        style={{
-                          maxWidth:'200px',
-                          maxHeight:'200px',
-                          borderRadius:'8px',
-                          border:'1px solid #ddd',
-                          objectFit:'cover'
-                        }}
+
+            {/* NEW: resolve current exp for Created At display (edit mode only) */}
+            {/*
+              NOTE: keep this inside render to avoid extra state.
+              experiences[] already exists in this component.
+            */}
+            {(() => {
+              const currentExp = editingExp ? experiences.find((x) => x.id === editingExp) : null;
+
+              return (
+                <>
+                  {expError && <div className="error-message">{expError}</div>}
+
+                  <form className="master-form">
+                    {/* CHANGED: order -> Work Nature */}
+                    <div className="form-group">
+                      <label htmlFor="work_nature_id">Work Nature</label>
+                      <select
+                        id="work_nature_id"
+                        value={expForm.work_nature_id}
+                        onChange={(e) => handleExpField('work_nature_id', e.target.value)}
+                      >
+                        <option value="">--</option>
+                        {workNatures.map((w) => (
+                          <option key={w.id} value={w.id}>{w.nature_english}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* CHANGED: order -> Firm Name */}
+                    <div className="form-group">
+                      <label htmlFor="previous_firm">Firm Name *</label>
+                      <input
+                        id="previous_firm"
+                        value={expForm.previous_firm}
+                        onChange={(e) => handleExpField('previous_firm', e.target.value)}
+                        placeholder="Company / Firm name"
+                        required
                       />
+                    </div>
+
+                    {/* CHANGED: order -> Duration (value + freq) */}
+                    <div className="form-group">
+                      <label htmlFor="work_duration">Duration</label>
+                      <input
+                        id="work_duration"
+                        type="number"
+                        step="0.01"
+                        value={expForm.work_duration}
+                        onChange={(e) => handleExpField('work_duration', e.target.value)}
+                        placeholder="e.g. 12"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="work_duration_frequency">Duration Freq</label>
+                      <select
+                        id="work_duration_frequency"
+                        value={expForm.work_duration_frequency}
+                        onChange={(e) => handleExpField('work_duration_frequency', e.target.value)}
+                      >
+                        <option value="">--</option>
+                        <option value="days">Days</option>
+                        <option value="months">Months</option>
+                        <option value="years">Years</option>
+                      </select>
+                    </div>
+
+                    {/* CHANGED: order -> Document Type */}
+                    <div className="form-group">
+                      <label htmlFor="document_type_id">Document Type</label>
+                      <select
+                        id="document_type_id"
+                        value={expForm.document_type_id}
+                        onChange={(e) => handleExpField('document_type_id', e.target.value)}
+                      >
+                        <option value="">--</option>
+                        {documents.map((d) => (
+                          <option key={d.id} value={d.id}>{d.type_english}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* existing certificate uploader block stays, but is now in the right position */}
+                    <div className="form-group">
+                      <label htmlFor="experience_certificate">Uploaded Document (Image/PDF)</label>
+                      <div style={{ marginBottom:'8px' }}>
+                        {expForm.experience_certificate ? (
+                          <div style={{ position:'relative', display:'inline-block' }}>
+                            <img
+                              src={expForm.experience_certificate}
+                              alt="Certificate"
+                              style={{
+                                maxWidth:'200px',
+                                maxHeight:'200px',
+                                borderRadius:'8px',
+                                border:'1px solid #ddd',
+                                objectFit:'cover'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={removeCertificate}
+                              style={{
+                                position:'absolute',
+                                top:'4px',
+                                right:'4px',
+                                background:'rgba(255,0,0,0.7)',
+                                color:'#fff',
+                                border:'none',
+                                borderRadius:'50%',
+                                width:'24px',
+                                height:'24px',
+                                cursor:'pointer',
+                                fontSize:'14px',
+                                lineHeight:'1'
+                              }}
+                              title="Remove certificate"
+                            >×</button>
+                          </div>
+                        ) : (
+                          <div style={{
+                            width:'200px', height:'200px',
+                            border:'2px dashed #ddd',
+                            borderRadius:'8px',
+                            display:'flex',
+                            alignItems:'center',
+                            justifyContent:'center',
+                            fontSize:'14px',
+                            color:'#999'
+                          }}>No certificate uploaded</div>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={uploadCertificate}
+                        disabled={uploadingCert || !perms.canManage}
+                      />
+                      {uploadingCert && <small style={{ color:'#666', display:'block', marginTop:'4px' }}>Uploading...</small>}
+                      <small style={{ color:'#666', display:'block', marginTop:'6px' }}>
+                        JPG, PNG, GIF, PDF. Max 5MB.
+                      </small>
+                      {expForm.experience_certificate && (
+                        <small style={{ color:'#28a745', display:'block', marginTop:'4px' }}>
+                          Stored: {expForm.experience_certificate}
+                        </small>
+                      )}
+                    </div>
+
+                    {/* NEW: Created date/time (edit only), before actions */}
+                    {editingExp ? (
+                      <div className="form-group">
+                        <label>Created At</label>
+                        <div style={{ fontSize: '12px', color: '#334155' }}>
+                          {formatDateTime(currentExp?.created_at)}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="form-actions">
                       <button
                         type="button"
-                        onClick={removeCertificate}
-                        style={{
-                          position:'absolute',
-                          top:'4px',
-                          right:'4px',
-                          background:'rgba(255,0,0,0.7)',
-                          color:'#fff',
-                          border:'none',
-                          borderRadius:'50%',
-                          width:'24px',
-                          height:'24px',
-                          cursor:'pointer',
-                          fontSize:'14px',
-                          lineHeight:'1'
-                        }}
-                        title="Remove certificate"
-                      >×</button>
+                        className="btn-secondary"
+                        onClick={() => setShowExpDialog(false)}
+                        disabled={uploadingCert}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={saveExperience}
+                        disabled={uploadingCert || !perms.canManage}
+                      >
+                        {editingExp ? 'Update' : 'Save'}
+                      </button>
                     </div>
-                  ) : (
-                    <div style={{
-                      width:'200px', height:'200px',
-                      border:'2px dashed #ddd',
-                      borderRadius:'8px',
-                      display:'flex',
-                      alignItems:'center',
-                      justifyContent:'center',
-                      fontSize:'14px',
-                      color:'#999'
-                    }}>No certificate uploaded</div>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={uploadCertificate}
-                  disabled={uploadingCert || !perms.canManage}
-                />
-                {uploadingCert && <small style={{ color:'#666', display:'block', marginTop:'4px' }}>Uploading...</small>}
-                <small style={{ color:'#666', display:'block', marginTop:'6px' }}>
-                  JPG, PNG, GIF, PDF. Max 5MB.
-                </small>
-                {expForm.experience_certificate && (
-                  <small style={{ color:'#28a745', display:'block', marginTop:'4px' }}>
-                    Stored: {expForm.experience_certificate}
-                  </small>
-                )}
-              </div>
-              <div className="form-actions">
-                <button type="button" className="btn-secondary" onClick={()=>setShowExpDialog(false)} disabled={uploadingCert}>Cancel</button>
-                <button type="button" className="btn-primary" onClick={saveExperience} disabled={uploadingCert || !perms.canManage}>{editingExp ? 'Update' : 'Save'}</button>
-              </div>
-            </form>
+                  </form>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -1450,6 +1739,7 @@ export default function EmployeeDetail() {
     const sentCount = applications.sent?.length || 0;
     const receivedCount = applications.received?.length || 0;
     const rows = appTab === 'Sent' ? applications.sent : applications.received;
+
     return (
       <div>
         <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
@@ -1488,59 +1778,86 @@ export default function EmployeeDetail() {
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Organization</th>
-                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>State</th>
-                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>City</th>
+
+                {/* NEW */}
+                {perms.canShowEmployerPhoneAddress && (
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer Phone</th>
+                )}
+
+                {perms.canShowEmployerPhoneAddress && (
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>State</th>
+                )}
+                {perms.canShowEmployerPhoneAddress && (
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>City</th>
+                )}
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Salary</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Vacancy Left</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Hired</th>
-                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>OTP</th>
+
+                {/* REMOVED: OTP */}
+
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>
                   {appTab === 'Sent' ? 'Applied Time' : 'Received Time'}
                 </th>
+
+                {/* NEW */}
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employee KYC</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job Status</th>
+
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Status</th>
               </tr>
             </thead>
+
             <tbody>
               {rows.map(row => (
                 <tr key={row.id}>
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>
-                    <Link
-                      to={`/jobs/${row.job_id}`}
-                      style={{
-                        color: '#2563eb',
-                        textDecoration: 'underline',
-                        cursor: 'pointer',
-                        padding: 0,
-                        fontSize: 'inherit',
-                        background: 'none',
-                        border: 'none'
-                      }}
-                    >
+                    <Link to={`/jobs/${row.job_id}`} style={{ color: '#2563eb', textDecoration: 'underline' }}>
                       {row.job_profile || '-'}
                     </Link>
                   </td>
+
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>
-                    <Link
-                      to={`/employers/${row.employer_id}`}
-                      style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
-                    >
+                    <Link to={`/employers/${row.employer_id}`} style={{ color: '#2563eb', textDecoration: 'underline' }}>
                       {row.employer_name || '-'}
                     </Link>
                   </td>
+
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.organization_name || '-'}</td>
-                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_state || '-'}</td>
-                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_city || '-'}</td>
+
+                  {/* NEW */}
+                  {perms.canShowEmployerPhoneAddress && (
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.employer_phone || '-'}</td>
+                  )}
+
+                  {perms.canShowEmployerPhoneAddress && (
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_state || '-'}</td>
+                  )}
+                  {perms.canShowEmployerPhoneAddress && (
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_city || '-'}</td>
+                  )}
+
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>
-                    {row.salary_min && row.salary_max
-                      ? `${row.salary_min} - ${row.salary_max}`
-                      : '-'}
+                    {row.salary_min && row.salary_max ? `${row.salary_min} - ${row.salary_max}` : '-'}
                   </td>
+
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.vacancy_left ?? '-'}</td>
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.hired_total ?? '-'}</td>
-                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.otp || '-'}</td>
+
+                  {/* REMOVED: OTP cell */}
+
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>
                     {formatDateTime(appTab === 'Sent' ? row.applied_at : row.received_at)}
                   </td>
+
+                  {/* NEW */}
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>
+                    {renderStatusBadge(row.employee_kyc_status)}
+                  </td>
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>
+                    {renderJobStatusChip(row.job_status)}
+                  </td>
+
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>
                     {row.status}
                   </td>
@@ -1569,10 +1886,19 @@ export default function EmployeeDetail() {
             <thead>
               <tr style={{ background: '#f5f5f5' }}>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job Status</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer</th>
+                {perms.canShowEmployerPhoneAddress && (
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer Phone</th>
+                )}
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer KYC</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Organization</th>
-                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>State</th>
-                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>City</th>
+                {perms.canShowEmployerPhoneAddress && (
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>State</th>
+                )}
+                {perms.canShowEmployerPhoneAddress && (
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>City</th>
+                )}
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Salary</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Vacancy Left</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Hired</th>
@@ -1602,6 +1928,7 @@ export default function EmployeeDetail() {
                       {row.job_profile || '-'}
                     </Link>
                   </td>
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{renderJobStatusChip(row.job_status)}</td>
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>
                     <Link
                       to={`/employers/${row.employer_id}`}
@@ -1610,9 +1937,17 @@ export default function EmployeeDetail() {
                       {row.employer_name || '-'}
                     </Link>
                   </td>
+                  {perms.canShowEmployerPhoneAddress && (
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.employer_phone || '-'}</td>
+                  )}
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.employer_kyc_status || '-'}</td>
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.organization_name || '-'}</td>
-                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_state || '-'}</td>
-                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_city || '-'}</td>
+                  {perms.canShowEmployerPhoneAddress && (
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_state || '-'}</td>
+                  )}
+                  {perms.canShowEmployerPhoneAddress && (
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_city || '-'}</td>
+                  )}
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>
                     {row.salary_min && row.salary_max
                       ? `${row.salary_min} - ${row.salary_max}`
@@ -1627,6 +1962,7 @@ export default function EmployeeDetail() {
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>
                     {row.status}
                   </td>
+                  
                 </tr>
               ))}
             </tbody>
@@ -1652,8 +1988,12 @@ export default function EmployeeDetail() {
             <tr style={{ background: '#f5f5f5' }}>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job</th>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer</th>
-              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>State</th>
-              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>City</th>
+              {perms.canShowEmployerPhoneAddress && (
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>State</th>
+              )}
+              {perms.canShowEmployerPhoneAddress && (
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>City</th>
+              )}
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Timing</th>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Salary</th>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Vacancy Left</th>
@@ -1687,8 +2027,12 @@ export default function EmployeeDetail() {
                     {row.employer_name || '-'}
                   </Link>
                 </td>
-                <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_state || '-'}</td>
-                <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_city || '-'}</td>
+                {perms.canShowEmployerPhoneAddress && (
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_state || '-'}</td>
+                )}
+                {perms.canShowEmployerPhoneAddress && (
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.job_city || '-'}</td>
+                )}
                 <td style={{ padding: '6px', border: '1px solid #eee' }}>
                   {row.work_start_time && row.work_end_time
                     ? `${row.work_start_time} - ${row.work_end_time}`
@@ -1748,7 +2092,9 @@ export default function EmployeeDetail() {
                   <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Employer Name</th>
                   <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Verification</th>
                   <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>KYC</th>
-                  <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Mobile</th>
+                  {perms.canShowEmployerPhoneAddress && (
+                    <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Mobile</th>
+                  )}
                   <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Call Experience</th>
                   <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Date</th>
                 </tr>
@@ -1768,13 +2114,15 @@ export default function EmployeeDetail() {
                     </td>
                     <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.verification_status}</td>
                     <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.kyc_status}</td>
-                    <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.mobile}</td>
+                    {perms.canShowEmployerPhoneAddress && (
+                      <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.mobile || '-'}</td>
+                    )}
                     <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.call_experience}</td>
                     <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.date)}</td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={6} style={{ padding:'8px', textAlign: 'left' }}>No data</td>
+                    <td colSpan={perms.canShowEmployerPhoneAddress ? 6 : 5} style={{ padding:'8px', textAlign: 'left' }}>No data</td>
                   </tr>
                 )}
               </tbody>
@@ -1807,28 +2155,67 @@ export default function EmployeeDetail() {
               </button>
             ))}
           </div>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
-            <thead>
-              <tr style={{ background:'#f5f5f5' }}>
-                <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Type</th>
-                <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Amount</th>
-                <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length ? filtered.map((row, i) => (
-                <tr key={i}>
-                  <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.type}</td>
-                  <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.amount ?? '-'}</td>
-                  <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.date)}</td>
+
+          {creditHistoryError && (
+            <div style={{ color: '#b91c1c', fontSize: '12px', marginBottom: '8px' }}>{creditHistoryError}</div>
+          )}
+
+          {creditHistoryLoading ? (
+            <div style={{ fontSize: '13px' }}>Loading...</div>
+          ) : (
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
+              <thead>
+                <tr style={{ background:'#f5f5f5' }}>
+                  <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Job Profile</th>
+                  <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Employer Name</th>
+                  <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Organization</th>
+                  {perms.canShowEmployerPhoneAddress && (
+                    <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Employer Mobile</th>
+                  )}
+                  <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Job Status</th>
+                  <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Interest Status</th>
+                  <th style={{ padding:'6px', border:'1px solid #ddd', textAlign: 'left' }}>Created At</th>
                 </tr>
-              )) : (
-                <tr>
-                  <td colSpan={3} style={{ padding:'8px', textAlign: 'left' }}>No data</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.length ? filtered.map((row, i) => (
+                  <tr key={i}>
+                    <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>
+                      {row.job_id ? (
+                        <Link
+                          to={`/jobs/${row.job_id}`}
+                          style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
+                        >
+                          {row.job_profile || '-'}
+                        </Link>
+                      ) : (row.job_profile || '-')}
+                    </td>
+                    <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>
+                      {(row.employer_id && row.employer_name) ? (
+                        <Link
+                          to={`/employers/${row.employer_id}`}
+                          style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
+                        >
+                          {row.employer_name}
+                        </Link>
+                      ) : (row.employer_name || '-')}
+                    </td>
+                    <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.organization_name || '-'}</td>
+                    {perms.canShowEmployerPhoneAddress && (
+                      <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.employer_mobile || row.employer_phone || '-'}</td>
+                    )}
+                    <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{renderJobStatusChip(row.job_status)}</td>
+                    <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{renderInterestStatusChip(row.job_interest_status || row.interest_status || row.status)}</td>
+                    <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.created_at || row.date)}</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={perms.canShowEmployerPhoneAddress ? 7 : 6} style={{ padding:'8px', textAlign: 'left' }}>No data</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       );
     }
@@ -1897,6 +2284,7 @@ export default function EmployeeDetail() {
           <thead>
             <tr style={{ background: '#f5f5f5' }}>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer Name</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer Status</th>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Reason</th>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Description</th>
               <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Date/Time</th>
@@ -1921,6 +2309,11 @@ export default function EmployeeDetail() {
                         {employerName}
                       </Link>
                     ) : employerName}
+                  </td>
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>
+                    {employer?.User && employer.User.is_active !== undefined && employer.User.is_active !== null
+                      ? renderActiveBadge(employer.User.is_active)
+                      : '-'}
                   </td>
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>{reason}</td>
                   <td style={{ padding: '6px', border: '1px solid #eee' }}>{r.description || '-'}</td>
@@ -2108,11 +2501,12 @@ export default function EmployeeDetail() {
             <thead>
               <tr style={{ background: '#f5f5f5' }}>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>ID</th>
-                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>User</th>
-                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Target</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Name</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Phone</th>          {/* NEW */}
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>User Type</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Contact Credit</th>
                 <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Interest Credit</th>
-                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Created</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Created At</th>
               </tr>
             </thead>
             <tbody>
@@ -2122,15 +2516,17 @@ export default function EmployeeDetail() {
                 const targetId = referral.user_entity_id || referral.user_id;
                 const userRoute = getReferralDetailRoute(targetType, targetId);
                 const userName = referral.user_name || referral.User?.name || '-';
+                const canShowTargetPhone = targetType.includes('employer') ? perms.canShowEmployerPhoneAddress : perms.canShowPhoneAddress;
                 return (
                   <tr key={referral.id}>
                     <td style={{ padding: '6px', border: '1px solid #eee' }}>{referral.id}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee' }}>
                       {renderReferralNameCell(userName, userRoute)}
                     </td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{canShowTargetPhone ? (referral.user_mobile || '-') : '-'}</td>  {/* NEW */}
                     <td style={{ padding: '6px', border: '1px solid #eee' }}>{referral.user_type || '-'}</td>
-                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{referral.contact_credit ?? 0}</td>
-                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{referral.interest_credit ?? 0}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{referral.contact_credit || 0}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{referral.interest_credit || 0}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee' }}>{formatDateTime(referral.created_at)}</td>
                   </tr>
                 );
@@ -2148,15 +2544,24 @@ export default function EmployeeDetail() {
       case 'Job profiles': return renderJobProfilesTab();
       case 'Experiences': return renderExperiencesTab();
       case 'Documents': return renderDocumentsTab();
+      case 'Recommended Jobs':
+        if (typeof RecommendedJobsTab !== 'function') {
+          return (
+            <div style={{ color: '#b91c1c', fontSize: '13px' }}>
+              Recommended Jobs tab failed to load.
+            </div>
+          );
+        }
+        return <RecommendedJobsTab employeeId={employee?.id} perms={perms} />;
       case 'Applications': return renderApplicationsTab();
       case 'Hired jobs': return renderHiredJobsTab();
       case 'Wishlist': return renderWishlistTab();
       case 'Credit history': return renderCreditHistoryTab();
       case 'Subscription history': return renderSubscriptionHistoryTab();
       case 'Call experiences': return renderCallExperiencesTab();
-      case 'Call reviews': return renderCallReviewsTab();
+      case 'Call review by employer': return renderCallReviewsTab();
       case 'Referrals': return renderReferralsTab();
-      case 'Voilation reports': return renderVoilationReportsTab();
+      case 'Voilation report by employer': return renderVoilationReportsTab();
       case 'Voilations reported':
         return renderVoilationsReportedTab();
       default: return null;
@@ -2196,6 +2601,9 @@ export default function EmployeeDetail() {
       </div>
     );
   }
+
+  // CHANGED: was React.useMemo(...) (hook); now plain computation (no hook)
+  const employeeHeadingSuffix = getEmployeeHeadingSuffix(employee, perms.canShowPhoneAddress);
 
   return (
     <div className="dashboard-container">
@@ -2240,11 +2648,17 @@ export default function EmployeeDetail() {
                     padding: 0
                   }}
                 >
-                  <JobDetail
-                    jobId={viewJobId}
-                    onClose={() => setViewJobId(null)}
-                    onEdit={() => setViewJobId(null)}
-                  />
+                  {typeof JobDetail === 'function' ? (
+                    <JobDetail
+                      jobId={viewJobId}
+                      onClose={() => setViewJobId(null)}
+                      onEdit={() => setViewJobId(null)}
+                    />
+                  ) : (
+                    <div style={{ padding: 16, color: '#b91c1c', fontSize: '13px' }}>
+                      Job detail failed to load.
+                    </div>
+                  )}
                   <button
                     className="btn-close"
                     onClick={() => setViewJobId(null)}
@@ -2270,7 +2684,13 @@ export default function EmployeeDetail() {
             {!viewJobId && (
               <>
                 <div className="list-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                  {!showEditForm && <h1 style={{ margin:0 }}>Employee Detail</h1>}
+                  {!showEditForm && <h1 style={{ margin: 0 }}>Employee Detail
+                    {employeeHeadingSuffix ? (
+                      <span style={{ marginLeft: 10, fontSize: '0.95em', fontWeight: 600, color: '#475569' }}>
+                        {employeeHeadingSuffix}
+                      </span>
+                    ) : null}
+                  </h1>}
                   {!showEditForm && (
                     <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
                       <button
@@ -2288,6 +2708,9 @@ export default function EmployeeDetail() {
                         >
                           Edit
                         </button>
+                      )}
+                      {employee && perms.canView && (
+                        <LogsAction category="employee" title="Employee Logs" buttonStyle={{ padding:'4px 10px' }} />
                       )}
                       {employee && (
                         <div ref={actionMenuRef} style={{ position:'relative' }}>
@@ -2496,6 +2919,64 @@ export default function EmployeeDetail() {
                     <button className="btn-secondary" onClick={() => setShowAddCreditsDialog(false)} disabled={addCreditsSaving}>Cancel</button>
                     <button className="btn-primary" onClick={handleAddCreditsSave} disabled={addCreditsSaving}>
                       {addCreditsSaving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* NEW: Deactivation reason modal */}
+            {showDeactivateDialog && (
+              <div
+                className="form-container"
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.45)',
+                  zIndex: 3200,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <div style={{ width: '92%', maxWidth: '460px', background: '#fff', borderRadius: '10px', padding: '18px' }}>
+                  <h2 style={{ marginTop: 0, fontSize: '16px' }}>Deactivate User</h2>
+                  <div style={{ fontSize: '12px', color: '#475569', marginBottom: 10 }}>
+                    Deactivation reason is required.
+                  </div>
+
+                  {deactivateError && (
+                    <div style={{ fontSize: '12px', color: '#b91c1c', marginBottom: 10 }}>
+                      {deactivateError}
+                    </div>
+                  )}
+
+                  <div className="form-group">
+                    <label>Reason</label>
+                    <textarea
+                      value={deactivateReason}
+                      onChange={(e) => setDeactivateReason(e.target.value)}
+                      rows={4}
+                      placeholder="Enter reason..."
+                      disabled={deactivateSaving}
+                      style={{ width: '100%', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div className="form-actions">
+                    <button
+                      className="btn-secondary"
+                      onClick={() => setShowDeactivateDialog(false)}
+                      disabled={deactivateSaving}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={confirmDeactivate}
+                      disabled={deactivateSaving}
+                    >
+                      {deactivateSaving ? 'Deactivating...' : 'Deactivate'}
                     </button>
                   </div>
                 </div>

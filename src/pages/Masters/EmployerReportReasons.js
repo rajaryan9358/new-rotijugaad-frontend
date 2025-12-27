@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import EmployerReportReasonForm from '../../components/Forms/EmployerReportReasonForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import employerReportReasonsApi from '../../api/masters/employerReportReasonsApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -178,17 +179,25 @@ export default function EmployerReportReasons() {
               <>
                 <div className="list-header">
                   <h1>Employer Report Reasons Management</h1>
-                  {canManageMasters && (
-                    <button
-                      className="btn-primary small"
-                      onClick={() => {
-                        setEditingId(null);
-                        setShowForm(true);
-                      }}
-                    >
-                      + Add Reason
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {canManageMasters && (
+                      <button
+                        className="btn-primary small"
+                        onClick={() => {
+                          setEditingId(null);
+                          setShowForm(true);
+                        }}
+                      >
+                        + Add Reason
+                      </button>
+                    )}
+                    {canViewMasters && (
+                      <LogsAction
+                        category="employer report reason"
+                        title="Employer Report Reason Logs"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="table-container">

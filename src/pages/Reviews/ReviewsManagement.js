@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom'; // CHANGED
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { reviewsApi } from '../../api/reviews';
+import logsApi from '../../api/logsApi';
 import '../Masters/MasterPage.css';
 
 const FilterField = ({ label, children }) => (
@@ -227,6 +229,22 @@ export default function ReviewsManagement() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+
+      // audit log: export
+      const exportParts = [];
+      if (filters.user_type) exportParts.push(`user_type=${filters.user_type}`);
+      if (filters.rating) exportParts.push(`rating=${filters.rating}`);
+      if (filters.read && filters.read !== 'all') exportParts.push(`read=${filters.read}`);
+      if (filters.search.trim()) exportParts.push(`search=${filters.search.trim()}`);
+
+      logsApi
+        .create({
+          category: 'reviews',
+          type: 'export',
+          redirect_to: '/reviews',
+          log_text: `Exported reviews CSV${exportParts.length ? ` (${exportParts.join(', ')})` : ''}`,
+        })
+        .catch(() => {});
     } catch (error) {
       setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to export reviews' });
     }
@@ -332,10 +350,17 @@ export default function ReviewsManagement() {
                   Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
                 </button>
                 {canExportReviews && (
-                  <button className="btn-secondary btn-small" onClick={handleExportCsv}>
+                  <button className="btn-secondary btn-small" style={{ marginRight: 0 }} onClick={handleExportCsv}>
                     Export CSV
                   </button>
                 )}
+                <LogsAction
+                  category="reviews"
+                  title="Reviews Logs"
+                  baseButtonClassName="btn-secondary"
+                  sizeClassName="btn-small"
+                  buttonStyle={{ marginRight: 0 }}
+                />
               </div>
             </div>
             <div className="applied-filters" style={{ marginBottom: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '10px 12px', border: '1px solid #e2e8f0', background: '#ffffff', borderRadius: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}>
@@ -446,32 +471,53 @@ export default function ReviewsManagement() {
                       <td colSpan={columnsCount} className="no-data">Loading...</td>
                     </tr>
                   ) : hasReviews ? (
-                    reviews.map((review) => (
-                      <tr key={review.id}>
-                        <td>{review.id}</td>
-                        <td style={{ textTransform: 'capitalize' }}>{review.user_type}</td>
-                        <td>{review.reviewer_name || '-'}</td>
-                        <td>{review.rating}</td>
-                        <td style={{ maxWidth: '360px', whiteSpace: 'normal' }}>{review.review}</td>
-                        <td>
-                          <span className={`badge ${review.read_at ? 'active' : 'inactive'}`}>
-                            {review.read_at ? 'Read' : 'Unread'}
-                          </span>
-                        </td>
-                        <td>{review.updated_at ? new Date(review.updated_at).toLocaleString() : '-'}</td>
-                        {showActions && (
+                    reviews.map((review) => {
+                      const reviewerRoute =
+                        review.reviewer_route ||
+                        (review.user_id
+                          ? (review.user_type === 'employee'
+                              ? `/employees/${review.user_id}`
+                              : `/employers/${review.user_id}`)
+                          : null);
+
+                      return (
+                        <tr key={review.id}>
+                          <td>{review.id}</td>
+                          <td style={{ textTransform: 'capitalize' }}>{review.user_type}</td>
                           <td>
-                            <button
-                              className="btn-small btn-secondary"
-                              disabled={!canManageReviews || !!review.read_at}
-                              onClick={() => handleMarkRead(review.id)}
-                            >
-                              {review.read_at ? 'Read' : 'Mark Read'}
-                            </button>
+                            {reviewerRoute ? (
+                              <Link
+                                to={reviewerRoute}
+                                style={{ color: '#2563eb', textDecoration: 'underline' }}
+                              >
+                                {review.reviewer_name || '-'}
+                              </Link>
+                            ) : (
+                              review.reviewer_name || '-'
+                            )}
                           </td>
-                        )}
-                      </tr>
-                    ))
+                          <td>{review.rating}</td>
+                          <td style={{ maxWidth: '360px', whiteSpace: 'normal' }}>{review.review}</td>
+                          <td>
+                            <span className={`badge ${review.read_at ? 'active' : 'inactive'}`}>
+                              {review.read_at ? 'Read' : 'Unread'}
+                            </span>
+                          </td>
+                          <td>{review.updated_at ? new Date(review.updated_at).toLocaleString() : '-'}</td>
+                          {showActions && (
+                            <td>
+                              <button
+                                className="btn-small btn-secondary"
+                                disabled={!canManageReviews || !!review.read_at}
+                                onClick={() => handleMarkRead(review.id)}
+                              >
+                                {review.read_at ? 'Read' : 'Mark Read'}
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={columnsCount} className="no-data">No reviews found</td>

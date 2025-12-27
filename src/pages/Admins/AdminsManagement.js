@@ -7,6 +7,7 @@ import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import '../Masters/MasterPage.css';
 import { adminsApi } from '../../api/admins';
 import { rolesApi } from '../../api/roles';
+import LogsAction from '../../components/LogsAction';
 
 const FormField = ({ label, children }) => (
   <div style={{ marginBottom: '18px' }}>
@@ -66,6 +67,7 @@ export default function AdminsManagement() {
           name: form.name,
           email: form.email,
           role_id: form.role_id,
+          ...(form.password ? { password: form.password } : {}),
           is_active: true
         });
         setMessage({ type: 'success', text: 'Admin updated' });
@@ -86,7 +88,7 @@ export default function AdminsManagement() {
     setForm({
       name: admin.name,
       email: admin.email,
-      password: '',
+      password: admin.password || '',
       role_id: admin.role_id || admin.roleRelation?.id || ''
     });
   };
@@ -152,7 +154,17 @@ export default function AdminsManagement() {
         <Sidebar isOpen={sidebarOpen} />
         <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
-            {/* flash messages */}
+            {message && (
+              <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
+                {message.text}
+                <button className="msg-close" onClick={() => setMessage(null)}>✕</button>
+              </div>
+            )}
+
+            <div className="list-header">
+              <h1>Admins</h1>
+              <LogsAction category="admin" title="Admins Logs" />
+            </div>
             <div className="stats-row" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:'12px', marginBottom:'16px' }}>
               {stats.map((stat) => (
                 <div key={stat.label} className="data-card" style={{ padding:'12px 16px', textAlign:'center' }}>
@@ -193,17 +205,15 @@ export default function AdminsManagement() {
                         required
                       />
                     </FormField>
-                    {!editingId && (
-                      <FormField label="Password">
-                        <input
-                          type="password"
-                          className="state-filter-select"
-                          value={form.password}
-                          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                          required
-                        />
-                      </FormField>
-                    )}
+                    <FormField label="Password">
+                      <input
+                        type="text"
+                        className="state-filter-select"
+                        value={form.password}
+                        onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                        required={!editingId}
+                      />
+                    </FormField>
                     <FormField label="Role">
                       <select
                         className="state-filter-select"

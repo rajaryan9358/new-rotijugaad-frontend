@@ -13,6 +13,8 @@ import JobForm from '../../components/Forms/JobForm';
 import jobApi from '../../api/jobApi';
 import JobDetail from './JobDetail'; // (to be created below)
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import LogsAction from '../../components/LogsAction';
+import logsApi from '../../api/logsApi';
 
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
@@ -21,14 +23,31 @@ const GENDER_OPTIONS = [
 ];
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' }
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'expired', label: 'Expired' } // NEW
 ];
 const JOB_RECENCY_OPTIONS = [
   { value: 'all', label: 'All Jobs' },
   { value: 'new', label: 'New Jobs (Last 48h)' }
 ];
 
-function SingleSelect({ label, options, value, onChange, optionLabel = 'label', optionValue = 'value', placeholder = 'Any' }) {
+// NEW
+const VERIFICATION_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' }
+];
+
+function SingleSelect({
+  label,
+  options,
+  value,
+  onChange,
+  optionLabel = 'label',
+  optionValue = 'value',
+  placeholder = 'Any',
+  disabled = false // NEW
+}) {
   const normalizedValue = value === undefined || value === null ? '' : String(value);
   return (
     <div style={{ minWidth: 200 }}>
@@ -38,6 +57,7 @@ function SingleSelect({ label, options, value, onChange, optionLabel = 'label', 
         value={normalizedValue}
         onChange={(e) => onChange(e.target.value === '' ? '' : e.target.value)}
         style={{ width:'100%' }}
+        disabled={disabled} // NEW
       >
         <option value="">{placeholder}</option>
         {(options || []).map(opt => {
@@ -91,7 +111,15 @@ export default function JobsManagement() {
     job_benefit: '',
     status: '',
     job_recency: 'all',
+
+    // NEW
+    verification_status: '',
+    job_state_id: '',
+    job_city_id: '',
+    created_from: '',
+    created_to: '',
   });
+
   const [draftFilters, setDraftFilters] = useState({ ...filters });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [options, setOptions] = useState({
@@ -141,7 +169,7 @@ export default function JobsManagement() {
   const normalizedStatusFromQuery = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
     const status = (params.get('status') || '').trim().toLowerCase();
-    return ['active', 'inactive'].includes(status) ? status : '';
+    return ['active', 'inactive', 'expired'].includes(status) ? status : '';
   }, [location.search]);
 
   const normalizedRecencyFromQuery = React.useMemo(() => {
@@ -150,12 +178,20 @@ export default function JobsManagement() {
     return recency === 'new' ? 'new' : 'all';
   }, [location.search]);
 
+  // NEW: verification_status from query
+  const normalizedVerificationFromQuery = React.useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const vs = (params.get('verification_status') || '').trim().toLowerCase();
+    return ['pending', 'approved', 'rejected'].includes(vs) ? vs : '';
+  }, [location.search]);
+
   const querySignature = React.useMemo(
     () => JSON.stringify({
       status: normalizedStatusFromQuery,
-      job_recency: normalizedRecencyFromQuery
+      job_recency: normalizedRecencyFromQuery,
+      verification_status: normalizedVerificationFromQuery // NEW
     }),
-    [normalizedStatusFromQuery, normalizedRecencyFromQuery]
+    [normalizedStatusFromQuery, normalizedRecencyFromQuery, normalizedVerificationFromQuery]
   );
 
   const buildQueryParams = React.useCallback((overrides = {}) => {
@@ -218,6 +254,12 @@ export default function JobsManagement() {
         changed = true;
       }
 
+      // NEW
+      if (prev.verification_status !== normalizedVerificationFromQuery) {
+        next.verification_status = normalizedVerificationFromQuery;
+        changed = true;
+      }
+
       if (changed) shouldResetPage = true;
       return changed ? next : prev;
     });
@@ -225,7 +267,8 @@ export default function JobsManagement() {
     setDraftFilters(prev => ({
       ...prev,
       status: normalizedStatusFromQuery,
-      job_recency: normalizedRecencyFromQuery
+      job_recency: normalizedRecencyFromQuery,
+      verification_status: normalizedVerificationFromQuery // NEW
     }));
 
     if (shouldResetPage) setCurrentPage(1);
@@ -235,6 +278,7 @@ export default function JobsManagement() {
     querySignature,
     normalizedStatusFromQuery,
     normalizedRecencyFromQuery,
+    normalizedVerificationFromQuery, // NEW
     appliedQuerySignature,
     queryHydrated
   ]);
@@ -320,6 +364,21 @@ export default function JobsManagement() {
     setFilters({ ...draftFilters });
     setCurrentPage(1);
     setShowFilterPanel(false);
+
+    try {
+      const active = Object.entries(draftFilters || {})
+        .filter(([k, v]) => Boolean(v) && !(k === 'job_recency' && v === 'all'))
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ') || 'none';
+      logsApi.create({
+        category: 'jobs',
+        type: 'update',
+        redirect_to: '/jobs',
+        log_text: `Applied job filters: ${active}`,
+      });
+    } catch (e) {
+      // ignore logging failures
+    }
   };
 
   const clearFilters = () => {
@@ -333,6 +392,13 @@ export default function JobsManagement() {
       job_benefit: '',
       status: '',
       job_recency: 'all',
+
+      // NEW
+      verification_status: '',
+      job_state_id: '',
+      job_city_id: '',
+      created_from: '',
+      created_to: '',
     };
     setFilters(empty);
     setDraftFilters(empty);
@@ -340,6 +406,17 @@ export default function JobsManagement() {
     setSortDir('desc');
     setCurrentPage(1);
     setShowFilterPanel(false);
+
+    try {
+      logsApi.create({
+        category: 'jobs',
+        type: 'update',
+        redirect_to: '/jobs',
+        log_text: 'Cleared job filters',
+      });
+    } catch (e) {
+      // ignore logging failures
+    }
   };
 
   const handleSearchChange = (e) => {
@@ -411,7 +488,11 @@ export default function JobsManagement() {
       return;
     }
 
-    const headers = ['ID','Employer','Job Profile','Household','Gender','Experience','Qualification','Shift','Skills','Benefits','Vacancies','State','City','Salary','Status','Updated','Created'];
+    const headers = [
+      'ID','Employer','Employer Phone','Interviewer Contact','Shift Timing',
+      'Job Profile','Household','Gender','Experience','Qualification','Shift','Skills','Benefits',
+      'Vacancies','State','City','Salary','Status','Updated','Created'
+    ];
     const escapeCell = (val) => {
       if (val === null || val === undefined) return '';
       const str = String(val);
@@ -420,6 +501,9 @@ export default function JobsManagement() {
     const rows = exportRows.map(job => [
       job.id,
       job.employer_name || job.employer_id || '',
+      job.employer_phone || '',
+      job.interviewer_contact || '',          // NEW
+      job.shift_timing_display || '',         // NEW
       job.job_profile || '',
       job.is_household ? 'Yes' : 'No',
       job.genders || '',
@@ -446,34 +530,55 @@ export default function JobsManagement() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    try {
+      const active = Object.entries(filters || {})
+        .filter(([k, v]) => Boolean(v) && !(k === 'job_recency' && v === 'all'))
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ') || 'none';
+      await logsApi.create({
+        category: 'jobs',
+        type: 'export',
+        redirect_to: '/jobs',
+        log_text: `Exported jobs (filters: ${active}; search=${searchTerm || 'none'})`,
+      });
+    } catch (e) {
+      // do not break export flow if logging fails
+    }
   };
 
   const pageSummary = totalCount > 0
     ? { start: Math.min((currentPage - 1) * pageSize + 1, totalCount), end: Math.min((currentPage - 1) * pageSize + rows.length, totalCount) }
     : { start: 0, end: 0 };
 
-  // Styling for chips
+  // Styling for chips (CHANGED: match EmployeesManagement)
   const chipBaseStyle = {
     display:'inline-flex',
     alignItems:'center',
     gap:'6px',
-    background:'linear-gradient(135deg,#6366f1,#8b5cf6)',
-    color:'#fff',
+    background:'#e0edff',
+    color:'#1d4ed8',
     padding:'6px 10px',
     fontSize:'12px',
     borderRadius:'20px',
-    boxShadow:'0 2px 4px rgba(0,0,0,0.15)'
+    border:'1px solid #bfdbfe',
+    boxShadow:'0 1px 2px rgba(37,99,235,0.15)',
+    fontWeight:600
   };
   const chipCloseStyle = {
-    background:'rgba(255,255,255,0.25)',
+    background:'transparent',
     border:'none',
-    color:'#fff',
+    color:'#1d4ed8',
     cursor:'pointer',
     width:'18px',
     height:'18px',
     lineHeight:'16px',
     borderRadius:'50%',
-    fontSize:'12px'
+    fontSize:'12px',
+    display:'flex',
+    alignItems:'center',
+    justifyContent:'center',
+    transition:'background 0.2s'
   };
   const linkButtonStyle = {
     background: 'none',
@@ -487,7 +592,8 @@ export default function JobsManagement() {
   };
   const statusPalette = {
     active: { bg: '#dcfce7', color: '#166534', label: 'Active' },
-    inactive: { bg: '#fee2e2', color: '#b91c1c', label: 'Inactive' }
+    inactive: { bg: '#fee2e2', color: '#b91c1c', label: 'Inactive' },
+    expired: { bg: '#fef3c7', color: '#92400e', label: 'Expired' } // NEW (keeps UI consistent)
   };
   const NEW_BADGE_STYLE = {
     marginLeft: 6,
@@ -499,31 +605,84 @@ export default function JobsManagement() {
     background: '#22c55e',
     color: '#fff'
   };
-  const renderStatusBadge = (status) => {
-    const tone = statusPalette[status?.toLowerCase?.()] || { bg: '#e5e7eb', color: '#0f172a', label: status || '-' };
+  const formatExpiry = (val) => {
+    if (!val) return '';
+    try {
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleString();
+    } catch {
+      return '';
+    }
+  };
+  // NOTE: expired jobs are determined by `expired_at` being non-null (backend filter matches this).
+  const isExpiredJob = (job) => Boolean(job?.expired_at) || String(job?.status || '').toLowerCase() === 'expired';
+
+  const renderStatusBadge = (jobOrStatus) => {
+    const job = (jobOrStatus && typeof jobOrStatus === 'object') ? jobOrStatus : { status: jobOrStatus };
+    const status = String(job.status || '').toLowerCase();
+    const expired = isExpiredJob(job);
+    const expiryText = formatExpiry(job.expired_at);
+
+    const tone = statusPalette[status] || { bg: '#e5e7eb', color: '#0f172a', label: status || '-' };
+
+    const label = (() => {
+      if (expired && status === 'inactive') return 'Expired • Inactive';
+      if (expired) return 'Expired';
+      return tone.label;
+    })();
+
     return (
       <span style={{
         display: 'inline-flex',
-        alignItems: 'center',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '2px',
         padding: '4px 12px',
         borderRadius: '999px',
         fontSize: '12px',
         fontWeight: 600,
-        textTransform: 'capitalize',
-        background: tone.bg,
-        color: tone.color
+        background: expired ? '#fef3c7' : tone.bg,
+        color: expired ? '#92400e' : tone.color
       }}>
+        <span>{label}</span>
+        {expired && expiryText ? (
+          <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.9 }}>
+            {expiryText}
+          </span>
+        ) : null}
+      </span>
+    );
+  };
+
+  const renderVerificationBadge = (value) => {
+    const v = String(value || 'pending').toLowerCase();
+    const palette = {
+      pending: { bg: '#e5e7eb', color: '#0f172a', label: 'Pending' },
+      approved: { bg: '#dcfce7', color: '#166534', label: 'Approved' },
+      rejected: { bg: '#fee2e2', color: '#b91c1c', label: 'Rejected' }
+    };
+    const tone = palette[v] || palette.pending;
+    return (
+      <span style={{ display:'inline-flex', alignItems:'center', padding:'4px 10px', borderRadius:'999px', fontSize:'12px', fontWeight:700, background:tone.bg, color:tone.color }}>
         {tone.label}
       </span>
     );
   };
 
-  const getJobLifeDays = (value) => {
-    if (!value) return '-';
-    const createdTs = new Date(value).getTime();
-    if (Number.isNaN(createdTs)) return '-';
-    const days = Math.floor((Date.now() - createdTs) / (1000 * 60 * 60 * 24));
-    return days >= 0 ? days : '-';
+  const handleVerifyJob = async (job, next) => {
+    if (!jobPerms.canManage || statusUpdatingId) return;
+    setStatusUpdatingId(job.id);
+    try {
+      if (next === 'approved') await jobApi.approveJob(job.id);
+      else if (next === 'rejected') await jobApi.rejectJob(job.id);
+      setMessage({ type: 'success', text: `Job ${next}` });
+      fetchRows();
+    } catch (e) {
+      setMessage({ type: 'error', text: e.response?.data?.message || 'Failed to update verification status' });
+    } finally {
+      setStatusUpdatingId(null);
+    }
   };
 
   const handleLogout = () => {
@@ -551,26 +710,20 @@ export default function JobsManagement() {
     }
   };
 
-  const handleToggleStatus = async (job) => {
-    if (!jobPerms.canStatusToggle || statusUpdatingId) return;
-    const nextStatus = job.status === 'inactive' ? 'active' : 'inactive';
-    setStatusUpdatingId(job.id);
-    try {
-      await jobApi.toggleStatus(job.id, nextStatus);
-      setMessage({ type: 'success', text: `Job marked ${nextStatus}` });
-      fetchRows();
-    } catch (e) {
-      setMessage({ type: 'error', text: e.response?.data?.message || 'Failed to update status' });
-    } finally {
-      setStatusUpdatingId(null);
-    }
-  };
   const handleRowClick = (jobId) => navigate(`/jobs/${jobId}`);
 
   const removeFilterChip = React.useCallback((key) => {
     setFilters(prev => ({ ...prev, [key]: key === 'job_recency' ? 'all' : '' }));
     setCurrentPage(1);
   }, []);
+
+  const getJobLifeDays = (value) => {
+    if (!value) return '-';
+    const createdTs = new Date(value).getTime();
+    if (Number.isNaN(createdTs)) return '-';
+    const days = Math.floor((Date.now() - createdTs) / (1000 * 60 * 60 * 24));
+    return days >= 0 ? days : '-';
+  };
 
   // Filtered rows based on search
   const filteredRows = React.useMemo(() => {
@@ -584,6 +737,62 @@ export default function JobsManagement() {
       (job.job_city || '').toLowerCase().includes(s)
     );
   }, [rows, searchTerm]);
+
+  // NEW: fix eslint no-undef (table action buttons call this)
+  const handleSetStatus = async (job, nextStatus) => {
+    if (!jobPerms.canStatusToggle || statusUpdatingId) return;
+    setStatusUpdatingId(job.id);
+    try {
+      await jobApi.toggleStatus(job.id, nextStatus);
+      setMessage({ type: 'success', text: `Job marked ${nextStatus}` });
+      fetchRows();
+    } catch (e) {
+      setMessage({ type: 'error', text: e.response?.data?.message || 'Failed to update status' });
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
+  // CHANGED: share job should work same as Employees (copy-to-clipboard + fallback)
+  const buildJobShareUrl = (id) => `${window.location.origin}/jobs/${id}`;
+  const handleShareJob = async (job) => {
+    const id = job?.id;
+    if (!id) return;
+
+    const link = buildJobShareUrl(id);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = link;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setMessage({ type: 'success', text: 'Share link copied to clipboard.' });
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to copy share link.' });
+    }
+  };
+
+  // filter cities by selected state (safe fallback if city objects don't have state_id)
+  const filteredCitiesForDraftState = React.useMemo(() => {
+    const sid = draftFilters.job_state_id;
+    const allCities = options.cities || [];
+    if (!sid) return allCities;
+
+    const n = Number(sid);
+    if (Number.isNaN(n)) return allCities;
+
+    // supports common keys: state_id (masters), job_state_id (if any), StateId, etc.
+    return allCities.filter((c) => {
+      const cityStateId =
+        c?.state_id ?? c?.job_state_id ?? c?.StateId ?? c?.stateId ?? null;
+      return Number(cityStateId) === n;
+    });
+  }, [draftFilters.job_state_id, options.cities]);
 
   if (!jobPerms.canView) {
     return (
@@ -654,6 +863,7 @@ export default function JobsManagement() {
                     <button className="btn-secondary btn-small" onClick={toggleFilterPanel}>
                       {showFilterPanel ? 'Hide Filters' : `Filters${activeFilterCount ? ` (${activeFilterCount})` : ''}`}
                     </button>
+                    <LogsAction category="jobs" />
                     {jobPerms.canExport && (
                       <button className="btn-secondary btn-small" onClick={exportToCSV}>
                         Export CSV
@@ -680,16 +890,19 @@ export default function JobsManagement() {
                   {Object.entries(filters).map(([key, value]) => {
                     if (!value) return null;
                     if (key === 'job_recency' && value === 'all') return null;
+
                     let label = value;
-                    if (key === 'gender') label = GENDER_OPTIONS.find(o => o.value === value)?.label || value;
-                    if (key === 'status') label = STATUS_OPTIONS.find(o => o.value === value)?.label || value;
-                    if (key === 'experience') label = options.experiences.find(o => String(o.id) === String(value))?.title_english || value;
-                    if (key === 'qualification') label = options.qualifications.find(o => String(o.id) === String(value))?.qualification_english || value;
-                    if (key === 'shift') label = options.shifts.find(o => String(o.id) === String(value))?.shift_english || value;
-                    if (key === 'skill') label = options.skills.find(o => String(o.id) === String(value))?.skill_english || value;
-                    if (key === 'job_profile') label = options.job_profiles.find(o => String(o.id) === String(value))?.profile_english || value;
-                    if (key === 'job_benefit') label = options.job_benefits.find(o => String(o.id) === String(value))?.benefit_english || value;
+
+                    // ...existing code...
                     if (key === 'job_recency') label = value === 'new' ? 'New (Last 48h)' : 'All Jobs';
+
+                    // NEW: chip labels
+                    if (key === 'verification_status') label = VERIFICATION_OPTIONS.find(o => o.value === value)?.label || value;
+                    if (key === 'job_state_id') label = options.states.find(s => String(s.id) === String(value))?.state_english || value;
+                    if (key === 'job_city_id') label = options.cities.find(c => String(c.id) === String(value))?.city_english || value;
+                    if (key === 'created_from') label = value;
+                    if (key === 'created_to') label = value;
+
                     return (
                       <span key={`${key}-${value}`} className="badge chip" style={chipBaseStyle}>
                         {key.replace('_', ' ')}: {label}
@@ -781,6 +994,63 @@ export default function JobsManagement() {
                         onChange={val => setDraftFilters(f => ({ ...f, job_recency: val }))}
                         placeholder="All jobs"
                       />
+
+                      {/* NEW */}
+                      <SingleSelect
+                        label="Verification Status"
+                        options={VERIFICATION_OPTIONS}
+                        value={draftFilters.verification_status}
+                        onChange={val => setDraftFilters(f => ({ ...f, verification_status: val }))}
+                        placeholder="Any verification"
+                      />
+
+                      {/* NEW */}
+                      <SingleSelect
+                        label="State"
+                        options={options.states}
+                        value={draftFilters.job_state_id}
+                        onChange={val => setDraftFilters(f => ({ ...f, job_state_id: val, job_city_id: '' }))}
+                        optionLabel="state_english"
+                        optionValue="id"
+                        placeholder="Any state"
+                      />
+
+                      {/* NEW */}
+                      <SingleSelect
+                        label="City"
+                        options={filteredCitiesForDraftState}
+                        value={draftFilters.job_city_id}
+                        onChange={val => setDraftFilters(f => ({ ...f, job_city_id: val }))}
+                        optionLabel="city_english"
+                        optionValue="id"
+                        placeholder={draftFilters.job_state_id ? 'Any city' : 'Select state first'}
+                        disabled={!draftFilters.job_state_id} // NEW (matches EmployeesManagement behavior)
+                      />
+
+                      {/* NEW */}
+                      <div style={{ minWidth: 200 }}>
+                        <label style={{ display:'block', fontSize:'12px', fontWeight:600, marginBottom:4 }}>Created Date From</label>
+                        <input
+                          type="date"
+                          className="state-filter-select"
+                          value={draftFilters.created_from}
+                          onChange={(e) => setDraftFilters(f => ({ ...f, created_from: e.target.value }))}
+                          style={{ width:'100%' }}
+                        />
+                      </div>
+
+                      {/* NEW */}
+                      <div style={{ minWidth: 200 }}>
+                        <label style={{ display:'block', fontSize:'12px', fontWeight:600, marginBottom:4 }}>Created Date To</label>
+                        <input
+                          type="date"
+                          className="state-filter-select"
+                          value={draftFilters.created_to}
+                          onChange={(e) => setDraftFilters(f => ({ ...f, created_to: e.target.value }))}
+                          min={draftFilters.created_from || undefined}
+                          style={{ width:'100%' }}
+                        />
+                      </div>
                     </div>
                     <div className="filter-actions" style={{ marginTop:'20px', display:'flex', gap:'10px', justifyContent:'flex-end' }}>
                       <button type="button" className="btn-primary btn-small" onClick={applyDraftFilters}>Apply</button>
@@ -796,6 +1066,9 @@ export default function JobsManagement() {
                       <tr>
                         <th onClick={() => handleSort('id')} style={{ cursor:'pointer' }}>ID{headerIndicator('id')}</th>
                         <th onClick={() => handleSort('employer_id')} style={{ cursor:'pointer' }}>Employer{headerIndicator('employer_id')}</th>
+                        <th>Employer Phone</th>
+                        <th>Interviewer Contact</th> {/* NEW */}
+                        <th>Shift Timing</th>        {/* NEW */}
                         <th onClick={() => handleSort('job_profile_id')} style={{ cursor:'pointer' }}>Job Profile{headerIndicator('job_profile_id')}</th>
                         <th>Household</th>
                         <th>Gender</th>
@@ -804,7 +1077,8 @@ export default function JobsManagement() {
                         <th>Shift</th>
                         <th>Skills</th>
                         <th>Benefits</th>
-                        <th>Vacancies</th>
+                        <th>Verification</th> {/* NEW */}
+                        <th>Vacancies</th> {/* CHANGED */}
                         <th>State</th>
                         <th>City</th>
                         <th>Salary</th>
@@ -817,18 +1091,23 @@ export default function JobsManagement() {
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr><td colSpan="18">Loading...</td></tr>
+                        <tr>
+                          <td colSpan={23}>Loading...{/* CHANGED */}</td>
+                        </tr>
                       ) : rows.length ? (
                         rows.map(job => {
-                          const isInactiveRow = job.status === 'inactive';
-                          const isNewJob = job.created_at
-                            ? (Date.now() - new Date(job.created_at).getTime()) <= 48 * 60 * 60 * 1000
-                            : false;
+                          const expired = isExpiredJob(job);
+                          const verification = String(job.verification_status || 'pending').toLowerCase();
+                          const isApproved = verification === 'approved';
+                          const isPending = verification === 'pending'; // NEW
+                          const isInactiveRow = String(job.status || '').toLowerCase() === 'inactive'; // NEW (restore neutral row styling)
                           const jobLifeDays = getJobLifeDays(job.created_at);
+
                           return (
                             <tr
                               key={job.id}
                               onClick={() => handleRowClick(job.id)}
+                              // CHANGED: remove expired yellow/orange highlighting
                               style={{
                                 background: isInactiveRow ? '#f3f4f6' : '#ffffff',
                                 color: isInactiveRow ? '#94a3b8' : '#0f172a',
@@ -836,6 +1115,7 @@ export default function JobsManagement() {
                               }}
                             >
                               <td>{job.id}</td>
+
                               <td>
                                 {job.employer_id ? (
                                   <button
@@ -843,13 +1123,18 @@ export default function JobsManagement() {
                                     style={linkButtonStyle}
                                     onClick={() => navigate(`/employers/${job.employer_id}`)}
                                   >
-                                    {job.employer_name || `Employer #${job.employer_id}`}
+                                    {(job.employer_name || `Employer #${job.employer_id}`)}
                                   </button>
                                 ) : (job.employer_name || '-')}
                               </td>
+
+                              <td>{job.employer_phone || '-'}</td>
+                              <td>{job.interviewer_contact || '-'}</td>      {/* NEW */}
+                              <td>{job.shift_timing_display || '-'}</td>     {/* NEW */}
+
                               <td>
                                 {job.job_profile || '-'}
-                                {isNewJob && (
+                                {job.created_at && (
                                   <span style={NEW_BADGE_STYLE}>New</span>
                                 )}
                               </td>
@@ -860,7 +1145,8 @@ export default function JobsManagement() {
                               <td>{job.shifts || '-'}</td>
                               <td>{job.skills || '-'}</td>
                               <td>{job.benefits || '-'}</td>
-                              <td>{job.hired_total}/{job.no_vacancy}</td>
+                              <td>{renderVerificationBadge(job.verification_status)}</td> {/* NEW */}
+                              <td>{`${Number(job.hired_total ?? 0)}/${Number(job.no_vacancy ?? 0)}`}</td> {/* CHANGED */}
                               <td>{job.job_state || '-'}</td>
                               <td>{job.job_city || '-'}</td>
                               <td>
@@ -868,24 +1154,105 @@ export default function JobsManagement() {
                                   ? `${job.salary_min} - ${job.salary_max}`
                                   : (job.salary_min || job.salary_max || '-')}
                               </td>
-                              <td>{renderStatusBadge(job.status)}</td>
+                              <td>{renderStatusBadge(job)}</td>
                               <td>{job.updated_at ? new Date(job.updated_at).toLocaleString() : '-'}</td>
                               <td>{job.created_at ? new Date(job.created_at).toLocaleString() : '-'}</td>
                               <td>{jobLifeDays}</td>
                               <td>
                                 <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
-                                  {jobPerms.canStatusToggle && (
+                                  {/* CHANGED: Approve/Reject only when pending */}
+                                  {jobPerms.canManage && isPending && (
                                     <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
                                       <button
                                         className="btn-small"
                                         style={{ minWidth:110 }}
                                         disabled={statusUpdatingId === job.id}
-                                        onClick={(event) => { event.stopPropagation(); handleToggleStatus(job); }}
+                                        onClick={(event) => { event.stopPropagation(); handleVerifyJob(job, 'approved'); }}
                                       >
-                                        {statusUpdatingId === job.id
-                                          ? 'Updating...'
-                                          : (isInactiveRow ? 'Activate' : 'Deactivate')}
+                                        {statusUpdatingId === job.id ? 'Updating...' : 'Approve'}
                                       </button>
+                                      <button
+                                        className="btn-small btn-delete"
+                                        style={{ minWidth:110 }}
+                                        disabled={statusUpdatingId === job.id}
+                                        onClick={(event) => { event.stopPropagation(); handleVerifyJob(job, 'rejected'); }}
+                                      >
+                                        {statusUpdatingId === job.id ? 'Updating...' : 'Reject'}
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {/* unchanged: status actions only when approved */}
+                                  {jobPerms.canStatusToggle && isApproved && (
+                                    <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+                                      {/* Per rules:
+                                          - Active: Deactivate + Mark Expired
+                                          - Inactive (not expired): Activate + Mark Expired
+                                          - Expired: Activate OR Inactive (if currently expired) */}
+                                      {job.status === 'active' && (
+                                        <>
+                                          <button
+                                            className="btn-small"
+                                            style={{ minWidth:110 }}
+                                            disabled={statusUpdatingId === job.id}
+                                            onClick={(event) => { event.stopPropagation(); handleSetStatus(job, 'inactive'); }}
+                                          >
+                                            {statusUpdatingId === job.id ? 'Updating...' : 'Deactivate'}
+                                          </button>
+                                          <button
+                                            className="btn-small"
+                                            style={{ minWidth:110 }}
+                                            disabled={statusUpdatingId === job.id}
+                                            onClick={(event) => { event.stopPropagation(); handleSetStatus(job, 'expired'); }}
+                                          >
+                                            {statusUpdatingId === job.id ? 'Updating...' : 'Mark Expired'}
+                                          </button>
+                                        </>
+                                      )}
+
+                                      {job.status === 'inactive' && !expired && (
+                                        <>
+                                          <button
+                                            className="btn-small"
+                                            style={{ minWidth:110 }}
+                                            disabled={statusUpdatingId === job.id}
+                                            onClick={(event) => { event.stopPropagation(); handleSetStatus(job, 'active'); }}
+                                          >
+                                            {statusUpdatingId === job.id ? 'Updating...' : 'Activate'}
+                                          </button>
+                                          <button
+                                            className="btn-small"
+                                            style={{ minWidth:110 }}
+                                            disabled={statusUpdatingId === job.id}
+                                            onClick={(event) => { event.stopPropagation(); handleSetStatus(job, 'expired'); }}
+                                          >
+                                            {statusUpdatingId === job.id ? 'Updating...' : 'Mark Expired'}
+                                          </button>
+                                        </>
+                                      )}
+
+                                      {expired && (
+                                        <>
+                                          <button
+                                            className="btn-small"
+                                            style={{ minWidth:110 }}
+                                            disabled={statusUpdatingId === job.id}
+                                            onClick={(event) => { event.stopPropagation(); handleSetStatus(job, 'active'); }}
+                                          >
+                                            {statusUpdatingId === job.id ? 'Updating...' : 'Activate'}
+                                          </button>
+                                          {job.status !== 'inactive' && (
+                                            <button
+                                              className="btn-small"
+                                              style={{ minWidth:110 }}
+                                              disabled={statusUpdatingId === job.id}
+                                              onClick={(event) => { event.stopPropagation(); handleSetStatus(job, 'inactive'); }}
+                                            >
+                                              {statusUpdatingId === job.id ? 'Updating...' : 'Mark Inactive'}
+                                            </button>
+                                          )}
+                                        </>
+                                      )}
                                     </div>
                                   )}
                                   <div style={{ display:'flex', gap:'6px', flexWrap:'nowrap' }}>
@@ -908,6 +1275,14 @@ export default function JobsManagement() {
                                         onClick={(event) => { event.stopPropagation(); handleDeleteJob(job.id); }}
                                       >Delete</button>
                                     )}
+                                    {/* NEW */}
+                                    <button
+                                      className="btn-small"
+                                      style={{ minWidth:80 }}
+                                      onClick={(event) => { event.stopPropagation(); handleShareJob(job); }}
+                                    >
+                                      Share
+                                    </button>
                                   </div>
                                 </div>
                               </td>
@@ -915,7 +1290,9 @@ export default function JobsManagement() {
                           );
                         })
                       ) : (
-                        <tr><td colSpan="18">No data</td></tr>
+                        <tr>
+                          <td colSpan={23}>No data{/* CHANGED */}</td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
@@ -966,3 +1343,6 @@ export default function JobsManagement() {
     </div>
   );
 }
+
+// NOTE: shift_timing_display is formatted server-side in 12-hour AM/PM.
+// (no changes needed; jobs search fix is backend-only)

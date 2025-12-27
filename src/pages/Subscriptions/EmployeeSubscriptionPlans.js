@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import EmployeeSubscriptionPlanForm from '../../components/Forms/EmployeeSubscriptionPlanForm';
 import employeeSubscriptionPlansApi from '../../api/subscriptions/employeeSubscriptionPlansApi';
@@ -177,11 +178,14 @@ export default function EmployeeSubscriptionPlans() {
               <>
                 <div className="list-header">
                   <h1>Employee Plans</h1>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <LogsAction category="employee subscription plan" title="Employee Plans Logs" />
                   {canManageSubs && (
                     <button className="btn-primary small" onClick={() => { setEditingId(null); setShowForm(true); }}>
                       + Add Plan
                     </button>
                   )}
+                  </div>
                 </div>
 
                 <div className="table-container">

@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import StateForm from '../../components/Forms/StateForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import statesApi from '../../api/masters/statesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -185,7 +186,8 @@ export default function States() {
             ) : !showForm ? (
               <>
                 <div className="list-header">
-                  <h1>States Management</h1>
+  <h1>States Management</h1>
+  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {canManageMasters && (
                     <button
                       className="btn-primary small"
@@ -197,7 +199,14 @@ export default function States() {
                       + Add State
                     </button>
                   )}
-                </div>
+    {canViewMasters && (
+      <LogsAction
+        category="state"
+        title="State Logs"
+      />
+    )}
+  </div>
+</div>
 
                 <div className="table-container">
                   <table className="data-table draggable">

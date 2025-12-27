@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import notificationsApi from '../../api/notificationsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import '../Masters/MasterPage.css';
 
 const TARGET_OPTIONS = [
   { value: 'all_users', label: 'All Users' },
@@ -16,9 +18,11 @@ const TARGET_OPTIONS = [
   { value: 'employers_without_subscription', label: 'Employers without subscription' },
   { value: 'verified_employees', label: 'Verified Employees' },
   { value: 'pending_employees', label: 'Pending Employees' },
+  { value: 'pending_kyc_employees', label: 'Pending KYC Employees' },
   { value: 'rejected_employees', label: 'Rejected Employees' },
   { value: 'verified_employers', label: 'Verified Employers' },
   { value: 'pending_employers', label: 'Pending Employers' },
+  { value: 'pending_kyc_employers', label: 'Pending KYC Employers' },
   { value: 'rejected_employers', label: 'Rejected Employers' },
   { value: 'employers_with_active_job', label: 'Employers with active job' },
 ];
@@ -248,6 +252,9 @@ export default function NotificationsManagement() {
 
             <div className="list-header" style={{ marginBottom: 16, alignItems: 'center' }}>
               <h1>Notifications</h1>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <LogsAction category="notification" title="Notifications Logs" />
+              </div>
             </div>
 
             <div className="grid-two" style={{ display: 'grid', gridTemplateColumns, gap: '20px', alignItems: 'flex-start' }}>

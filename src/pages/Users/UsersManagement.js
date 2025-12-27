@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import usersApi from '../../api/usersApi';
+import logsApi from '../../api/logsApi';
 import EmployeeForm from '../../components/Forms/EmployeeForm';
 import EmployerForm from '../../components/Forms/EmployerForm';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
@@ -34,6 +36,14 @@ export default function UsersManagement() {
   const [kycFilter, setKycFilter] = useState('');
   const [lastActiveSince, setLastActiveSince] = useState('');
   const [newUserFilter, setNewUserFilter] = useState(recencyIsNew ? 'new' : '');
+
+  // NEW: created date range filter (YYYY-MM-DD)
+  const [createdFrom, setCreatedFrom] = useState('');
+  const [createdTo, setCreatedTo] = useState('');
+
+  // NEW: profile completion filter: '' | 'completed' | 'not_completed'
+  const [profileCompletedFilter, setProfileCompletedFilter] = useState('');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('id');
   const [sortDir, setSortDir] = useState('asc');
@@ -44,13 +54,23 @@ export default function UsersManagement() {
     verificationFilter: '',
     kycFilter: '',
     lastActiveSince: '',
-    newUserFilter: recencyIsNew ? 'new' : ''
+    newUserFilter: recencyIsNew ? 'new' : '',
+    createdFrom: '',
+    createdTo: '',
+    // NEW
+    profileCompletedFilter: ''
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [confirm, setConfirm] = useState({ open: false, id: null, title: '', message: '' });
+  // NEW: Deactivation reason modal state
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [deactivateReason, setDeactivateReason] = useState('');
+  const [deactivateSaving, setDeactivateSaving] = useState(false);
+  const [deactivateError, setDeactivateError] = useState(null);
+  const [deactivateUser, setDeactivateUser] = useState(null);
   const [message, setMessage] = useState(null);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [employeeModalUser, setEmployeeModalUser] = useState(null);
@@ -143,6 +163,8 @@ export default function UsersManagement() {
   }), []);
 
   const canViewUsers = hasPermission(PERMISSIONS.USERS_VIEW);
+  const canShowEmployeePhoneAddress = hasPermission(PERMISSIONS.EMPLOYEES_SHOW_PHONE_ADDRESS);
+  const canShowEmployerPhoneAddress = hasPermission(PERMISSIONS.EMPLOYERS_SHOW_PHONE_ADDRESS);
 
   const buildQueryParams = React.useCallback((overrides = {}) => {
     const params = {
@@ -156,13 +178,32 @@ export default function UsersManagement() {
       verification_status: verificationFilter || undefined,
       kyc_status: kycFilter || undefined,
       lastActiveSinceDays: lastActiveSince || undefined,
-      newFilter: newUserFilter || undefined
+      newFilter: newUserFilter || undefined,
+      created_from: createdFrom || undefined,
+      created_to: createdTo || undefined,
+      // NEW (backend expects profile_completed)
+      profile_completed: profileCompletedFilter || undefined
     };
     const merged = { ...params, ...overrides };
     return Object.fromEntries(
       Object.entries(merged).filter(([, value]) => value !== undefined && value !== '')
     );
-  }, [currentPage, pageSize, sortField, sortDir, searchTerm, userTypeFilter, statusFilter, verificationFilter, kycFilter, lastActiveSince, newUserFilter]);
+  }, [
+    currentPage,
+    pageSize,
+    sortField,
+    sortDir,
+    searchTerm,
+    userTypeFilter,
+    statusFilter,
+    verificationFilter,
+    kycFilter,
+    lastActiveSince,
+    newUserFilter,
+    createdFrom,
+    createdTo,
+    profileCompletedFilter // NEW
+  ]);
 
   const load = React.useCallback(async (overrides = {}) => {
     setLoading(true);
@@ -246,11 +287,41 @@ export default function UsersManagement() {
     }
   };
 
+  const confirmDeactivate = async () => {
+    if (!deactivateUser) return;
+    const reason = (deactivateReason || '').toString().trim();
+    if (!reason) {
+      setDeactivateError('Deactivation reason is required.');
+      return;
+    }
+    setDeactivateSaving(true);
+    setDeactivateError(null);
+    try {
+      await usersApi.updateUserStatus(deactivateUser.id, false, reason);
+      setMessage({ type: 'success', text: 'User deactivated successfully' });
+      setShowDeactivateDialog(false);
+      setDeactivateUser(null);
+      setDeactivateReason('');
+      await load();
+    } catch (e) {
+      setDeactivateError(e.response?.data?.message || 'Failed to deactivate user');
+    } finally {
+      setDeactivateSaving(false);
+    }
+  };
+
   const handleToggleStatus = async (user) => {
     const nextActive = !user.is_active;
+    if (nextActive === false) {
+      setDeactivateUser(user);
+      setDeactivateReason('');
+      setDeactivateError(null);
+      setShowDeactivateDialog(true);
+      return;
+    }
     try {
-      await usersApi.updateUserStatus(user.id, nextActive);
-      setMessage({ type: 'success', text: nextActive ? 'User activated successfully' : 'User deactivated successfully' });
+      await usersApi.updateUserStatus(user.id, true);
+      setMessage({ type: 'success', text: 'User activated successfully' });
       await load();
     } catch (e) {
       setMessage({ type: 'error', text: e.response?.data?.message || 'Failed to update status' });
@@ -278,7 +349,11 @@ export default function UsersManagement() {
       verificationFilter,
       kycFilter,
       lastActiveSince,
-      newUserFilter
+      newUserFilter,
+      createdFrom,
+      createdTo,
+      // NEW
+      profileCompletedFilter
     });
     setShowFilterPanel(true);
   };
@@ -290,6 +365,11 @@ export default function UsersManagement() {
     setKycFilter(draftFilters.kycFilter);
     setLastActiveSince(draftFilters.lastActiveSince);
     setNewUserFilter(draftFilters.newUserFilter);
+    setCreatedFrom(draftFilters.createdFrom);
+    setCreatedTo(draftFilters.createdTo);
+    // NEW
+    setProfileCompletedFilter(draftFilters.profileCompletedFilter);
+
     setCurrentPage(1);
     setShowFilterPanel(false);
   };
@@ -301,7 +381,23 @@ export default function UsersManagement() {
     setKycFilter('');
     setLastActiveSince('');
     setNewUserFilter('');
-    setDraftFilters({ userTypeFilter: '', statusFilter: '', verificationFilter: '', kycFilter: '', lastActiveSince: '', newUserFilter: '' });
+    setCreatedFrom('');
+    setCreatedTo('');
+    // NEW
+    setProfileCompletedFilter('');
+
+    setDraftFilters({
+      userTypeFilter: '',
+      statusFilter: '',
+      verificationFilter: '',
+      kycFilter: '',
+      lastActiveSince: '',
+      newUserFilter: '',
+      createdFrom: '',
+      createdTo: '',
+      // NEW
+      profileCompletedFilter: ''
+    });
     setSortField('id');
     setSortDir('asc');
     setCurrentPage(1);
@@ -318,7 +414,16 @@ export default function UsersManagement() {
       setNewUserFilter('');
       setDraftFilters((prev) => ({ ...prev, newUserFilter: '' }));
     }
+    if (key === 'created_from') {
+      setCreatedFrom('');
+      setDraftFilters((prev) => ({ ...prev, createdFrom: '' }));
+    }
+    if (key === 'created_to') {
+      setCreatedTo('');
+      setDraftFilters((prev) => ({ ...prev, createdTo: '' }));
+    }
     if (key === 'search') setSearchTerm('');
+    if (key === 'profile_completed') setProfileCompletedFilter(''); // NEW
     setCurrentPage(1);
   };
 
@@ -357,6 +462,51 @@ export default function UsersManagement() {
       return '-';
     }
   };
+  // NEW: profile completion chip
+  const renderProfileCompletedChip = (value) => {
+    const d = value ? new Date(value) : null;
+    const isValid = d && !Number.isNaN(d.getTime());
+    if (!isValid) {
+      return (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '3px 10px',
+          borderRadius: '999px',
+          fontSize: '11px',
+          fontWeight: 700,
+          background: '#fee2e2',
+          color: '#b91c1c',
+          border: '1px solid #fecaca',
+          whiteSpace: 'nowrap'
+        }}>
+          Incomplete
+        </span>
+      );
+    }
+    return (
+      <span style={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '2px',
+        padding: '6px 10px',
+        borderRadius: '10px',
+        background: '#dcfce7',
+        color: '#166534',
+        border: '1px solid #86efac',
+        lineHeight: 1.2
+      }}>
+        <span style={{ fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
+          Profile Completed
+        </span>
+        <span style={{ fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {formatDisplayDateTime(value)}
+        </span>
+      </span>
+    );
+  };
+
   const getUserLifeDays = (value) => {
     if (!value) return '-';
     const createdTs = new Date(value).getTime();
@@ -384,11 +534,15 @@ export default function UsersManagement() {
         if (typeof metaInfo.total === 'number') totalRecordsFromServer = metaInfo.total;
         const serverLimit = metaInfo.limit || requestedLimit || batch.length || 1;
 
-        const shouldContinue = (() => {
-          if (totalRecordsFromServer !== null) return exportRows.length < totalRecordsFromServer;
-          if (totalPagesFromServer !== null) return page < totalPagesFromServer;
-          return batch.length === serverLimit;
-        })();
+        // CHANGED: avoid function declared inside loop (no-loop-func)
+        let shouldContinue = false;
+        if (totalRecordsFromServer !== null) {
+          shouldContinue = exportRows.length < totalRecordsFromServer;
+        } else if (totalPagesFromServer !== null) {
+          shouldContinue = page < totalPagesFromServer;
+        } else {
+          shouldContinue = batch.length === serverLimit;
+        }
 
         if (!shouldContinue) break;
         page += 1;
@@ -414,6 +568,11 @@ export default function UsersManagement() {
       'Verification Status',
       'KYC Status',
       'Status',
+      'Deactivation Reason',
+      // NEW
+      'Status Changed By',
+      'Last Seen',
+      'Profile Completed',
       'Created At'
     ];
     const escape = (val) => {
@@ -431,6 +590,11 @@ export default function UsersManagement() {
       u.verification_status || '',
       u.kyc_status || '',
       u.is_active ? 'Active' : 'Inactive',
+      u.deactivation_reason || '',
+      // NEW
+      u.StatusChangedBy?.name || '',
+      formatExportDateTime(u.last_active_at),
+      formatExportDateTime(u.profile_completed_at),
       formatExportDateTime(u.created_at)
     ]);
     const csv = [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
@@ -443,6 +607,17 @@ export default function UsersManagement() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    try {
+      await logsApi.create({
+        category: 'users',
+        type: 'export',
+        log_text: `Exported users (${exportRows.length})`,
+        redirect_to: '/users'
+      });
+    } catch (e) {
+      // ignore logging failures
+    }
   };
 
   const openEmployeeCreate = (user) => {
@@ -609,6 +784,12 @@ export default function UsersManagement() {
                     >
                       {showFilterPanel ? 'Hide Filters' : 'Filters'}
                     </button>
+                    <LogsAction
+                      category="users"
+                      title="User Logs"
+                      buttonLabel="Logs"
+                      buttonStyle={{ whiteSpace: 'nowrap' }}
+                    />
                     {userPerms.canExport && (
                       <button
                         className="btn-secondary btn-small"
@@ -677,7 +858,31 @@ export default function UsersManagement() {
                       <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('new_user')}>×</button>
                     </span>
                   )}
-                  {(!searchTerm && !userTypeFilter && !statusFilter && !verificationFilter && !kycFilter && !lastActiveSince && !newUserFilter) && (
+                  {profileCompletedFilter && (
+                    <span className="badge chip" style={chipBaseStyle}>
+                      Profile Completed: {profileCompletedFilter === 'completed' ? 'Yes' : 'No'}
+                      <button
+                        className="chip-close"
+                        style={chipCloseStyle}
+                        onClick={() => removeFilterChip('profile_completed')}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {createdFrom && (
+                    <span className="badge chip" style={chipBaseStyle}>
+                      Created From: {createdFrom}
+                      <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('created_from')}>×</button>
+                    </span>
+                  )}
+                  {createdTo && (
+                    <span className="badge chip" style={chipBaseStyle}>
+                      Created To: {createdTo}
+                      <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('created_to')}>×</button>
+                    </span>
+                  )}
+                  {(!searchTerm && !userTypeFilter && !statusFilter && !verificationFilter && !kycFilter && !lastActiveSince && !newUserFilter && !profileCompletedFilter && !createdFrom && !createdTo) && (
                     <span style={{ fontSize: '12px', color: '#64748b' }}>No filters applied</span>
                   )}
                 </div>
@@ -782,6 +987,43 @@ export default function UsersManagement() {
                           <option value="new">New</option>
                         </select>
                       </div>
+
+                      {/* NEW: profile completed filter */}
+                      <div style={filterFieldStyle}>
+                        <label className="filter-label">Profile Completed</label>
+                        <select
+                          className="state-filter-select"
+                          value={draftFilters.profileCompletedFilter}
+                          onChange={(e) => setDraftFilters((f) => ({ ...f, profileCompletedFilter: e.target.value }))}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="">All</option>
+                          <option value="completed">Completed</option>
+                          <option value="not_completed">Not Completed</option>
+                        </select>
+                      </div>
+
+                      {/* NEW: created date range */}
+                      <div style={filterFieldStyle}>
+                        <label className="filter-label">Created Date From</label>
+                        <input
+                          type="date"
+                          className="state-filter-select"
+                          value={draftFilters.createdFrom}
+                          onChange={(e) => setDraftFilters((f) => ({ ...f, createdFrom: e.target.value }))}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                      <div style={filterFieldStyle}>
+                        <label className="filter-label">Created Date To</label>
+                        <input
+                          type="date"
+                          className="state-filter-select"
+                          value={draftFilters.createdTo}
+                          onChange={(e) => setDraftFilters((f) => ({ ...f, createdTo: e.target.value }))}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
                     </div>
                     <div className="filter-actions" style={{ marginTop:'18px', display:'flex', gap:'10px', justifyContent:'flex-end' }}>
                       <button type="button" className="btn-primary btn-small" onClick={applyDraftFilters}>Apply</button>
@@ -821,9 +1063,20 @@ export default function UsersManagement() {
                         <th onClick={() => handleHeaderClick('is_active')} style={{ cursor:'pointer' }}>
                           Status{headerSortIndicator('is_active')}
                         </th>
+                        <th>Deactivation Reason</th>
+
+                        {/* NEW */}
+                        <th>Status Changed By</th>
+
                         <th onClick={() => handleHeaderClick('last_active_at')} style={{ cursor:'pointer' }}>
                           Last Seen{headerSortIndicator('last_active_at')}
                         </th>
+
+                        {/* NEW */}
+                        <th onClick={() => handleHeaderClick('profile_completed_at')} style={{ cursor:'pointer' }}>
+                          Profile Completed{headerSortIndicator('profile_completed_at')}
+                        </th>
+
                         <th onClick={() => handleHeaderClick('created_at')} style={{ cursor:'pointer' }}>
                           Created{headerSortIndicator('created_at')}
                         </th>
@@ -834,7 +1087,8 @@ export default function UsersManagement() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan="13" className="no-data">Loading...</td>
+                          {/* CHANGED: colSpan +1 */}
+                          <td colSpan="16" className="no-data">Loading...</td>
                         </tr>
                       ) : users.length ? (
                         users.map(u => {
@@ -847,17 +1101,20 @@ export default function UsersManagement() {
                           const hasEmployerProfile = Boolean(u.has_employer_profile && employerProfileId);
                           const isNewUser = u.created_at ? (Date.now() - new Date(u.created_at).getTime()) <= (48 * 60 * 60 * 1000) : false;
                           const lastSeenLabel = formatDisplayDateTime(u.last_active_at);
+                          const profileCompletedValue = u.profile_completed_at; // NEW
                           const userLifeDays = getUserLifeDays(u.created_at);
                           return (
-                            <tr
-                              key={u.id}
-                              style={{
-                                background: isInactive ? '#f3f4f6' : '#ffffff',
-                                color: isInactive ? '#94a3b8' : '#0f172a'
-                              }}
-                            >
+                            <tr key={u.id} style={{
+                              background: isInactive ? '#f3f4f6' : '#ffffff',
+                              color: isInactive ? '#94a3b8' : '#0f172a'
+                            }}>
                               <td>{u.id}</td>
-                              <td>{u.mobile || '-'}</td>
+                              <td>{(() => {
+                                const type = (u.user_type || '').toLowerCase();
+                                if (type === 'employee') return canShowEmployeePhoneAddress ? (u.mobile || '-') : '-';
+                                if (type === 'employer') return canShowEmployerPhoneAddress ? (u.mobile || '-') : '-';
+                                return u.mobile || '-';
+                              })()}</td>
                               <td>
                                 {isEmployeeType && hasEmployeeProfile ? (
                                   <button
@@ -935,7 +1192,16 @@ export default function UsersManagement() {
                                   {u.is_active ? 'Active' : 'Inactive'}
                                 </span>
                               </td>
+                              <td>{u.deactivation_reason || '-'}</td>
+
+                              {/* NEW */}
+                              <td>{u.StatusChangedBy?.name || '-'}</td>
+
                               <td>{lastSeenLabel}</td>
+
+                              {/* CHANGED: chip instead of plain text */}
+                              <td>{renderProfileCompletedChip(profileCompletedValue)}</td>
+
                               <td>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}</td>
                               <td>{userLifeDays}</td>
                               <td>
@@ -963,7 +1229,8 @@ export default function UsersManagement() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan="13" className="no-data">No users found</td>
+                          {/* CHANGED: colSpan +1 */}
+                          <td colSpan="16" className="no-data">No users found</td>
                         </tr>
                       )}
                     </tbody>
@@ -1010,6 +1277,68 @@ export default function UsersManagement() {
                   </div>
                 )}
               </>
+            )}
+            {showDeactivateDialog && (
+              <div
+                className="form-container"
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.45)',
+                  zIndex: 3200,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <div style={{ width: '92%', maxWidth: '460px', background: '#fff', borderRadius: '10px', padding: '18px' }}>
+                  <h2 style={{ marginTop: 0, fontSize: '16px' }}>Deactivate User</h2>
+                  <div style={{ fontSize: '12px', color: '#475569', marginBottom: 10 }}>
+                    Deactivation reason is required.
+                  </div>
+
+                  {deactivateError && (
+                    <div style={{ fontSize: '12px', color: '#b91c1c', marginBottom: 10 }}>
+                      {deactivateError}
+                    </div>
+                  )}
+
+                  <div className="form-group">
+                    <label>Reason</label>
+                    <textarea
+                      value={deactivateReason}
+                      onChange={(e) => setDeactivateReason(e.target.value)}
+                      rows={4}
+                      placeholder="Enter reason..."
+                      disabled={deactivateSaving}
+                      style={{ width: '100%', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div className="form-actions">
+                    <button
+                      className="btn-secondary"
+                      onClick={() => {
+                        if (deactivateSaving) return;
+                        setShowDeactivateDialog(false);
+                        setDeactivateUser(null);
+                        setDeactivateReason('');
+                        setDeactivateError(null);
+                      }}
+                      disabled={deactivateSaving}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={confirmDeactivate}
+                      disabled={deactivateSaving}
+                    >
+                      {deactivateSaving ? 'Deactivating...' : 'Deactivate'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
             <ConfirmDialog
               open={confirm.open}

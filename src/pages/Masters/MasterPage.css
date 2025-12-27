@@ -32,6 +32,17 @@
   white-space: nowrap;
 }
 
+.list-header .btn-secondary.small {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 4px;
+  height: auto;
+  align-self: flex-end;
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .inline-message {
   display: flex;
   justify-content: space-between;

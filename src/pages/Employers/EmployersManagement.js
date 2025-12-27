@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
+import logsApi from '../../api/logsApi';
 import employersApi from '../../api/employersApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { getStates } from '../../api/statesApi';
@@ -9,8 +11,10 @@ import { getCities } from '../../api/citiesApi';
 import businessCategoriesApi from '../../api/masters/businessCategoriesApi';
 import employerSubscriptionPlansApi from '../../api/subscriptions/employerSubscriptionPlansApi';
 import EmployerForm from '../../components/Forms/EmployerForm'; // added
+import VolunteerForm from '../../components/Forms/VolunteerForm'; // NEW
 import '../Masters/MasterPage.css';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import volunteersApi from '../../api/masters/volunteersApi'; // NEW
 
 const DEFAULT_PAGE_SIZE = 25;
 const PAGE_SCROLL_KEY = 'employers-scroll';
@@ -48,7 +52,15 @@ export default function EmployersManagement() {
     kycFilter: '',
     activeFilter: '',
     subscriptionStatusFilter: '',
-    newEmployerFilter: recencyIsNew ? 'new' : ''
+    newEmployerFilter: recencyIsNew ? 'new' : '',
+    assistedByFilter: '',
+
+    // FIX: these are used later; keep them initialized
+    organizationTypeFilter: '',
+    createdFromFilter: '',
+    createdToFilter: '',
+    kycVerifiedFromFilter: '',
+    kycVerifiedToFilter: ''
   });
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
@@ -61,6 +73,21 @@ export default function EmployersManagement() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [appliedQuerySignature, setAppliedQuerySignature] = useState('');
+  const [volunteers, setVolunteers] = useState([]); // NEW
+  const [assistedByFilter, setAssistedByFilter] = useState(''); // NEW
+  const [showVolunteerForm, setShowVolunteerForm] = useState(false); // NEW
+  const [editingVolunteerId, setEditingVolunteerId] = useState(null); // NEW
+
+  // NEW: Organization Type filter (domestic|firm)
+  const [organizationTypeFilter, setOrganizationTypeFilter] = useState('');
+
+  // NEW
+  const [createdFromFilter, setCreatedFromFilter] = useState('');
+  const [createdToFilter, setCreatedToFilter] = useState('');
+
+  // NEW: KYC verified date range (for Dashboard deep-link + filtering)
+  const [kycVerifiedFromFilter, setKycVerifiedFromFilter] = useState('');
+  const [kycVerifiedToFilter, setKycVerifiedToFilter] = useState('');
 
   const employerPerms = React.useMemo(() => ({
     canView: hasPermission(PERMISSIONS.EMPLOYERS_VIEW),
@@ -69,6 +96,9 @@ export default function EmployersManagement() {
     canDelete: hasPermission(PERMISSIONS.EMPLOYERS_DELETE),
     canExport: hasPermission(PERMISSIONS.EMPLOYERS_EXPORT),
     canVerify: hasPermission(PERMISSIONS.EMPLOYERS_VERIFY),
+
+    // Sensitive fields
+    canShowPhoneAddress: hasPermission(PERMISSIONS.EMPLOYERS_SHOW_PHONE_ADDRESS),
   }), []);
   const canViewEmployers = employerPerms.canView;
 
@@ -111,6 +141,41 @@ export default function EmployersManagement() {
     }
   }, [employers]);
 
+  const fetchVolunteers = React.useCallback(async () => {
+    try {
+      const res = await volunteersApi.getAll();
+      const rows = res.data?.data || [];
+      setVolunteers(Array.isArray(rows) ? rows : []);
+    } catch {
+      setVolunteers([]);
+    }
+  }, []);
+
+  const getVolunteerByAssistantCode = React.useCallback((code) => {
+    const key = (code || '').toString().trim().toLowerCase();
+    if (!key) return null;
+    return volunteers.find(v => (v.assistant_code || '').toString().trim().toLowerCase() === key) || null;
+  }, [volunteers]);
+
+  const openVolunteerEditor = React.useCallback((volunteerId) => {
+    if (!volunteerId) return;
+    setEditingVolunteerId(volunteerId);
+    setShowVolunteerForm(true);
+  }, []);
+
+  // NEW: URL query param sync (delete when cleared)
+  const updateUrlParams = React.useCallback((updates = {}) => {
+    const params = new URLSearchParams(location.search);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === undefined || value === null || value === '') params.delete(key);
+      else params.set(key, String(value));
+    }
+    const next = params.toString();
+    const current = (location.search || '').replace(/^\?/, '');
+    if (next === current) return;
+    navigate({ pathname: location.pathname, search: next ? `?${next}` : '' }, { replace: true });
+  }, [location.pathname, location.search, navigate]);
+
   const buildQueryParams = React.useCallback((overrides = {}) => {
     const base = {
       page: currentPage,
@@ -126,7 +191,18 @@ export default function EmployersManagement() {
       kyc_status: kycFilter || undefined,
       active_status: activeFilter || undefined,
       subscription_status: subscriptionStatusFilter || undefined,
-      newFilter: newEmployerFilter || undefined
+      newFilter: newEmployerFilter || undefined,
+      assisted_by: assistedByFilter || undefined, // NEW
+
+      // FIX: this was in deps but not being sent
+      organization_type: organizationTypeFilter || undefined,
+
+      createdFrom: createdFromFilter || undefined,
+      createdTo: createdToFilter || undefined,
+
+      // NEW: KYC verified date range (sent as snake_case)
+      kyc_verified_from: kycVerifiedFromFilter || undefined,
+      kyc_verified_to: kycVerifiedToFilter || undefined
     };
     const merged = { ...base, ...overrides };
     return Object.fromEntries(
@@ -146,7 +222,14 @@ export default function EmployersManagement() {
     kycFilter,
     activeFilter,
     subscriptionStatusFilter,
-    newEmployerFilter
+    newEmployerFilter,
+    assistedByFilter, // NEW
+    organizationTypeFilter, // NEW
+    createdFromFilter,
+    createdToFilter,
+    // NEW
+    kycVerifiedFromFilter,
+    kycVerifiedToFilter
   ]);
 
   const load = React.useCallback(async (overrides = {}) => {
@@ -207,7 +290,7 @@ export default function EmployersManagement() {
   };
   const isEmployerActive = (employer) => Boolean(employer?.User?.is_active);
 
-  const renderStatusBadge = (value) => {
+  const renderStatusBadge = (value, at) => {
     const normalized = (value || '').toLowerCase();
     const palette = {
       approved: { bg: '#dcfce7', color: '#166534', label: 'Approved' },
@@ -216,20 +299,27 @@ export default function EmployersManagement() {
       rejected: { bg: '#fee2e2', color: '#b91c1c', label: 'Rejected' }
     };
     const tone = palette[normalized] || { bg: '#e5e7eb', color: '#0f172a', label: value || '-' };
+    const atLabel = at ? formatDisplayDateTime(at) : null;
+
     return (
       <span style={{
-        display:'inline-flex',
-        alignItems:'center',
-        justifyContent:'center',
-        padding:'2px 10px',
-        borderRadius:'999px',
-        fontSize:'11px',
-        fontWeight:600,
-        background:tone.bg,
-        color:tone.color,
-        textTransform:'capitalize'
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '2px',
+        padding: '6px 10px',
+        borderRadius: '10px',
+        fontSize: '12px',
+        fontWeight: 800,
+        background: tone.bg,
+        color: tone.color,
+        border: '1px solid rgba(0,0,0,0.06)',
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+        textTransform: 'capitalize'
       }}>
-        {tone.label}
+        <span>{tone.label}</span>
+        {atLabel && <span style={{ fontSize: '11px', fontWeight: 600, opacity: 0.95 }}>{atLabel}</span>}
       </span>
     );
   };
@@ -273,6 +363,52 @@ export default function EmployersManagement() {
       return '-';
     }
   };
+
+  // NEW: profile completion chip
+  const renderProfileCompletedChip = (value) => {
+    const d = value ? new Date(value) : null;
+    const isValid = d && !Number.isNaN(d.getTime());
+    if (!isValid) {
+      return (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '3px 10px',
+          borderRadius: '999px',
+          fontSize: '11px',
+          fontWeight: 700,
+          background: '#fee2e2',
+          color: '#b91c1c',
+          border: '1px solid #fecaca',
+          whiteSpace: 'nowrap'
+        }}>
+          Incomplete
+        </span>
+      );
+    }
+    return (
+      <span style={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: '2px',
+        padding: '6px 10px',
+        borderRadius: '10px',
+        background: '#dcfce7',
+        color: '#166534',
+        border: '1px solid #86efac',
+        lineHeight: 1.2
+      }}>
+        <span style={{ fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
+          Profile Completed
+        </span>
+        <span style={{ fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {formatDisplayDateTime(value)}
+        </span>
+      </span>
+    );
+  };
+
   const getUserLifeDays = (value) => {
     if (!value) return '-';
     const createdTs = new Date(value).getTime();
@@ -283,7 +419,8 @@ export default function EmployersManagement() {
 
   const handleApprove = async (employerId) => {
     try {
-      await employersApi.update(employerId, { verification_status: 'approved' });
+      // FIX: use dedicated endpoint so backend can stamp verification_at
+      await employersApi.approve(employerId);
       setMessage({ type: 'success', text: 'Employer approved' });
       await load();
     } catch (e) {
@@ -293,7 +430,8 @@ export default function EmployersManagement() {
 
   const handleReject = async (employerId) => {
     try {
-      await employersApi.update(employerId, { verification_status: 'rejected' });
+      // FIX: use dedicated endpoint so backend can stamp verification_at
+      await employersApi.reject(employerId);
       setMessage({ type: 'success', text: 'Employer rejected' });
       await load();
     } catch (e) {
@@ -352,6 +490,22 @@ export default function EmployersManagement() {
     transition:'background 0.2s',
   };
 
+  // NEW: date-only formatter (chips)
+  const formatDateOnly = (val) => {
+    if (!val) return '';
+    try {
+      if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) return '';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    } catch {
+      return '';
+    }
+  };
+
   const openFilters = () => {
     if (showFilterPanel) return setShowFilterPanel(false);
     setDraftFilters({
@@ -363,7 +517,17 @@ export default function EmployersManagement() {
       kycFilter,
       activeFilter,
       subscriptionStatusFilter,
-      newEmployerFilter
+      newEmployerFilter,
+      assistedByFilter, // NEW
+      organizationTypeFilter, // NEW
+
+      // NEW
+      createdFromFilter,
+      createdToFilter,
+
+      // NEW
+      kycVerifiedFromFilter,
+      kycVerifiedToFilter
     });
     setShowFilterPanel(true);
   };
@@ -378,6 +542,21 @@ export default function EmployersManagement() {
     setActiveFilter(draftFilters.activeFilter);
     setSubscriptionStatusFilter(draftFilters.subscriptionStatusFilter);
     setNewEmployerFilter(draftFilters.newEmployerFilter);
+    setAssistedByFilter(draftFilters.assistedByFilter); // NEW
+    setOrganizationTypeFilter(draftFilters.organizationTypeFilter); // NEW
+
+    // NEW
+    setCreatedFromFilter(draftFilters.createdFromFilter);
+    setCreatedToFilter(draftFilters.createdToFilter);
+
+    // NEW
+    setKycVerifiedFromFilter(draftFilters.kycVerifiedFromFilter);
+    setKycVerifiedToFilter(draftFilters.kycVerifiedToFilter);
+    updateUrlParams({
+      kyc_verified_from: draftFilters.kycVerifiedFromFilter,
+      kyc_verified_to: draftFilters.kycVerifiedToFilter
+    });
+
     setShowFilterPanel(false);
     setCurrentPage(1);
   };
@@ -392,6 +571,18 @@ export default function EmployersManagement() {
     setActiveFilter('');
     setSubscriptionStatusFilter('');
     setNewEmployerFilter('');
+    setAssistedByFilter(''); // NEW
+    setOrganizationTypeFilter(''); // NEW
+
+    // NEW
+    setCreatedFromFilter('');
+    setCreatedToFilter('');
+
+    // NEW
+    setKycVerifiedFromFilter('');
+    setKycVerifiedToFilter('');
+    updateUrlParams({ kyc_verified_from: '', kyc_verified_to: '' });
+
     setSortField('id');
     setSortDir('asc');
     setShowFilterPanel(false);
@@ -412,7 +603,17 @@ export default function EmployersManagement() {
         setNewEmployerFilter('');
         setDraftFilters((prev) => ({ ...prev, newEmployerFilter: '' }));
       },
-      search: () => setSearchTerm('')
+      search: () => setSearchTerm(''),
+      assisted_by: () => setAssistedByFilter(''), // NEW
+      organization_type: () => setOrganizationTypeFilter(''), // NEW
+
+      // NEW
+      created_from: () => setCreatedFromFilter(''),
+      created_to: () => setCreatedToFilter(''),
+
+      // NEW
+      kyc_verified_from: () => { setKycVerifiedFromFilter(''); updateUrlParams({ kyc_verified_from: '' }); },
+      kyc_verified_to: () => { setKycVerifiedToFilter(''); updateUrlParams({ kyc_verified_to: '' }); }
     };
     map[key]?.();
   };
@@ -435,10 +636,14 @@ export default function EmployersManagement() {
   const queryFilters = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const normalize = (value) => (value || '').trim().toLowerCase();
+    const raw = (value) => (value || '').trim();
     return {
       active_status: normalize(params.get('active_status')),
       verification_status: normalize(params.get('verification_status')),
-      kyc_status: normalize(params.get('kyc_status'))
+      kyc_status: normalize(params.get('kyc_status')),
+      // NEW (do not lowercase)
+      kyc_verified_from: raw(params.get('kyc_verified_from')),
+      kyc_verified_to: raw(params.get('kyc_verified_to'))
     };
   }, [location.search]);
 
@@ -462,6 +667,11 @@ export default function EmployersManagement() {
     setActiveFilter(normalizedActive);
     setVerificationFilter(normalizedVerification);
     setKycFilter(normalizedKyc);
+
+    // NEW: hydrate from URL (Dashboard deep-link)
+    setKycVerifiedFromFilter(queryFilters.kyc_verified_from || '');
+    setKycVerifiedToFilter(queryFilters.kyc_verified_to || '');
+
     setAppliedQuerySignature(queryFiltersSignature);
   }, [canViewEmployers, queryFiltersSignature]);
 
@@ -475,7 +685,8 @@ export default function EmployersManagement() {
     fetchCities();
     fetchCategories();
     fetchPlans();
-  }, [fetchStates, fetchCities, fetchCategories, fetchPlans]);
+    fetchVolunteers(); // NEW
+  }, [fetchStates, fetchCities, fetchCategories, fetchPlans, fetchVolunteers]);
 
   useEffect(() => {
     fetchData();
@@ -537,6 +748,20 @@ export default function EmployersManagement() {
     }
   };
 
+  // NEW: render credit balances (same style as EmployeesManagement)
+  const renderCreditBalances = React.useCallback((e) => {
+    const c = `${Number(e.contact_credit || 0)}/${Number(e.total_contact_credit || 0)}`;
+    const i = `${Number(e.interest_credit || 0)}/${Number(e.total_interest_credit || 0)}`;
+    const a = `${Number(e.ad_credit || 0)}/${Number(e.total_ad_credit || 0)}`;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11, lineHeight: 1.2 }}>
+        <span><strong>Contact:</strong> {c}</span>
+        <span><strong>Interest:</strong> {i}</span>
+        <span><strong>Ads:</strong> {a}</span>
+      </div>
+    );
+  }, []);
+
   const exportToCSV = async () => {
     const baseParams = buildQueryParams({ page: 1 });
     const exportRows = [];
@@ -556,11 +781,11 @@ export default function EmployersManagement() {
         if (typeof metaInfo.total === 'number') totalRecordsFromServer = metaInfo.total;
         const serverLimit = metaInfo.limit || requestedLimit || batch.length || 1;
 
-        const shouldContinue = (() => {
-          if (totalRecordsFromServer !== null) return exportRows.length < totalRecordsFromServer;
-          if (totalPagesFromServer !== null) return page < totalPagesFromServer;
-          return batch.length === serverLimit;
-        })();
+        // CHANGED: avoid no-loop-func
+        let shouldContinue = false;
+        if (totalRecordsFromServer !== null) shouldContinue = exportRows.length < totalRecordsFromServer;
+        else if (totalPagesFromServer !== null) shouldContinue = page < totalPagesFromServer;
+        else shouldContinue = batch.length === serverLimit;
 
         if (!shouldContinue) break;
         page += 1;
@@ -587,6 +812,14 @@ export default function EmployersManagement() {
       'KYC',
       'Subscription Plan',
       'Active',
+      'Status Changed By', // NEW
+      'Last Seen',
+      'Profile Completed',
+      // NEW: credit balances
+      'Contact Credit (used/total)',
+      'Interest Credit (used/total)',
+      'Ads Credit (used/total)',
+      'Credit Expiry',
       'Created At'
     ];
     const escape = (value) => {
@@ -606,6 +839,14 @@ export default function EmployersManagement() {
       e.kyc_status || '',
       e.SubscriptionPlan?.plan_name_english || '',
       e.User?.is_active ? 'Active' : 'Inactive',
+      e.User?.StatusChangedBy?.name || '', // NEW
+      formatExportDateTime(e.User?.last_active_at) || '',
+      formatExportDateTime(e.User?.profile_completed_at) || '',
+      // NEW: credit balances
+      `${e.contact_credit || 0}/${e.total_contact_credit || 0}`,
+      `${e.interest_credit || 0}/${e.total_interest_credit || 0}`,
+      `${e.ad_credit || 0}/${e.total_ad_credit || 0}`,
+      formatExportDateTime(e.credit_expiry_at) || '',
       formatExportDateTime(e.created_at) || ''
     ]);
 
@@ -619,6 +860,18 @@ export default function EmployersManagement() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    try {
+      await logsApi.create({
+        category: 'employer',
+        type: 'export',
+        redirect_to: '/employers',
+        log_text: `Employers exported to CSV (${exportRows.length} rows)`,
+      });
+    } catch (e) {
+      // never block export on logging
+    }
+
   };
 
   if (!canViewEmployers) {
@@ -659,7 +912,7 @@ export default function EmployersManagement() {
             )}
             {/* message block added */}
             {/* List header */}
-            {!showForm ? (
+            {!showForm && !showVolunteerForm ? (
               <>
                 <div className="list-header">
                   <h1>Employers</h1>
@@ -675,6 +928,7 @@ export default function EmployersManagement() {
 
                 {/* Search + actions row */}
                 <div className="search-filter-row" style={{ marginBottom:'10px', display:'flex', alignItems:'center', gap:'16px' }}>
+
                   <div style={{ display:'flex', alignItems:'center', gap:'8px', flex:'1 1 auto' }}>
                     <label htmlFor="employer-search" style={{ fontSize:'12px', fontWeight:600 }}>Search:</label>
                     <input
@@ -686,20 +940,26 @@ export default function EmployersManagement() {
                         setSearchTerm(e.target.value);
                         setCurrentPage(1);
                       }}
-                      placeholder="id, business name, email, state, city..."
+                      // CHANGED: mention org name is searchable too
+                      placeholder="name, organization, phone, email, state, city..."
                       style={{ maxWidth:'260px' }}
                     />
                   </div>
                   <div style={{ flex:'0 0 auto', display:'flex', gap:'8px' }}>
+                    <LogsAction category="employer" title="Employer Logs" buttonStyle={{ padding:'4px 10px' }} />
                     <button className="btn-secondary btn-small" onClick={openFilters}>
                       Filters {( [
                         stateFilter, cityFilter, categoryFilter, planFilter,
-                        verificationFilter, kycFilter, activeFilter, subscriptionStatusFilter, newEmployerFilter, searchTerm
+                        verificationFilter, kycFilter, activeFilter, subscriptionStatusFilter, newEmployerFilter, searchTerm,
+                        assistedByFilter, organizationTypeFilter, // NEW (already present elsewhere)
+                        createdFromFilter, createdToFilter // NEW
                       ].filter(Boolean).length) > 0 &&
                         `(${
                           [
                             stateFilter, cityFilter, categoryFilter, planFilter,
-                            verificationFilter, kycFilter, activeFilter, subscriptionStatusFilter, newEmployerFilter, searchTerm
+                            verificationFilter, kycFilter, activeFilter, subscriptionStatusFilter, newEmployerFilter, searchTerm,
+                            assistedByFilter, organizationTypeFilter,
+                            createdFromFilter, createdToFilter
                           ].filter(Boolean).length
                         })`}
                     </button>
@@ -712,16 +972,16 @@ export default function EmployersManagement() {
                 {/* Applied filter chips */}
                 <div
                   className="applied-filters"
-                  style={{ // modified container styles
-                    marginBottom:'12px',
-                    display:'flex',
-                    flexWrap:'wrap',
-                    gap:'8px',
-                    padding:'10px 12px',
-                    border:'1px solid #e2e8f0',
-                    background:'#ffffff',
-                    borderRadius:'10px',
-                    boxShadow:'0 2px 4px rgba(0,0,0,0.06)'
+                  style={{
+                    marginBottom: '12px',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                    padding: '10px 12px',
+                    border: '1px solid #e2e8f0',
+                    background: '#ffffff',
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
                   }}
                 >
                   {searchTerm && (
@@ -784,7 +1044,53 @@ export default function EmployersManagement() {
                       <button className="chip-close" style={chipCloseStyle} onClick={()=>removeFilterChip('new_employer')}>×</button>
                     </span>
                   )}
-                  {[stateFilter, cityFilter, categoryFilter, planFilter, verificationFilter, kycFilter, activeFilter, subscriptionStatusFilter, newEmployerFilter, searchTerm].filter(Boolean).length === 0 && (
+                  {assistedByFilter && (() => {
+                    const v = getVolunteerByAssistantCode(assistedByFilter);
+                    const label = v?.name ? `${assistedByFilter} (${v.name})` : assistedByFilter;
+                    return (
+                      <span className="badge chip" style={chipBaseStyle}>
+                        Assisted By: {label}
+                        <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('assisted_by')}>×</button>
+                      </span>
+                    );
+                  })()}
+                  {organizationTypeFilter && (
+                    <span className="badge chip" style={chipBaseStyle}>
+                      Org Type: {organizationTypeFilter}
+                      <button
+                        className="chip-close"
+                        style={chipCloseStyle}
+                        onClick={() => removeFilterChip('organization_type')}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {createdFromFilter && (
+                    <span className="badge chip" style={chipBaseStyle}>
+                      Created From: {formatDateOnly(createdFromFilter)}
+                      <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('created_from')}>×</button>
+                    </span>
+                  )}
+                  {createdToFilter && (
+                    <span className="badge chip" style={chipBaseStyle}>
+                      Created To: {formatDateOnly(createdToFilter)}
+                      <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('created_to')}>×</button>
+                    </span>
+                  )}
+                  {kycVerifiedFromFilter && (
+                    <span className="badge chip" style={chipBaseStyle}>
+                      KYC Verified From: {formatDateOnly(kycVerifiedFromFilter)}
+                      <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('kyc_verified_from')}>×</button>
+                    </span>
+                  )}
+                  {kycVerifiedToFilter && (
+                    <span className="badge chip" style={chipBaseStyle}>
+                      KYC Verified To: {formatDateOnly(kycVerifiedToFilter)}
+                      <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('kyc_verified_to')}>×</button>
+                    </span>
+                  )}
+                  {[stateFilter, cityFilter, categoryFilter, planFilter, verificationFilter, kycFilter, activeFilter, subscriptionStatusFilter, newEmployerFilter, searchTerm, assistedByFilter, organizationTypeFilter, createdFromFilter, createdToFilter, kycVerifiedFromFilter, kycVerifiedToFilter].filter(Boolean).length === 0 && (
                     <span style={{ fontSize:'12px', color:'#64748b' }}>No filters applied</span>
                   )}
                 </div>
@@ -908,6 +1214,89 @@ export default function EmployersManagement() {
                           <option value="new">New</option>
                         </select>
                       </div>
+
+                      {/* NEW: Assistant (Volunteer) */}
+                      <div>
+                        <label className="filter-label">Assistant (Volunteer)</label>
+                        <select
+                          className="state-filter-select"
+                          value={draftFilters.assistedByFilter}
+                          onChange={(e) => setDraftFilters(f => ({ ...f, assistedByFilter: e.target.value }))}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="">All</option>
+                          {volunteers
+                            .filter(v => (v.assistant_code || '').toString().trim())
+                            .slice()
+                            .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+                            .map(v => (
+                              <option key={v.id} value={v.assistant_code}>
+                                {v.assistant_code} — {v.name || 'Unnamed'}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {/* NEW: Organization Type */}
+                      <div>
+                        <label className="filter-label">Organization Type</label>
+                        <select
+                          className="state-filter-select"
+                          value={draftFilters.organizationTypeFilter}
+                          onChange={(e) => setDraftFilters((f) => ({ ...f, organizationTypeFilter: e.target.value }))}
+                          style={{ width:'100%' }}
+                        >
+                          <option value="">All</option>
+                          <option value="domestic">Domestic</option>
+                          <option value="firm">Firm</option>
+                        </select>
+                      </div>
+
+                      {/* NEW: Created date range */}
+                      <div>
+                        <label className="filter-label">Created Date From</label>
+                        <input
+                          className="state-filter-select"
+                          type="date"
+                          value={draftFilters.createdFromFilter}
+                          onChange={(e) => setDraftFilters((f) => ({ ...f, createdFromFilter: e.target.value }))}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="filter-label">Created Date To</label>
+                        <input
+                          className="state-filter-select"
+                          type="date"
+                          value={draftFilters.createdToFilter}
+                          onChange={(e) => setDraftFilters((f) => ({ ...f, createdToFilter: e.target.value }))}
+                          min={draftFilters.createdFromFilter || undefined}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+
+                      {/* NEW: KYC verification date range */}
+                      <div>
+                        <label className="filter-label">KYC Verified Date From</label>
+                        <input
+                          className="state-filter-select"
+                          type="date"
+                          value={draftFilters.kycVerifiedFromFilter}
+                          onChange={(e) => setDraftFilters((f) => ({ ...f, kycVerifiedFromFilter: e.target.value }))}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="filter-label">KYC Verified Date To</label>
+                        <input
+                          className="state-filter-select"
+                          type="date"
+                          value={draftFilters.kycVerifiedToFilter}
+                          onChange={(e) => setDraftFilters((f) => ({ ...f, kycVerifiedToFilter: e.target.value }))}
+                          min={draftFilters.kycVerifiedFromFilter || undefined}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
                     </div>
                     <div className="filter-actions" style={{ marginTop:'20px', display:'flex', gap:'10px', justifyContent:'flex-end' }}>
                       <button type="button" className="btn-primary btn-small" onClick={applyDraftFilters}>Apply</button>
@@ -924,24 +1313,35 @@ export default function EmployersManagement() {
                       <tr>
                         <th onClick={()=>headerClick('id')} style={{ cursor:'pointer' }}>ID{ind('id')}</th>
                         <th onClick={()=>headerClick('name')} style={{ cursor:'pointer' }}>Name{ind('name')}</th>
+
+                        {/* NEW */}
+                        {employerPerms.canShowPhoneAddress && <th>Phone</th>}
+
                         <th onClick={()=>headerClick('organization_type')} style={{ cursor:'pointer' }}>Org Type{ind('organization_type')}</th>
                         <th onClick={()=>headerClick('organization_name')} style={{ cursor:'pointer' }}>Org Name{ind('organization_name')}</th>
+                        <th>Assisted By</th> {/* MOVED: was later (e.g. after Email) */}
                         <th onClick={()=>headerClick('email')} style={{ cursor:'pointer' }}>Email{ind('email')}</th>
                         <th onClick={()=>headerClick('businessCategoryName')} style={{ cursor:'pointer' }}>Business Category{ind('businessCategoryName')}</th>
-                        <th onClick={()=>headerClick('address')} style={{ cursor:'pointer' }}>Address{ind('address')}</th>
+                        {employerPerms.canShowPhoneAddress && <th>Address</th>}
+                        {employerPerms.canShowPhoneAddress && <th>State</th>}
+                        {employerPerms.canShowPhoneAddress && <th>City</th>}
                         <th onClick={()=>headerClick('verification_status')} style={{ cursor:'pointer' }}>Verification{ind('verification_status')}</th>
                         <th onClick={()=>headerClick('kyc_status')} style={{ cursor:'pointer' }}>KYC{ind('kyc_status')}</th>
                         <th>Subscription</th>
                         <th onClick={()=>headerClick('is_active')} style={{ cursor:'pointer' }}>Active{ind('is_active')}</th>
+                        <th>Status Changed By</th> {/* NEW */}
+                        <th>Deactivation Reason</th>
                         <th>Last Seen</th>
+                        <th>Profile Completed</th>
                         <th onClick={()=>headerClick('created_at')} style={{ cursor:'pointer' }}>Created At{ind('created_at')}</th>
                         <th>User Life (days)</th>
+                        <th>Credit Balances</th> {/* NEW */}
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr><td colSpan="15">Loading...</td></tr>
+                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 23 : 19}>Loading...</td></tr>
                       ) : totalCount > 0 ? (
                         employers.map(e => {
                           const isActive = isEmployerActive(e);
@@ -950,7 +1350,12 @@ export default function EmployersManagement() {
                             ? (Date.now() - new Date(userCreatedAt).getTime()) <= 48 * 60 * 60 * 1000
                             : false;
                           const lastSeenLabel = formatDisplayDateTime(e.User?.last_active_at);
+                          const profileCompletedLabel = formatDisplayDateTime(e.User?.profile_completed_at);
                           const userLifeDays = getUserLifeDays(userCreatedAt);
+                          const profileCompletedValue = e.User?.profile_completed_at; // NEW
+                          const assistedBy = e.assisted_by || '';
+                          const v = assistedBy ? getVolunteerByAssistantCode(assistedBy) : null;
+
                           return (
                             <tr
                               key={e.id}
@@ -981,22 +1386,59 @@ export default function EmployersManagement() {
                                   </span>
                                 )}
                               </td>
+
+                              {/* NEW */}
+                              {employerPerms.canShowPhoneAddress && (<td>{e.User?.mobile || '-'}</td>)}
+
                               <td>{e.organization_type || '-'}</td>
                               <td>{e.organization_name || '-'}</td>
+                              <td>
+                                <div style={{ display:'flex', flexDirection:'column', gap:2, lineHeight:1.15 }}>
+                                  <span>{assistedBy || '-'}</span>
+                                  {v?.name && (
+                                    <button
+                                      type="button"
+                                      onClick={(ev) => { ev.stopPropagation(); openVolunteerEditor(v.id); }}
+                                      style={{
+                                        border:'none',
+                                        background:'transparent',
+                                        padding:0,
+                                        textAlign:'left',
+                                        color:'#2563eb',
+                                        fontSize:12,
+                                        fontWeight:600,
+                                        cursor:'pointer'
+                                      }}
+                                      title="Edit Volunteer"
+                                    >
+                                      {v.name}
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
                               <td>{e.email || '-'}</td>
                               <td>{getBusinessCategoryName(e)}</td>
-                              <td>{e.address || '-'}</td>
-                              <td>{renderStatusBadge(e.verification_status)}</td>
-                              <td>{renderStatusBadge(e.kyc_status)}</td>
+                              {employerPerms.canShowPhoneAddress && (<td>{e.address || '-'}</td>)}
+                              {employerPerms.canShowPhoneAddress && (<td>{e.State?.state_english || '-'}</td>)}
+                              {employerPerms.canShowPhoneAddress && (<td>{e.City?.city_english || '-'}</td>)}
+                              <td>{renderStatusBadge(e.verification_status, e.verification_at)}</td>
+                              <td>{renderStatusBadge(e.kyc_status, e.kyc_verification_at)}</td>
                               <td>{formatSubscriptionLabel(e)}</td>
                               <td>
                                 <span className={`badge ${isActive ? 'active':'inactive'}`}>
                                   {isActive ? 'Active':'Inactive'}
                                 </span>
                               </td>
+                              <td>{e.User?.StatusChangedBy?.name || '-'}</td> {/* NEW */}
+                              <td>{e.User?.deactivation_reason || '-'}</td>
                               <td>{lastSeenLabel}</td>
+
+                              {/* CHANGED: chip instead of plain text */}
+                              <td>{renderProfileCompletedChip(profileCompletedValue)}</td>
+
                               <td>{e.created_at ? new Date(e.created_at).toLocaleDateString() : '-'}</td>
                               <td>{userLifeDays}</td>
+                              <td>{renderCreditBalances(e)}</td>
                               <td>
                                 <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
                                   {(employerPerms.canVerify && (e.verification_status || '').toLowerCase() === 'pending') && (
@@ -1050,7 +1492,7 @@ export default function EmployersManagement() {
                           );
                         })
                       ) : (
-                        <tr><td colSpan="15">No employers found</td></tr>
+                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 23 : 19}>No employers found</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1080,7 +1522,7 @@ export default function EmployersManagement() {
                   </div>
                 )}
               </>
-            ) : (
+            ) : showForm ? (
               // Employer form
               <div style={{ marginBottom:'24px' }}>
                 <EmployerForm
@@ -1088,6 +1530,13 @@ export default function EmployersManagement() {
                   onClose={handleFormClose}
                 />
               </div>
+            ) : (
+              // Volunteer form
+              <VolunteerForm
+                volunteerId={editingVolunteerId}
+                onClose={() => { setShowVolunteerForm(false); setEditingVolunteerId(null); }}
+                onSuccess={(msg) => { setMessage(msg); fetchVolunteers(); }}
+              />
             )}
           </div>
         </main>

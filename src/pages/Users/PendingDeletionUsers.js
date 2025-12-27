@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import usersApi from '../../api/usersApi';
+import logsApi from '../../api/logsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -306,6 +308,17 @@ export default function PendingDeletionUsers() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
+      try {
+        await logsApi.create({
+          category: 'pending deletion',
+          type: 'export',
+          log_text: `Exported pending deletion (${exportRows.length})`,
+          redirect_to: '/users/deletion-requests'
+        });
+      } catch (e) {
+        // ignore logging failures
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to export pending deletions');
     }
@@ -336,6 +349,12 @@ export default function PendingDeletionUsers() {
                 />
               </div>
               <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                <LogsAction
+                  category="pending deletion"
+                  title="Pending Deletion Logs"
+                  buttonLabel="Logs"
+                  buttonClassName="btn-small"
+                />
                 <button className="btn-secondary btn-small" onClick={toggleFilterPanel}>
                   Filters
                 </button>

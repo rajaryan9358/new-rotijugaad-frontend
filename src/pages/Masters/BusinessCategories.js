@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import BusinessCategoryForm from '../../components/Forms/BusinessCategoryForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import businessCategoriesApi from '../../api/masters/businessCategoriesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -178,17 +179,25 @@ export default function BusinessCategories() {
               <>
                 <div className="list-header">
                   <h1>Business Categories Management</h1>
-                  {canManageMasters && (
-                    <button
-                      className="btn-primary small"
-                      onClick={() => {
-                        setEditingId(null);
-                        setShowForm(true);
-                      }}
-                    >
-                      + Add Category
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {canManageMasters && (
+                      <button
+                        className="btn-primary small"
+                        onClick={() => {
+                          setEditingId(null);
+                          setShowForm(true);
+                        }}
+                      >
+                        + Add Category
+                      </button>
+                    )}
+                    {canViewMasters && (
+                      <LogsAction
+                        category="business category"
+                        title="Business Category Logs"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="table-container">
@@ -264,6 +273,7 @@ export default function BusinessCategories() {
                 onSuccess={(msg) => setMessage(msg)}
               />
             )}
+
 
             <ConfirmDialog
               open={confirm.open}

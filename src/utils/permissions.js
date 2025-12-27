@@ -27,6 +27,8 @@ export const PERMISSIONS = {
   EMPLOYEES_ADD_CREDIT: 'employees.add_credit',
   EMPLOYEES_EXPORT: 'employees.export',
 
+  EMPLOYEES_SHOW_PHONE_ADDRESS: 'employees.show_phone_address',
+
   EMPLOYERS_VIEW: 'employers.view',
   EMPLOYERS_MANAGE: 'employers.manage',
   EMPLOYERS_DELETE: 'employers.delete',
@@ -37,6 +39,8 @@ export const PERMISSIONS = {
   EMPLOYERS_SUBSCRIPTION_CHANGE: 'employers.subscription_change', // alias for compatibility
   EMPLOYERS_ADD_CREDIT: 'employers.add_credit',
   EMPLOYERS_EXPORT: 'employers.export',
+
+  EMPLOYERS_SHOW_PHONE_ADDRESS: 'employers.show_phone_address',
 
   STORIES_VIEW: 'stories.view',
   STORIES_MANAGE: 'stories.manage',
@@ -88,6 +92,9 @@ export const PERMISSIONS = {
 
   SETTINGS_VIEW: 'settings.view',
   SETTINGS_UPDATE: 'settings.update',
+
+  LOGS_VIEW: 'logs.view',
+  LOGS_EXPORT: 'logs.export',
 };
 
 export const PERMISSION_GROUPS = [
@@ -120,6 +127,7 @@ export const PERMISSION_GROUPS = [
       { code: PERMISSIONS.EMPLOYEES_SUBSCRIPTION_CHANGE, label: 'Change subscriptions' },
       { code: PERMISSIONS.EMPLOYEES_ADD_CREDIT, label: 'Add credits' },
       { code: PERMISSIONS.EMPLOYEES_EXPORT, label: 'Export employees' },
+      { code: PERMISSIONS.EMPLOYEES_SHOW_PHONE_ADDRESS, label: 'Show phone & address' },
     ],
   },
   {
@@ -135,6 +143,7 @@ export const PERMISSION_GROUPS = [
       { code: PERMISSIONS.EMPLOYERS_CHANGE_SUBSCRIPTION, label: 'Change subscriptions' },
       { code: PERMISSIONS.EMPLOYERS_ADD_CREDIT, label: 'Add credits' },
       { code: PERMISSIONS.EMPLOYERS_EXPORT, label: 'Export employers' },
+      { code: PERMISSIONS.EMPLOYERS_SHOW_PHONE_ADDRESS, label: 'Show phone & address' },
     ],
   },
   {
@@ -265,6 +274,14 @@ export const PERMISSION_GROUPS = [
       { code: PERMISSIONS.ADMINS_VIEW, label: 'View admins & roles' },
       { code: PERMISSIONS.ADMINS_MANAGE, label: 'Manage admins & roles' },
       { code: PERMISSIONS.ADMINS_DELETE, label: 'Delete admins & roles' },
+    ],
+  },
+  {
+    key: 'logs',
+    label: 'Audit Logs',
+    permissions: [
+      { code: PERMISSIONS.LOGS_VIEW, label: 'View logs' },
+      { code: PERMISSIONS.LOGS_EXPORT, label: 'Export logs' },
     ],
   },
   {

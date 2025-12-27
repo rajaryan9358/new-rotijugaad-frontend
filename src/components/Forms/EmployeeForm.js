@@ -277,26 +277,8 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             return;
           }
         } else {
-          const userPayload = {
-            mobile: trimmedMobile,
-            name: finalName,
-            user_type: 'employee'
-          };
-          let userRes;
-          try {
-            userRes = await usersApi.createUser(userPayload);
-          } catch (err) {
-            const msg = err?.response?.data?.message || err.message || 'Failed to create user';
-            setError(msg);
-            setSaving(false);
-            return;
-          }
-          userIdToUse = userRes.data?.data?.id;
-          if (!userIdToUse) {
-            setError('Failed to create user');
-            setSaving(false);
-            return;
-          }
+          // Create user + employee in a single backend transaction (POST /employees)
+          userIdToUse = null;
         }
         const empPayload = {
           ...form,

@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import CityForm from '../../components/Forms/CityForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import { getCities, deleteCity, updateSequence } from '../../api/citiesApi';
 import { getStates } from '../../api/statesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
@@ -210,17 +211,25 @@ export default function Cities() {
               <>
                 <div className="list-header">
                   <h1>Cities Management</h1>
-                  {canManageMasters && (
-                    <button
-                      className="btn-primary small"
-                      onClick={() => {
-                        setEditingId(null);
-                        setShowForm(true);
-                      }}
-                    >
-                      + Add City
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {canManageMasters && (
+                      <button
+                        className="btn-primary small"
+                        onClick={() => {
+                          setEditingId(null);
+                          setShowForm(true);
+                        }}
+                      >
+                        + Add City
+                      </button>
+                    )}
+                    {canViewMasters && (
+                      <LogsAction
+                        category="city"
+                        title="City Logs"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="filter-section">

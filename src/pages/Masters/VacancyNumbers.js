@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import VacancyNumberForm from '../../components/Forms/VacancyNumberForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import vacancyNumbersApi from '../../api/masters/vacancyNumbersApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -177,7 +178,8 @@ export default function VacancyNumbers() {
             ) : !showForm ? (
               <>
                 <div className="list-header">
-                  <h1>Vacancy Numbers Management</h1>
+  <h1>Vacancy Numbers Management</h1>
+  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {canManageMasters && (
                     <button
                       className="btn-primary small"
@@ -189,7 +191,14 @@ export default function VacancyNumbers() {
                       + Add Number
                     </button>
                   )}
-                </div>
+    {canViewMasters && (
+      <LogsAction
+        category="vacancy numbers"
+        title="Vacancy Number Logs"
+      />
+    )}
+  </div>
+</div>
 
                 <div className="table-container">
                   <table className="data-table draggable">

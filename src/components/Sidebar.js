@@ -60,6 +60,8 @@ export default function Sidebar({ isOpen }) {
         { label: 'Work Natures', path: '/masters/work-natures', permission: PERMISSIONS.MASTERS_VIEW },
         { label: 'Business Categories', path: '/masters/business-categories', permission: PERMISSIONS.MASTERS_VIEW },
         { label: 'Experiences', path: '/masters/experiences', permission: PERMISSIONS.MASTERS_VIEW },
+        { label: 'Referral Credits', path: '/masters/referral-credits', permission: PERMISSIONS.MASTERS_VIEW },
+        { label: 'Volunteers', path: '/masters/volunteers', permission: PERMISSIONS.MASTERS_VIEW },
         { label: 'Salary Types', path: '/masters/salary-types', permission: PERMISSIONS.MASTERS_VIEW },
         { label: 'Salary Ranges', path: '/masters/salary-ranges', permission: PERMISSIONS.MASTERS_VIEW },
         { label: 'Distances', path: '/masters/distances', permission: PERMISSIONS.MASTERS_VIEW },
@@ -133,6 +135,13 @@ export default function Sidebar({ isOpen }) {
         { label: 'Admins', path: '/admins', permission: PERMISSIONS.ADMINS_VIEW },
         { label: 'Roles', path: '/roles', permission: PERMISSIONS.ADMINS_VIEW }
       ],
+    },
+    {
+      id: 16.8,
+      label: 'Logs',
+      icon: '📝',
+      path: '/logs',
+      permission: PERMISSIONS.LOGS_VIEW
     },
     {
       id: 17,

@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import ExperienceForm from '../../components/Forms/ExperienceForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LogsAction from '../../components/LogsAction';
 import experiencesApi from '../../api/masters/experiencesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -178,17 +179,25 @@ export default function Experiences() {
               <>
                 <div className="list-header">
                   <h1>Experiences Management</h1>
-                  {canManageMasters && (
-                    <button
-                      className="btn-primary small"
-                      onClick={() => {
-                        setEditingId(null);
-                        setShowForm(true);
-                      }}
-                    >
-                      + Add Experience
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {canManageMasters && (
+                      <button
+                        className="btn-primary small"
+                        onClick={() => {
+                          setEditingId(null);
+                          setShowForm(true);
+                        }}
+                      >
+                        + Add Experience
+                      </button>
+                    )}
+                    {canViewMasters && (
+                      <LogsAction
+                        category="experience"
+                        title="Experience Logs"
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div className="table-container">
@@ -198,8 +207,9 @@ export default function Experiences() {
                         <th className="drag-handle"></th>
                         <th>English Title</th>
                         <th>Hindi Title</th>
-                        <th>From (Years)</th>
-                        <th>To (Years)</th>
+                        <th>Type</th>
+                        <th>From</th>
+                        <th>To</th>
                         <th>Sequence</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -222,8 +232,15 @@ export default function Experiences() {
                             </td>
                             <td>{experience.title_english}</td>
                             <td>{experience.title_hindi}</td>
-                            <td>{experience.exp_from}</td>
-                            <td>{experience.exp_to}</td>
+                            <td>{(experience.exp_type || 'year') === 'month' ? 'Month' : 'Year'}</td>
+                            <td>
+                              {experience.exp_from}{' '}
+                              {(experience.exp_type || 'year') === 'month' ? 'mo' : 'yr'}
+                            </td>
+                            <td>
+                              {experience.exp_to}{' '}
+                              {(experience.exp_type || 'year') === 'month' ? 'mo' : 'yr'}
+                            </td>
                             <td>{experience.sequence || '-'}</td>
                             <td>
                               <span className={`badge ${experience.is_active ? 'active' : 'inactive'}`}>
@@ -252,7 +269,7 @@ export default function Experiences() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="8" className="no-data">
+                          <td colSpan="9" className="no-data">
                             No experiences found
                           </td>
                         </tr>

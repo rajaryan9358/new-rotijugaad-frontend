@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
+import LogsAction from '../../components/LogsAction';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { getStories, deleteStory, updateStoriesSequence } from '../../api/storiesApi';
+import logsApi from '../../api/logsApi';
 import StoryForm from '../../components/Forms/StoryForm';
 import '../Masters/MasterPage.css';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -203,6 +205,17 @@ export default function StoriesManagement() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    try {
+      await logsApi.create({
+        category: 'stories',
+        type: 'export',
+        log_text: `Exported stories (${exportRows.length})`,
+        redirect_to: '/stories'
+      });
+    } catch (e) {
+      // ignore logging failures
+    }
   };
 
   const headerClick = (f) => {
@@ -345,6 +358,12 @@ export default function StoriesManagement() {
                     <button className="btn-secondary btn-small" onClick={toggleFilterPanel}>
                       Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
                     </button>
+                    <LogsAction
+                      category="stories"
+                      title="Story Logs"
+                      buttonLabel="Logs"
+                      buttonClassName="btn-small"
+                    />
                     {canExportStories && (
                       <button className="btn-secondary btn-small" onClick={exportToCSV}>
                         Export CSV

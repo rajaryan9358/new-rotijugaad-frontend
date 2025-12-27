@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import client from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import apiClient from '../utils/apiClient';
 import './Login.css';
 
 export default function Login() {
@@ -9,13 +10,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      navigate('/dashboard');
-    }
-  }, [navigate]);
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,13 +18,11 @@ export default function Login() {
     setError('');
 
     try {
-      const res = await client.post('/auth/login', { email, password });
+      const res = await apiClient.post('/auth/login', { email, password });
       const payload = res.data?.data || {};
       if (!payload.token || !payload.admin) throw new Error('Invalid login response');
 
-      localStorage.setItem('token', payload.token);
-      localStorage.setItem('admin', JSON.stringify(payload.admin));
-
+      login(payload.admin, payload.token);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Login failed');
@@ -65,7 +58,7 @@ export default function Login() {
               required
             />
           </div>
-          {error && <p style={{ color: "red" }}>{error}</p>}
+          {error && <p style={{ color: 'red' }}>{error}</p>}
           <button type="submit" className="login-btn" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}
           </button>

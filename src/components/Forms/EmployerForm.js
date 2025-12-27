@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import employersApi from '../../api/employersApi';
+import employersApi, { EMPLOYER_ORG_TYPES, EMPLOYER_ORG_TYPE_OPTIONS } from '../../api/employersApi';
 import { getStates } from '../../api/statesApi';
 import { getCities } from '../../api/citiesApi';
 import businessCategoriesApi from '../../api/masters/businessCategoriesApi';
 import './MasterForm.css';
+import LogsAction from '../LogsAction';
 
 export default function EmployerForm({ employerId, onClose, onSuccess, presetUser, userLocked = false }) {
   const isEdit = !!employerId;
@@ -55,7 +56,7 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
             user_id: e.user_id || '',
             mobile: e.User?.mobile || e.mobile || '',
             name: e.name || '',
-            organization_type: e.organization_type || '',
+            organization_type: normalizeOrgType(e.organization_type),
             organization_name: e.organization_name || '',
             business_category_id: e.business_category_id || '',
             state_id: e.state_id || '',
@@ -96,6 +97,11 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
     [form.state_id, cities]
   );
 
+  const normalizeOrgType = (v) => {
+    const s = (v ?? '').toString().trim().toLowerCase();
+    return EMPLOYER_ORG_TYPES.includes(s) ? s : '';
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -120,9 +126,17 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
         return;
       }
 
+      const orgTypeValue = normalizeOrgType(form.organization_type);
+      if (form.organization_type && !orgTypeValue) {
+        setError('organization type must be domestic or firm');
+        setSaving(false);
+        return;
+      }
+
       const payload = {
         ...form,
         name: nameValue,
+        organization_type: orgTypeValue || null,
         business_category_id: form.business_category_id || null,
         state_id: form.state_id || null,
         city_id: form.city_id || null,
@@ -155,6 +169,9 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
     <div className="form-container">
       <div className="form-header">
         <h1>{isEdit ? 'Edit Employer' : 'Add New Employer'}</h1>
+        {isEdit && (
+          <LogsAction category="employer" title="Employer Logs" />
+        )}
         <button className="btn-close" onClick={onClose}>✕</button>
       </div>
 
@@ -184,11 +201,17 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
 
         <div className="form-group">
           <label>Organization Type</label>
-          <input
+          <select
             value={form.organization_type}
             onChange={e => setField('organization_type', e.target.value)}
-            placeholder="e.g. Private Ltd."
-          />
+          >
+            <option value="">-- Select --</option>
+            {EMPLOYER_ORG_TYPE_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">
