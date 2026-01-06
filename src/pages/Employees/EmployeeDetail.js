@@ -4,7 +4,6 @@ import JobDetail from '../Jobs/JobDetail';
 import RecommendedJobsTab from './RecommendedJobsTab';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
-import LogsAction from '../../components/LogsAction';
 import employeesApi from '../../api/employeesApi';
 import jobProfilesApi from '../../api/masters/jobProfilesApi';
 import employeeSubscriptionPlansApi from '../../api/subscriptions/employeeSubscriptionPlansApi';
@@ -35,7 +34,8 @@ const TABS = [
 
 const CREDIT_HISTORY_TABS = [
   { key: 'contact', label: 'Contact Credits' },
-  { key: 'interest', label: 'Interest Credits' }
+  { key: 'interest', label: 'Interest Credits' },
+  { key: 'admin', label: 'Admin Credits' }
 ];
 
 const referralHeaderCellStyle = { cursor: 'pointer' };
@@ -233,6 +233,9 @@ export default function EmployeeDetail() {
   const [creditHistoryTab, setCreditHistoryTab] = useState('contact'); // add
   const [creditHistoryLoading, setCreditHistoryLoading] = useState(false); // add
   const [creditHistoryError, setCreditHistoryError] = useState(null); // add
+  const [manualCreditHistory, setManualCreditHistory] = useState([]);
+  const [manualCreditHistoryLoading, setManualCreditHistoryLoading] = useState(false);
+  const [manualCreditHistoryError, setManualCreditHistoryError] = useState(null);
   const [voilationReports, setVoilationReports] = useState([]); // add
   const [voilationLoading, setVoilationLoading] = useState(false); // add
   const [voilationError, setVoilationError] = useState(null); // add
@@ -342,6 +345,13 @@ export default function EmployeeDetail() {
       fetchCreditHistory();
     }
   }, [employee, activeTab]);
+
+  useEffect(() => {
+    if (!employee) return;
+    if (activeTab !== 'Credit history') return;
+    if (creditHistoryTab !== 'admin') return;
+    fetchManualCreditHistory();
+  }, [employee, activeTab, creditHistoryTab]);
 
   useEffect(() => {
     // FIX: tab label is "Voilation report by employer" (not "Voilation reports")
@@ -535,6 +545,21 @@ export default function EmployeeDetail() {
       setCreditHistory([]);
     } finally {
       setCreditHistoryLoading(false);
+    }
+  };
+
+  const fetchManualCreditHistory = async () => {
+    if (!perms.canView) return;
+    setManualCreditHistoryLoading(true);
+    setManualCreditHistoryError(null);
+    try {
+      const res = await employeesApi.getEmployeeManualCreditHistory(id);
+      setManualCreditHistory(res.data?.data || []);
+    } catch (e) {
+      setManualCreditHistoryError('Failed to load admin credit history');
+      setManualCreditHistory([]);
+    } finally {
+      setManualCreditHistoryLoading(false);
     }
   };
 
@@ -2219,6 +2244,66 @@ export default function EmployeeDetail() {
         </div>
       );
     }
+
+    if (creditHistoryTab === 'admin') {
+      return (
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {CREDIT_HISTORY_TABS.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setCreditHistoryTab(tab.key)}
+                className={`tab-btn${creditHistoryTab === tab.key ? ' active' : ''}`}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  border: '1px solid #ccc',
+                  background: creditHistoryTab === tab.key ? '#2563eb' : '#fff',
+                  color: creditHistoryTab === tab.key ? '#fff' : '#333',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          {manualCreditHistoryError && (
+            <div style={{ color: '#b91c1c', fontSize: '12px', marginBottom: '8px' }}>{manualCreditHistoryError}</div>
+          )}
+          {manualCreditHistoryLoading ? (
+            <div style={{ fontSize: '13px' }}>Loading...</div>
+          ) : manualCreditHistory.length === 0 ? (
+            <div style={{ fontSize: '13px', color: '#666' }}>No admin credit history found.</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <thead>
+                <tr style={{ background: '#f5f5f5' }}>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Admin</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Contact Credits</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Interest Credits</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Ad Credits</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Expiry Date</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Created At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {manualCreditHistory.map((row) => (
+                  <tr key={row.id}>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.admin_name || '-'}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.contact_credit ?? '-'}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.interest_credit ?? '-'}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.ad_credit ?? '-'}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.expiry_date)}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      );
+    }
     return null;
   };
 
@@ -2708,9 +2793,6 @@ export default function EmployeeDetail() {
                         >
                           Edit
                         </button>
-                      )}
-                      {employee && perms.canView && (
-                        <LogsAction category="employee" title="Employee Logs" buttonStyle={{ padding:'4px 10px' }} />
                       )}
                       {employee && (
                         <div ref={actionMenuRef} style={{ position:'relative' }}>

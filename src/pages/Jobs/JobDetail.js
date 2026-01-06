@@ -5,7 +5,6 @@ import '../Masters/MasterPage.css';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
-import LogsAction from '../../components/LogsAction';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 
@@ -258,7 +257,6 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
                 >
                   Back
                 </button>
-                <LogsAction category="jobs" buttonStyle={{ padding: '4px 10px' }} />
                 {jobPerms.canManage && (
                   <button
                     className="btn-primary small"

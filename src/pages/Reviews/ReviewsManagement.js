@@ -301,7 +301,7 @@ export default function ReviewsManagement() {
         />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content reviews-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view reviews.</div>
             </div>
@@ -322,7 +322,7 @@ export default function ReviewsManagement() {
       />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content reviews-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type}`} style={{ marginBottom: '16px' }}>
@@ -451,7 +451,7 @@ export default function ReviewsManagement() {
                 </div>
               ))}
             </div>
-            <div className="table-container" style={{ overflowX: 'auto' }}>
+            <div className="table-container">
               <table className="data-table" style={{ minWidth: '1200px' }}>
                 <thead>
                   <tr>

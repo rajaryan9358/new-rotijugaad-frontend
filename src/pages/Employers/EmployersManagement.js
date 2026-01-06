@@ -364,51 +364,6 @@ export default function EmployersManagement() {
     }
   };
 
-  // NEW: profile completion chip
-  const renderProfileCompletedChip = (value) => {
-    const d = value ? new Date(value) : null;
-    const isValid = d && !Number.isNaN(d.getTime());
-    if (!isValid) {
-      return (
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          padding: '3px 10px',
-          borderRadius: '999px',
-          fontSize: '11px',
-          fontWeight: 700,
-          background: '#fee2e2',
-          color: '#b91c1c',
-          border: '1px solid #fecaca',
-          whiteSpace: 'nowrap'
-        }}>
-          Incomplete
-        </span>
-      );
-    }
-    return (
-      <span style={{
-        display: 'inline-flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: '2px',
-        padding: '6px 10px',
-        borderRadius: '10px',
-        background: '#dcfce7',
-        color: '#166534',
-        border: '1px solid #86efac',
-        lineHeight: 1.2
-      }}>
-        <span style={{ fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
-          Profile Completed
-        </span>
-        <span style={{ fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-          {formatDisplayDateTime(value)}
-        </span>
-      </span>
-    );
-  };
-
   const getUserLifeDays = (value) => {
     if (!value) return '-';
     const createdTs = new Date(value).getTime();
@@ -814,7 +769,6 @@ export default function EmployersManagement() {
       'Active',
       'Status Changed By', // NEW
       'Last Seen',
-      'Profile Completed',
       // NEW: credit balances
       'Contact Credit (used/total)',
       'Interest Credit (used/total)',
@@ -841,7 +795,6 @@ export default function EmployersManagement() {
       e.User?.is_active ? 'Active' : 'Inactive',
       e.User?.StatusChangedBy?.name || '', // NEW
       formatExportDateTime(e.User?.last_active_at) || '',
-      formatExportDateTime(e.User?.profile_completed_at) || '',
       // NEW: credit balances
       `${e.contact_credit || 0}/${e.total_contact_credit || 0}`,
       `${e.interest_credit || 0}/${e.total_interest_credit || 0}`,
@@ -880,7 +833,7 @@ export default function EmployersManagement() {
         <Header onMenuClick={handleMenuClick} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content employers-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view employers.</div>
             </div>
@@ -895,7 +848,7 @@ export default function EmployersManagement() {
       <Header onMenuClick={handleMenuClick} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content employers-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div
@@ -1307,7 +1260,7 @@ export default function EmployersManagement() {
                 )}
 
                 {/* Table */}
-                <div className="table-container" style={{ overflowX:'auto' }}>
+                <div className="table-container">
                   <table className="data-table" style={{ minWidth:'1900px' }}>
                     <thead>
                       <tr>
@@ -1330,9 +1283,8 @@ export default function EmployersManagement() {
                         <th>Subscription</th>
                         <th onClick={()=>headerClick('is_active')} style={{ cursor:'pointer' }}>Active{ind('is_active')}</th>
                         <th>Status Changed By</th> {/* NEW */}
-                        <th>Deactivation Reason</th>
+                        <th>Active Jobs No.</th>
                         <th>Last Seen</th>
-                        <th>Profile Completed</th>
                         <th onClick={()=>headerClick('created_at')} style={{ cursor:'pointer' }}>Created At{ind('created_at')}</th>
                         <th>User Life (days)</th>
                         <th>Credit Balances</th> {/* NEW */}
@@ -1341,7 +1293,7 @@ export default function EmployersManagement() {
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 23 : 19}>Loading...</td></tr>
+                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 22 : 18}>Loading...</td></tr>
                       ) : totalCount > 0 ? (
                         employers.map(e => {
                           const isActive = isEmployerActive(e);
@@ -1350,9 +1302,7 @@ export default function EmployersManagement() {
                             ? (Date.now() - new Date(userCreatedAt).getTime()) <= 48 * 60 * 60 * 1000
                             : false;
                           const lastSeenLabel = formatDisplayDateTime(e.User?.last_active_at);
-                          const profileCompletedLabel = formatDisplayDateTime(e.User?.profile_completed_at);
                           const userLifeDays = getUserLifeDays(userCreatedAt);
-                          const profileCompletedValue = e.User?.profile_completed_at; // NEW
                           const assistedBy = e.assisted_by || '';
                           const v = assistedBy ? getVolunteerByAssistantCode(assistedBy) : null;
 
@@ -1430,11 +1380,9 @@ export default function EmployersManagement() {
                                 </span>
                               </td>
                               <td>{e.User?.StatusChangedBy?.name || '-'}</td> {/* NEW */}
-                              <td>{e.User?.deactivation_reason || '-'}</td>
+                              <td>{e.active_jobs_count ?? 0}</td>
                               <td>{lastSeenLabel}</td>
 
-                              {/* CHANGED: chip instead of plain text */}
-                              <td>{renderProfileCompletedChip(profileCompletedValue)}</td>
 
                               <td>{e.created_at ? new Date(e.created_at).toLocaleDateString() : '-'}</td>
                               <td>{userLifeDays}</td>
@@ -1492,7 +1440,7 @@ export default function EmployersManagement() {
                           );
                         })
                       ) : (
-                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 23 : 19}>No employers found</td></tr>
+                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 22 : 18}>No employers found</td></tr>
                       )}
                     </tbody>
                   </table>

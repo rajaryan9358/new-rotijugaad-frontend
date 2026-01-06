@@ -164,7 +164,7 @@ export default function BusinessCategories() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content business-categories-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -213,7 +213,13 @@ export default function BusinessCategories() {
                       </tr>
                     </thead>
                     <tbody>
-                      {categories.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="no-data">
+                            Loading...
+                          </td>
+                        </tr>
+                      ) : categories.length > 0 ? (
                         categories.map((category, index) => (
                           <tr
                             key={category.id}

@@ -111,7 +111,7 @@ export default function SalaryRanges() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content salary-ranges-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -158,7 +158,11 @@ export default function SalaryRanges() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ranges.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="4" className="no-data">Loading...</td>
+                        </tr>
+                      ) : ranges.length > 0 ? (
                         ranges.map((range) => (
                           <tr key={range.id}>
                             <td>₹{range.salary_from}</td>

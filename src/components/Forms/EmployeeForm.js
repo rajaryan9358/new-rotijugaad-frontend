@@ -46,6 +46,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
   const [qualifications, setQualifications] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [error, setError] = useState(null);
+  const topRef = useRef(null);
   const [selfiePreview, setSelfiePreview] = useState(null);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
   const [legacyDataUrl, setLegacyDataUrl] = useState(false);
@@ -53,6 +54,11 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
   const isPresetUser = Boolean(form.user_id);
   // mobile stays editable during edit; locked only on create when preset/forced
   const mobileFieldLocked = isEdit ? false : (mobileLocked || isPresetUser);
+
+  useEffect(() => {
+    if (!error) return;
+    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [error]);
 
   useEffect(() => {
     console.log('[EmployeeForm] Component mounted, isEdit:', isEdit); // added
@@ -368,6 +374,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
 
   return (
     <div className="form-container">
+      <div ref={topRef} />
       <div className="form-header">
         <h1>{isEdit ? 'Edit Employee' : 'Add New Employee'}</h1>
         <button className="btn-close" onClick={onClose}>✕</button>

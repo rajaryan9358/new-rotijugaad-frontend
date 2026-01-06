@@ -269,11 +269,14 @@ export default function PendingDeletionUsers() {
         if (typeof meta.totalPages === 'number') totalPages = meta.totalPages;
         const serverLimit = meta.limit || baseParams.limit || batch.length || 1;
 
-        const shouldContinue = (() => {
-          if (totalRecords !== null) return exportRows.length < totalRecords;
-          if (totalPages !== null) return page < totalPages;
-          return batch.length === serverLimit && Boolean(baseParams.limit);
-        })();
+        let shouldContinue = false;
+        if (totalRecords !== null) {
+          shouldContinue = exportRows.length < totalRecords;
+        } else if (totalPages !== null) {
+          shouldContinue = page < totalPages;
+        } else {
+          shouldContinue = batch.length === serverLimit && Boolean(baseParams.limit);
+        }
 
         if (!shouldContinue) break;
         page += 1;
@@ -329,7 +332,7 @@ export default function PendingDeletionUsers() {
       <Header onMenuClick={toggleSidebar} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content pending-deletion-users-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             <div className="list-header">
               <h1>Pending user deletions</h1>

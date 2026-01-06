@@ -72,6 +72,7 @@ const employeesApi = {
 	getEmployeePaymentHistory: (id) =>
 		api.get('/payment-history', { params: { user_type: 'employee', user_id: id } }),
 	getEmployeeCreditHistory: (id) => api.get(`/employees/${id}/credit-history`),
+	getEmployeeManualCreditHistory: (id) => api.get(`/employees/${id}/manual-credit-history`),
 	getEmployeeCallExperiences: (id) => api.get(`/employees/${id}/call-experiences`),
 	getEmployeeCallReviews: (id) => api.get(`/employees/${id}/call-reviews`),
 	getEmployeeReferrals: (id) => api.get(`/employees/${id}/referrals`),

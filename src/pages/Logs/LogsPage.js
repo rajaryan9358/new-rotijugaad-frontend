@@ -208,7 +208,7 @@ export default function LogsPage() {
         <Header onMenuClick={handleMenuClick} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content logs-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view logs.</div>
             </div>
@@ -225,7 +225,7 @@ export default function LogsPage() {
       <Header onMenuClick={handleMenuClick} onLogout={() => { localStorage.clear(); navigate('/login'); }} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content logs-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {error && <div className="inline-message error">{error}</div>}
 
@@ -289,7 +289,7 @@ export default function LogsPage() {
             </div>
 
             <div className="data-card" style={{ padding: 0 }}>
-              <div className="table-container" style={{ padding: 0, overflowX: 'auto' }}>
+              <div className="table-container" style={{ padding: 0 }}>
                 <table className="data-table">
                   <thead>
                     <tr>

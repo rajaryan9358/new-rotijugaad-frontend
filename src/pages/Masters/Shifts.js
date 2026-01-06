@@ -164,7 +164,7 @@ export default function Shifts() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content shifts-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -215,7 +215,11 @@ export default function Shifts() {
                       </tr>
                     </thead>
                     <tbody>
-                      {shifts.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="8" className="no-data">Loading...</td>
+                        </tr>
+                      ) : shifts.length > 0 ? (
                         shifts.map((shift, index) => (
                           <tr
                             key={shift.id}

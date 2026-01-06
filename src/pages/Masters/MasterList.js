@@ -75,7 +75,7 @@ export default function MasterList({ title, apiEndpoint, columns, onAddNew }) {
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content master-list-page">
           <div className="content-wrapper">
             {!canViewMasters ? (
               <div className="inline-message error">You do not have permission to view masters.</div>

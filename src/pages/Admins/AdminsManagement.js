@@ -136,7 +136,7 @@ export default function AdminsManagement() {
         <Header onMenuClick={() => setSidebarOpen((o) => !o)} onLogout={() => { localStorage.clear(); navigate('/login'); }} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content admins-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view admins.</div>
             </div>
@@ -152,7 +152,7 @@ export default function AdminsManagement() {
       <Header onMenuClick={handleMenuClick} onLogout={() => { localStorage.clear(); navigate('/login'); }} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content admins-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -241,7 +241,7 @@ export default function AdminsManagement() {
                 </div>
               )}
               <div className="data-card" style={{ padding:'0' }}>
-                <div className="table-container" style={{ padding:'0', overflowX:'auto' }}>
+                <div className="table-container" style={{ padding:'0' }}>
                    <table className="data-table">
                      <thead>
                        <tr>

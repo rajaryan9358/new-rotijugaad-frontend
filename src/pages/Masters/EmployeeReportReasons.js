@@ -164,7 +164,7 @@ export default function EmployeeReportReasons() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content employee-report-reasons-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -213,7 +213,13 @@ export default function EmployeeReportReasons() {
                       </tr>
                     </thead>
                     <tbody>
-                      {reasons.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="no-data">
+                            Loading...
+                          </td>
+                        </tr>
+                      ) : reasons.length > 0 ? (
                         reasons.map((reason, index) => (
                           <tr
                             key={reason.id}

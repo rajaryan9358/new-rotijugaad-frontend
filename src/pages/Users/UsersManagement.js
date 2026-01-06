@@ -702,7 +702,7 @@ export default function UsersManagement() {
         <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content users-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view users.</div>
             </div>
@@ -724,7 +724,7 @@ export default function UsersManagement() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content users-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>

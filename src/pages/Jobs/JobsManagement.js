@@ -368,7 +368,14 @@ export default function JobsManagement() {
     try {
       const active = Object.entries(draftFilters || {})
         .filter(([k, v]) => Boolean(v) && !(k === 'job_recency' && v === 'all'))
-        .map(([k, v]) => `${k}=${v}`)
+        .map(([k, v]) => {
+          if (k === 'job_profile') {
+            const match = (options.job_profiles || []).find(p => String(p.id) === String(v));
+            const name = match ? (match.profile_english || match.profile_hindi || match.name) : null;
+            return `${k}=${name || v}`;
+          }
+          return `${k}=${v}`;
+        })
         .join(', ') || 'none';
       logsApi.create({
         category: 'jobs',
@@ -534,7 +541,14 @@ export default function JobsManagement() {
     try {
       const active = Object.entries(filters || {})
         .filter(([k, v]) => Boolean(v) && !(k === 'job_recency' && v === 'all'))
-        .map(([k, v]) => `${k}=${v}`)
+        .map(([k, v]) => {
+          if (k === 'job_profile') {
+            const match = (options.job_profiles || []).find(p => String(p.id) === String(v));
+            const name = match ? (match.profile_english || match.profile_hindi || match.name) : null;
+            return `${k}=${name || v}`;
+          }
+          return `${k}=${v}`;
+        })
         .join(', ') || 'none';
       await logsApi.create({
         category: 'jobs',
@@ -800,7 +814,7 @@ export default function JobsManagement() {
         <Header onMenuClick={() => {}} onLogout={handleLogout} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content jobs-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view jobs.</div>
             </div>
@@ -815,7 +829,7 @@ export default function JobsManagement() {
       <Header onMenuClick={() => setSidebarOpen(o => !o)} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content jobs-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -1060,7 +1074,7 @@ export default function JobsManagement() {
                   </div>
                 )}
 
-                <div className="table-container" style={{ overflowX:'auto' }}>
+                <div className="table-container">
                   <table className="data-table" style={{ minWidth:'2000px' }}>
                     <thead>
                       <tr>

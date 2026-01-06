@@ -306,7 +306,7 @@ export default function StoriesManagement() {
         <Header onMenuClick={handleMenuClick} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content stories-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view stories.</div>
             </div>
@@ -321,7 +321,7 @@ export default function StoriesManagement() {
       <Header onMenuClick={handleMenuClick} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content stories-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`} style={{ marginBottom: '12px' }}>
@@ -412,7 +412,7 @@ export default function StoriesManagement() {
                   </div>
                 )}
 
-                <div className="table-container" style={{ overflowX:'auto' }}>
+                <div className="table-container">
                   <table className="data-table draggable">
                     <thead>
                       <tr>

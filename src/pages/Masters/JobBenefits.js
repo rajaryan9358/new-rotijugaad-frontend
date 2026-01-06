@@ -164,7 +164,7 @@ export default function JobBenefits() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content job-benefits-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -213,7 +213,13 @@ export default function JobBenefits() {
                       </tr>
                     </thead>
                     <tbody>
-                      {benefits.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="no-data">
+                            Loading...
+                          </td>
+                        </tr>
+                      ) : benefits.length > 0 ? (
                         benefits.map((benefit, index) => (
                           <tr
                             key={benefit.id}

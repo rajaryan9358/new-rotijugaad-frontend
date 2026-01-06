@@ -8,6 +8,7 @@ import employerSubscriptionPlansApi from '../../api/subscriptions/employerSubscr
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
+import '../Masters/MasterPage.css';
 
 export default function PaymentHistoryManagement() {
   const navigate = useNavigate();
@@ -668,7 +669,7 @@ export default function PaymentHistoryManagement() {
         <Header onMenuClick={() => setSidebarOpen(o => !o)} onLogout={handleLogout} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content payment-history-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="list-header">
                 <h1>Payment History</h1>
@@ -707,7 +708,7 @@ export default function PaymentHistoryManagement() {
       <Header onMenuClick={() => setSidebarOpen(o => !o)} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content payment-history-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             <div className="list-header">
               <h1>Payment History</h1>
@@ -907,7 +908,7 @@ export default function PaymentHistoryManagement() {
               </div>
             )}
 
-            <div className="table-container" style={{ overflowX:'auto' }}>
+            <div className="table-container">
               <table className="data-table" style={{ minWidth:'1300px' }}>
                 <thead>
                   <tr>

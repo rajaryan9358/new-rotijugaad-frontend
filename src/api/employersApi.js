@@ -29,6 +29,7 @@ const employersApi = {
   addCredits: (id, payload) => client.post(`/employers/${id}/add-credits`, payload),
   getApplicants: (id, params) => client.get(`/employers/${id}/applicants`, { params }),
   getCreditHistory: (id, params) => client.get(`/employers/${id}/credit-history`, { params }),
+  getManualCreditHistory: (id, params) => client.get(`/employers/${id}/manual-credit-history`, { params }),
   getSubscriptionHistory: (id) =>
     client.get('/payment-history', { params: { user_type: 'employer', user_id: id } }),
   getCallExperiences: (id) => client.get(`/employers/${id}/call-experiences`),

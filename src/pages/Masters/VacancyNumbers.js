@@ -164,7 +164,7 @@ export default function VacancyNumbers() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content vacancy-numbers-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -213,7 +213,11 @@ export default function VacancyNumbers() {
                       </tr>
                     </thead>
                     <tbody>
-                      {numbers.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="no-data">Loading...</td>
+                        </tr>
+                      ) : numbers.length > 0 ? (
                         numbers.map((number, index) => (
                           <tr
                             key={number.id}

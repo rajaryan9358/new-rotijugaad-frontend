@@ -26,7 +26,7 @@ const TARGET_OPTIONS = [
   { value: 'rejected_employers', label: 'Rejected Employers' },
   { value: 'employers_with_active_job', label: 'Employers with active job' },
 ];
-const HASHTAG_SUGGESTIONS = ['user_name', 'organization_name', 'job_name'];
+const HASHTAG_SUGGESTIONS = ['user_name', 'organization_name', 'job_name', 'city', 'state'];
 const FormField = ({ label, children }) => (
   <div style={{ marginBottom: '18px' }}>
     <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>{label}</div>
@@ -220,7 +220,7 @@ export default function NotificationsManagement() {
         />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content notifications-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view notifications.</div>
             </div>
@@ -241,7 +241,7 @@ export default function NotificationsManagement() {
       />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content notifications-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -305,7 +305,7 @@ export default function NotificationsManagement() {
               )}
 
               <div className="data-card" style={{ padding: '0' }}>
-                <div className="table-container" style={{ padding: '0', overflowX: 'auto' }}>
+                <div className="table-container" style={{ padding: '0' }}>
                   <table className="data-table">
                     <thead>
                       <tr>

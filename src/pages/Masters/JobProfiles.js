@@ -164,7 +164,7 @@ export default function JobProfiles() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content job-profiles-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -208,7 +208,13 @@ export default function JobProfiles() {
                       </tr>
                     </thead>
                     <tbody>
-                      {profiles.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="7" className="no-data">
+                            Loading...
+                          </td>
+                        </tr>
+                      ) : profiles.length > 0 ? (
                         profiles.map((profile, index) => (
                           <tr
                             key={profile.id}

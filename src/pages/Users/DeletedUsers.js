@@ -78,13 +78,7 @@ export default function DeletedUsers() {
     const ts = new Date(createdAt).getTime();
     return Number.isFinite(ts) && (Date.now() - ts) <= NEW_WINDOW_MS;
   };
-  const getUserLifeDays = (createdAt, deletedAt) => {
-    if (!createdAt || !deletedAt) return '-';
-    const start = new Date(createdAt).getTime();
-    const end = new Date(deletedAt).getTime();
-    if (Number.isNaN(start) || Number.isNaN(end) || end < start) return '-';
-    return Math.max(Math.floor((end - start) / (1000 * 60 * 60 * 24)), 0);
-  };
+
 
   const buildQueryParams = React.useCallback(() => {
     const params = {};
@@ -198,11 +192,14 @@ export default function DeletedUsers() {
         if (typeof meta.totalPages === 'number') totalPages = meta.totalPages;
         const serverLimit = meta.limit || baseParams.limit || batch.length || 1;
 
-        const shouldContinue = (() => {
-          if (totalRecords !== null) return exportRows.length < totalRecords;
-          if (totalPages !== null) return page < totalPages;
-          return batch.length === serverLimit && Boolean(baseParams.limit);
-        })();
+        let shouldContinue = false;
+        if (totalRecords !== null) {
+          shouldContinue = exportRows.length < totalRecords;
+        } else if (totalPages !== null) {
+          shouldContinue = page < totalPages;
+        } else {
+          shouldContinue = batch.length === serverLimit && Boolean(baseParams.limit);
+        }
 
         if (!shouldContinue) break;
         page += 1;
@@ -266,7 +263,7 @@ export default function DeletedUsers() {
       <Header onMenuClick={toggleSidebar} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content deleted-users-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             <div className="list-header">
               <h1>Deleted users</h1>
@@ -475,3 +472,4 @@ export default function DeletedUsers() {
     </div>
   );
 }
+

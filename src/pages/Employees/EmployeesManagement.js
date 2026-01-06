@@ -508,7 +508,6 @@ export default function EmployeesManagement() {
       'Job Profiles',
       'Work Nature',
       'Last Seen',
-      'Profile Completed',
       'Employee Created At',
       'User Created At',
       'User Life (days)',
@@ -564,7 +563,6 @@ export default function EmployeesManagement() {
         e.work_natures_display || '',
 
         formatExportDateTime(e.User?.last_active_at),
-        formatExportDateTime(e.User?.profile_completed_at),
 
         formatExportDateTime(e.created_at),
         formatExportDateTime(userCreatedAt),
@@ -1003,51 +1001,6 @@ export default function EmployeesManagement() {
     );
   };
 
-  // NEW: profile completion chip
-  const renderProfileCompletedChip = (value) => {
-    const d = value ? new Date(value) : null;
-    const isValid = d && !Number.isNaN(d.getTime());
-    if (!isValid) {
-      return (
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          padding: '3px 10px',
-          borderRadius: '999px',
-          fontSize: '11px',
-          fontWeight: 700,
-          background: '#fee2e2',
-          color: '#b91c1c',
-          border: '1px solid #fecaca',
-          whiteSpace: 'nowrap'
-        }}>
-          Incomplete
-        </span>
-      );
-    }
-    return (
-      <span style={{
-        display: 'inline-flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: '2px',
-        padding: '6px 10px',
-        borderRadius: '10px',
-        background: '#dcfce7',
-        color: '#166534',
-        border: '1px solid #86efac',
-        lineHeight: 1.2
-      }}>
-        <span style={{ fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap' }}>
-          Profile Completed
-        </span>
-        <span style={{ fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-          {formatDisplayDateTime(value)}
-        </span>
-      </span>
-    );
-  };
-
   // NEW: compute age (years) from DOB
   const calculateAge = React.useCallback((dob) => {
     if (!dob) return '-';
@@ -1192,7 +1145,7 @@ export default function EmployeesManagement() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content employees-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -1694,7 +1647,7 @@ export default function EmployeesManagement() {
                   </div>
                 )}
 
-                <div className="table-container" style={{ overflowX: 'auto' }}>
+                <div className="table-container">
                   <table className="data-table" style={{ minWidth: '2000px' }}>
                     <thead>
                       <tr>
@@ -1732,7 +1685,6 @@ export default function EmployeesManagement() {
                         <th>Job Profiles</th>
                         <th>Work Nature</th> {/* added */}
                         <th>Last Seen</th>
-                        <th>Profile Completed</th>
                         <th onClick={() => handleHeaderClick('created_at')} style={{ cursor:'pointer' }}>Created{ind('created_at')}</th>
                         <th>User Life (days)</th>
                         <th>Credit Balances</th> {/* NEW */}
@@ -1749,7 +1701,6 @@ export default function EmployeesManagement() {
                             : false;
                           const lastSeenLabel = formatDisplayDateTime(e.User?.last_active_at);
                           const userLifeDays = getUserLifeDays(userCreatedAt);
-                          const profileCompletedValue = e.User?.profile_completed_at; // NEW
                           const volunteerName = e.volunteer_name || getVolunteerByAssistantCode(e.assistant_code)?.name || null;
                           const volunteerId = e.volunteer_id || getVolunteerByAssistantCode(e.assistant_code)?.id || null;
 
@@ -1842,8 +1793,6 @@ export default function EmployeesManagement() {
                               <td>{e.work_natures_display || '-'}</td> {/* added */}
                               <td>{lastSeenLabel}</td>
 
-                              {/* CHANGED: chip instead of plain text */}
-                              <td>{renderProfileCompletedChip(profileCompletedValue)}</td>
 
                               <td>{e.created_at ? new Date(e.created_at).toLocaleDateString() : '-'}</td>
                               <td>{userLifeDays}</td>
@@ -1915,7 +1864,7 @@ export default function EmployeesManagement() {
                       ) : (
                         <tr>
                           {/* CHANGED: update colSpan (+1 for Status Changed By) */}
-                          <td colSpan="30" className="no-data">
+                          <td colSpan="29" className="no-data">
                             {loading ? 'Loading...' : meta.total ? 'No records on this page' : 'No employees found'}
                           </td>
                         </tr>

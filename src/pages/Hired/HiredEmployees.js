@@ -525,7 +525,7 @@ export default function HiredEmployees() {
         <Header onMenuClick={handleMenuClick} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content hired-employees-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view hired employees.</div>
             </div>
@@ -540,7 +540,7 @@ export default function HiredEmployees() {
       <Header onMenuClick={handleMenuClick} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content hired-employees-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -696,7 +696,7 @@ export default function HiredEmployees() {
               </div>
             )}
 
-            <div className="table-container" style={{ overflowX:'auto' }}>
+            <div className="table-container">
               <table className="data-table" style={{ minWidth:'1500px' }}>
                 <thead>
                   <tr>

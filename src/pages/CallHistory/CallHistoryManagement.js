@@ -7,6 +7,8 @@ import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
 
+import '../Masters/MasterPage.css';
+
 export default function CallHistoryManagement() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -567,7 +569,7 @@ export default function CallHistoryManagement() {
       <Header onMenuClick={() => setSidebarOpen(o => !o)} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content call-history-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             <div className="list-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
               <h1 style={{ margin: 0 }}>Call History</h1>
@@ -720,7 +722,7 @@ export default function CallHistoryManagement() {
               </div>
             )}
 
-            <div className="table-container" style={{ overflowX: 'auto' }}>
+            <div className="table-container">
               <table className="data-table" style={{ minWidth: '1200px' }}>
                 <thead>
                   <tr>

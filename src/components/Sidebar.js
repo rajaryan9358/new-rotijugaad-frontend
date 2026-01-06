@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { saveMenuState, getMenuState, saveSidebarScrollPosition, getSidebarScrollPosition } from '../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../utils/permissions';
 import './Sidebar.css';
@@ -7,8 +7,90 @@ import './Sidebar.css';
 export default function Sidebar({ isOpen }) {
   const [expandedMenu, setExpandedMenu] = useState(null);
   const location = useLocation();
+  const navigate = useNavigate();
   const sidebarRef = useRef(null);
   const scrollPositionRef = useRef(0);
+
+  const MASTERS_MENU_ID = 2;
+
+  const clampScrollTop = (sidebar, desired) => {
+    if (!sidebar) return 0;
+    const maxScrollTop = Math.max(0, sidebar.scrollHeight - sidebar.clientHeight);
+    return Math.min(Math.max(0, desired || 0), maxScrollTop);
+  };
+
+  const collapseMenu = (idToCollapse, options = {}) => {
+    if (expandedMenu !== idToCollapse) return;
+
+    const sidebar = sidebarRef.current;
+    if (sidebar) {
+      scrollPositionRef.current = sidebar.scrollTop;
+    }
+
+    setExpandedMenu(null);
+    localStorage.removeItem('app_expanded_menu');
+
+    // After the DOM updates (submenu collapses), calculate + persist scrollTop
+    setTimeout(() => {
+      const s = sidebarRef.current;
+      if (!s) {
+        if (typeof options.afterCollapse === 'function') options.afterCollapse();
+        return;
+      }
+
+      let desired = scrollPositionRef.current;
+
+      const anchorEl = options.anchorEl;
+      const anchorOffset = options.anchorOffset;
+      const canMeasureAnchor =
+        anchorEl &&
+        typeof anchorEl.getBoundingClientRect === 'function' &&
+        typeof document !== 'undefined' &&
+        document.contains(anchorEl);
+
+      if (canMeasureAnchor && typeof anchorOffset === 'number') {
+        try {
+          const sidebarRect = s.getBoundingClientRect();
+          const afterOffset = anchorEl.getBoundingClientRect().top - sidebarRect.top;
+          const delta = afterOffset - anchorOffset;
+          desired = s.scrollTop + delta;
+        } catch (_err) {
+          // fall back to previous scroll preservation
+        }
+      }
+
+      const clamped = clampScrollTop(s, desired);
+      s.scrollTop = clamped;
+      saveSidebarScrollPosition(clamped);
+
+      if (typeof options.afterCollapse === 'function') options.afterCollapse();
+    }, 0);
+  };
+
+  const handleNavClick = (event, targetPath) => {
+    if (!targetPath) return;
+
+    if (expandedMenu === MASTERS_MENU_ID && !targetPath.startsWith('/masters')) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+
+      const sidebar = sidebarRef.current;
+      const anchorEl = event?.currentTarget;
+      const sidebarRect = sidebar?.getBoundingClientRect?.();
+      const anchorOffset =
+        sidebar &&
+        sidebarRect &&
+        anchorEl &&
+        typeof anchorEl.getBoundingClientRect === 'function'
+          ? anchorEl.getBoundingClientRect().top - sidebarRect.top
+          : null;
+
+      collapseMenu(MASTERS_MENU_ID, {
+        anchorEl,
+        anchorOffset: typeof anchorOffset === 'number' ? anchorOffset : null,
+        afterCollapse: () => navigate(targetPath),
+      });
+    }
+  };
 
   useEffect(() => {
     const savedMenuId = getMenuState();
@@ -22,9 +104,10 @@ export default function Sidebar({ isOpen }) {
     if (sidebarRef.current) {
       const scrollPos = getSidebarScrollPosition();
       setTimeout(() => {
-        if (sidebarRef.current) {
-          sidebarRef.current.scrollTop = scrollPos;
-        }
+        const sidebar = sidebarRef.current;
+        if (!sidebar) return;
+        const clamped = clampScrollTop(sidebar, scrollPos);
+        sidebar.scrollTop = clamped;
       }, 0);
     }
   }, [location.pathname]);
@@ -168,10 +251,11 @@ export default function Sidebar({ isOpen }) {
 
     // Restore scroll position after state update
     setTimeout(() => {
-      if (sidebarRef.current) {
-        sidebarRef.current.scrollTop = scrollPositionRef.current;
-        saveSidebarScrollPosition(scrollPositionRef.current);
-      }
+      const sidebar = sidebarRef.current;
+      if (!sidebar) return;
+      const clamped = clampScrollTop(sidebar, scrollPositionRef.current);
+      sidebar.scrollTop = clamped;
+      saveSidebarScrollPosition(clamped);
     }, 0);
   };
 
@@ -215,6 +299,7 @@ export default function Sidebar({ isOpen }) {
                         <Link
                           key={index}
                           to={subitem.path}
+                          onClick={(e) => handleNavClick(e, subitem.path)}
                           className={`submenu-item ${isActive(subitem.path) ? 'active' : ''}`}
                         >
                           {subitem.label}
@@ -226,6 +311,7 @@ export default function Sidebar({ isOpen }) {
               ) : (
                 <Link
                   to={item.path}
+                  onClick={(e) => handleNavClick(e, item.path)}
                   className={`menu-item ${isActive(item.path) ? 'active' : ''}`}
                 >
                   <span className="icon">{item.icon}</span>

@@ -172,7 +172,7 @@ export default function States() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content states-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -221,7 +221,13 @@ export default function States() {
                       </tr>
                     </thead>
                     <tbody>
-                      {states.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="no-data">
+                            Loading...
+                          </td>
+                        </tr>
+                      ) : states.length > 0 ? (
                         states.map((state, index) => (
                           <tr
                             key={state.id}

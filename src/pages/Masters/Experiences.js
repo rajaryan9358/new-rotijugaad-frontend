@@ -164,7 +164,7 @@ export default function Experiences() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content experiences-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -216,7 +216,13 @@ export default function Experiences() {
                       </tr>
                     </thead>
                     <tbody>
-                      {experiences.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="9" className="no-data">
+                            Loading...
+                          </td>
+                        </tr>
+                      ) : experiences.length > 0 ? (
                         experiences.map((experience, index) => (
                           <tr
                             key={experience.id}

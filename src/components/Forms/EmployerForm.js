@@ -12,6 +12,8 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  const topRef = useRef(null);
+
   const [form, setForm] = useState({
     user_id: '',
     mobile: '',
@@ -31,6 +33,11 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
   const [cities, setCities] = useState([]);
   const [categories, setCategories] = useState([]);
   const presetAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (!error) return;
+    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [error]);
 
   useEffect(() => {
     if (!presetUser || presetAppliedRef.current) return;
@@ -167,6 +174,7 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
 
   return (
     <div className="form-container">
+      <div ref={topRef} />
       <div className="form-header">
         <h1>{isEdit ? 'Edit Employer' : 'Add New Employer'}</h1>
         {isEdit && (

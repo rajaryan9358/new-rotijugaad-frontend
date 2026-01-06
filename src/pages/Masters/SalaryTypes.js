@@ -164,7 +164,7 @@ export default function SalaryTypes() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content salary-types-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -207,7 +207,11 @@ export default function SalaryTypes() {
                       </tr>
                     </thead>
                     <tbody>
-                      {types.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="no-data">Loading...</td>
+                        </tr>
+                      ) : types.length > 0 ? (
                         types.map((type, index) => (
                           <tr
                             key={type.id}

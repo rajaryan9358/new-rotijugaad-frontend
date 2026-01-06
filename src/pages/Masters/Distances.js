@@ -164,7 +164,7 @@ export default function Distances() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content distances-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -214,7 +214,13 @@ export default function Distances() {
                       </tr>
                     </thead>
                     <tbody>
-                      {distances.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="7" className="no-data">
+                            Loading...
+                          </td>
+                        </tr>
+                      ) : distances.length > 0 ? (
                         distances.map((distance, index) => (
                           <tr
                             key={distance.id}

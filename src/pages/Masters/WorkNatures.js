@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import WorkNatureForm from '../../components/Forms/WorkNatureForm';
@@ -157,7 +156,7 @@ export default function WorkNatures() {
       <Header onMenuClick={handleMenuClick} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content work-natures-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -206,7 +205,11 @@ export default function WorkNatures() {
                       </tr>
                     </thead>
                     <tbody>
-                      {natures.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="no-data">Loading...</td>
+                        </tr>
+                      ) : natures.length > 0 ? (
                         natures.map((nature, index) => (
                           <tr
                             key={nature.id}

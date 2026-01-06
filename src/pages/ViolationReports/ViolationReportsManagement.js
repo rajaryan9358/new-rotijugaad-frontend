@@ -8,6 +8,7 @@ import employerReportReasonsApi from '../../api/masters/employerReportReasonsApi
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
+import '../Masters/MasterPage.css';
 
 export default function ViolationReportsManagement() {
   const navigate = useNavigate();
@@ -391,7 +392,12 @@ export default function ViolationReportsManagement() {
 
     try {
       const typeLabel = reportTypeFilter || 'all';
-      const reasonLabel = reasonFilter || 'all';
+      const selectedReason = reasonFilter
+        ? (reasonsForApplied || []).find(r => String(r.id) === String(reasonFilter))
+        : null;
+      const reasonLabel = selectedReason
+        ? (selectedReason.reason_english || selectedReason.reason_hindi || reasonFilter)
+        : (reasonFilter || 'all');
       const readLabel = readStatusFilter || 'all';
       await logsApi.create({
         category: 'voilation reports',
@@ -426,7 +432,7 @@ export default function ViolationReportsManagement() {
         <Header onMenuClick={() => setSidebarOpen(o => !o)} onLogout={handleLogout} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content violation-reports-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="list-header">
                 <h1>Violation Reports</h1>
@@ -447,7 +453,7 @@ export default function ViolationReportsManagement() {
       <Header onMenuClick={() => setSidebarOpen(o => !o)} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content violation-reports-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             <div className="list-header">
               <h1>Violation Reports</h1>
@@ -583,7 +589,7 @@ export default function ViolationReportsManagement() {
               </div>
             )}
 
-            <div className="table-container" style={{ overflowX:'auto' }}>
+            <div className="table-container">
               <table className="data-table" style={{ minWidth:'1400px' }}>
                 <thead>
                   <tr>

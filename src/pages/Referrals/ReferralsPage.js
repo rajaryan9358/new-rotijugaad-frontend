@@ -48,6 +48,8 @@ export default function ReferralsPage({ title, userType }) {
   const logsTitle = userType === 'employer' ? 'Employer Referrals Logs' : 'Employee Referrals Logs';
   const redirectTo = userType === 'employer' ? '/referrals/employers' : '/referrals/employees';
 
+  const pageClass = userType === 'employer' ? 'employer-referrals-page' : 'employee-referrals-page';
+
   const fetchReferrals = useCallback(async () => {
     setLoading(true);
     try {
@@ -208,7 +210,7 @@ export default function ReferralsPage({ title, userType }) {
         <Header onMenuClick={() => setSidebarOpen((o) => !o)} onLogout={() => { localStorage.clear(); navigate('/login'); }} />
         <div className="dashboard-content">
           <Sidebar isOpen={sidebarOpen} />
-          <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+          <main className={`main-content ${pageClass} ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
             <div className="content-wrapper">
               <div className="inline-message error">You do not have permission to view referrals.</div>
             </div>
@@ -232,7 +234,7 @@ export default function ReferralsPage({ title, userType }) {
       />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className={`main-content ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <main className={`main-content ${pageClass} ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -278,7 +280,7 @@ export default function ReferralsPage({ title, userType }) {
             </div>
 
             <div className="data-card" style={{ padding: '0' }}>
-              <div className="table-container" style={{ padding: '0', overflowX: 'auto' }}>
+              <div className="table-container" style={{ padding: '0' }}>
                 <table className="data-table">
                   <thead>
                     <tr>

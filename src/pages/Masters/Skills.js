@@ -164,7 +164,7 @@ export default function Skills() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content skills-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -213,7 +213,11 @@ export default function Skills() {
                       </tr>
                     </thead>
                     <tbody>
-                      {skills.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="no-data">Loading...</td>
+                        </tr>
+                      ) : skills.length > 0 ? (
                         skills.map((skill, index) => (
                           <tr
                             key={skill.id}

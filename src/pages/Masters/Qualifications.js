@@ -164,7 +164,7 @@ export default function Qualifications() {
       <Header onMenuClick={handleMenuClick} onLogout={handleLogout} />
       <div className="dashboard-content">
         <Sidebar isOpen={sidebarOpen} />
-        <main className="main-content">
+        <main className="main-content qualifications-page">
           <div className="content-wrapper">
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
@@ -213,7 +213,13 @@ export default function Qualifications() {
                       </tr>
                     </thead>
                     <tbody>
-                      {qualifications.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="no-data">
+                            Loading...
+                          </td>
+                        </tr>
+                      ) : qualifications.length > 0 ? (
                         qualifications.map((qualification, index) => (
                           <tr
                             key={qualification.id}
