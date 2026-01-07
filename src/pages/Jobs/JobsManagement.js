@@ -624,47 +624,55 @@ export default function JobsManagement() {
     try {
       const d = new Date(val);
       if (Number.isNaN(d.getTime())) return '';
-      return d.toLocaleString();
+      return d.toLocaleDateString();
     } catch {
       return '';
     }
   };
-  // NOTE: expired jobs are determined by `expired_at` being non-null (backend filter matches this).
-  const isExpiredJob = (job) => Boolean(job?.expired_at) || String(job?.status || '').toLowerCase() === 'expired';
+  // NOTE: show UI-expired only when `expired_at` is a past date for active/inactive jobs.
+  // Also treat status=expired as expired.
+  const isExpiredJob = (job) => {
+    const status = String(job?.status || '').toLowerCase();
+    if (status === 'expired') return true;
+    if (status !== 'active' && status !== 'inactive') return false;
+    if (!job?.expired_at) return false;
+    try {
+      const d = new Date(job.expired_at);
+      if (Number.isNaN(d.getTime())) return false;
+      return d.getTime() < Date.now();
+    } catch {
+      return false;
+    }
+  };
 
   const renderStatusBadge = (jobOrStatus) => {
     const job = (jobOrStatus && typeof jobOrStatus === 'object') ? jobOrStatus : { status: jobOrStatus };
     const status = String(job.status || '').toLowerCase();
-    const expired = isExpiredJob(job);
-    const expiryText = formatExpiry(job.expired_at);
 
+    const expired = isExpiredJob(job);
     const tone = statusPalette[status] || { bg: '#e5e7eb', color: '#0f172a', label: status || '-' };
 
     const label = (() => {
-      if (expired && status === 'inactive') return 'Expired • Inactive';
-      if (expired) return 'Expired';
+      if (expired && status === 'inactive') return 'Inactive and expired';
+      if (expired && status === 'active') return 'Expired';
+      if (expired && status === 'expired') return 'Expired';
       return tone.label;
     })();
+
+    const chipTone = expired ? (statusPalette.expired || tone) : tone;
 
     return (
       <span style={{
         display: 'inline-flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: '2px',
+        alignItems: 'center',
         padding: '4px 12px',
         borderRadius: '999px',
         fontSize: '12px',
         fontWeight: 600,
-        background: expired ? '#fef3c7' : tone.bg,
-        color: expired ? '#92400e' : tone.color
+        background: chipTone.bg,
+        color: chipTone.color
       }}>
-        <span>{label}</span>
-        {expired && expiryText ? (
-          <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.9 }}>
-            {expiryText}
-          </span>
-        ) : null}
+        {label}
       </span>
     );
   };
@@ -1097,6 +1105,7 @@ export default function JobsManagement() {
                         <th>City</th>
                         <th>Salary</th>
                         <th>Status</th>
+                        <th>Expiry Date</th>
                         <th>Status Time</th>
                         <th>Created</th>
                         <th>Job Life (days)</th>
@@ -1106,7 +1115,7 @@ export default function JobsManagement() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={23}>Loading...{/* CHANGED */}</td>
+                          <td colSpan={24}>Loading...{/* CHANGED */}</td>
                         </tr>
                       ) : rows.length ? (
                         rows.map(job => {
@@ -1169,6 +1178,7 @@ export default function JobsManagement() {
                                   : (job.salary_min || job.salary_max || '-')}
                               </td>
                               <td>{renderStatusBadge(job)}</td>
+                              <td>{formatExpiry(job.expired_at) || '-'}</td>
                               <td>{job.updated_at ? new Date(job.updated_at).toLocaleString() : '-'}</td>
                               <td>{job.created_at ? new Date(job.created_at).toLocaleString() : '-'}</td>
                               <td>{jobLifeDays}</td>
@@ -1203,7 +1213,7 @@ export default function JobsManagement() {
                                           - Active: Deactivate + Mark Expired
                                           - Inactive (not expired): Activate + Mark Expired
                                           - Expired: Activate OR Inactive (if currently expired) */}
-                                      {job.status === 'active' && (
+                                      {job.status === 'active' && !expired && (
                                         <>
                                           <button
                                             className="btn-small"
@@ -1247,14 +1257,16 @@ export default function JobsManagement() {
 
                                       {expired && (
                                         <>
-                                          <button
-                                            className="btn-small"
-                                            style={{ minWidth:110 }}
-                                            disabled={statusUpdatingId === job.id}
-                                            onClick={(event) => { event.stopPropagation(); handleSetStatus(job, 'active'); }}
-                                          >
-                                            {statusUpdatingId === job.id ? 'Updating...' : 'Activate'}
-                                          </button>
+                                          {job.status !== 'active' && (
+                                            <button
+                                              className="btn-small"
+                                              style={{ minWidth:110 }}
+                                              disabled={statusUpdatingId === job.id}
+                                              onClick={(event) => { event.stopPropagation(); handleSetStatus(job, 'active'); }}
+                                            >
+                                              {statusUpdatingId === job.id ? 'Updating...' : 'Activate'}
+                                            </button>
+                                          )}
                                           {job.status !== 'inactive' && (
                                             <button
                                               className="btn-small"
@@ -1305,7 +1317,7 @@ export default function JobsManagement() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan={23}>No data{/* CHANGED */}</td>
+                          <td colSpan={24}>No data{/* CHANGED */}</td>
                         </tr>
                       )}
                     </tbody>

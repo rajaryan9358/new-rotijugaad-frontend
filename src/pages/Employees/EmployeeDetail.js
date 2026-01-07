@@ -2828,13 +2828,28 @@ export default function EmployeeDetail() {
                                     opts.push({ key:'activate', label:'Activate' });
                                   }
                                 }
-                                if ((employee?.verification_status || '').toLowerCase() === 'pending' && perms.canVerify) {
-                                  opts.push({ key:'approve', label:'Approve' });
-                                  opts.push({ key:'reject', label:'Reject' });
+                                const vStatus = (employee?.verification_status || '').toString().toLowerCase();
+                                if (perms.canVerify) {
+                                  if (vStatus === 'pending') {
+                                    opts.push({ key:'approve', label:'Approve' });
+                                    opts.push({ key:'reject', label:'Reject' });
+                                  } else if (vStatus === 'verified') {
+                                    opts.push({ key:'reject', label:'Reject Verification' });
+                                  } else if (vStatus === 'rejected') {
+                                    opts.push({ key:'approve', label:'Approve Verification' });
+                                  }
                                 }
-                                if ((employee?.kyc_status || '').toLowerCase() === 'pending' && perms.canGrantKyc) {
-                                  opts.push({ key:'grantKyc', label:'Grant KYC' });
-                                  opts.push({ key:'rejectKyc', label:'Reject KYC' });
+
+                                const kStatus = (employee?.kyc_status || '').toString().toLowerCase();
+                                if (perms.canGrantKyc) {
+                                  if (kStatus === 'pending') {
+                                    opts.push({ key:'grantKyc', label:'Grant KYC' });
+                                    opts.push({ key:'rejectKyc', label:'Reject KYC' });
+                                  } else if (kStatus === 'verified') {
+                                    opts.push({ key:'rejectKyc', label:'Reject KYC' });
+                                  } else if (kStatus === 'rejected') {
+                                    opts.push({ key:'grantKyc', label:'Grant KYC' });
+                                  }
                                 }
                                 if (employee && perms.canChangeSubscription) {
                                   opts.push({ key:'changeSubscription', label:'Change Subscription' });
