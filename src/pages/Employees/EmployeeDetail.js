@@ -955,6 +955,12 @@ export default function EmployeeDetail() {
           <Detail label="City" value={basic.City?.city_english || '-'} />
         )}
         {perms.canShowPhoneAddress && (
+          <Detail label="Latitude" value={basic.lat ?? '-'} />
+        )}
+        {perms.canShowPhoneAddress && (
+          <Detail label="Longitude" value={basic.lng ?? '-'} />
+        )}
+        {perms.canShowPhoneAddress && (
           <Detail label="Preferred State" value={basic.PreferredState?.state_english || '-'} />
         )}
         {perms.canShowPhoneAddress && (

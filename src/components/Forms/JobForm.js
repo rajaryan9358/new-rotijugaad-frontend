@@ -6,6 +6,7 @@ import experiencesApi from '../../api/masters/experiencesApi';
 import qualificationsApi from '../../api/masters/qualificationsApi';
 import jobBenefitsApi from '../../api/masters/jobBenefitsApi';
 import shiftsApi from '../../api/masters/shiftsApi';
+import salaryTypesApi from '../../api/masters/salaryTypesApi';
 import { useAutoTranslation } from '../../hooks/useAutoTranslation';
 import './MasterForm.css';
 
@@ -159,8 +160,11 @@ export default function JobForm({
     job_address_hindi: '',
     job_state_id: '',
     job_city_id: '',
+    lat: '',
+    lng: '',
     other_benefit_english: '',
     other_benefit_hindi: '',
+    salary_type_id: '',
     salary_min: '',
     salary_max: '',
     work_start_time: '',
@@ -197,6 +201,7 @@ export default function JobForm({
   const [qualifications, setQualifications] = useState([]);
   const [jobBenefits, setJobBenefits] = useState([]);
   const [shifts, setShifts] = useState([]);
+  const [salaryTypes, setSalaryTypes] = useState([]);
   const [days, setDays] = useState(DEFAULT_DAYS);
 
   // Fetch master data on mount
@@ -208,19 +213,22 @@ export default function JobForm({
           experiencesRes,
           qualificationsRes,
           jobBenefitsRes,
-          shiftsRes
+          shiftsRes,
+          salaryTypesRes
         ] = await Promise.all([
           skillsApi.getAll(),
           experiencesApi.getAll(),
           qualificationsApi.getAll(),
           jobBenefitsApi.getAll(),
-          shiftsApi.getAll()
+          shiftsApi.getAll(),
+          salaryTypesApi.getAll()
         ]);
         setSkills(skillsRes.data?.data || []);
         setExperiences(experiencesRes.data?.data || []);
         setQualifications(qualificationsRes.data?.data || []);
         setJobBenefits(jobBenefitsRes.data?.data || []);
         setShifts(shiftsRes.data?.data || []);
+        setSalaryTypes(salaryTypesRes.data?.data || []);
         // days is static, but you can fetch from API if needed
       } catch (e) {
         // Optionally handle error
@@ -249,8 +257,11 @@ export default function JobForm({
       job_address_hindi: job.job_address_hindi || '',
       job_state_id: job.job_state_id || '',
       job_city_id: job.job_city_id || '',
+      lat: job.lat ?? '',
+      lng: job.lng ?? '',
       other_benefit_english: job.other_benefit_english || '',
       other_benefit_hindi: job.other_benefit_hindi || '',
+      salary_type_id: job.salary_type_id || '',
       salary_min: job.salary_min || '',
       salary_max: job.salary_max || '',
       work_start_time: job.work_start_time || '',
@@ -364,7 +375,10 @@ export default function JobForm({
         job_profile_id: form.job_profile_id ? parseInt(form.job_profile_id, 10) : null,
         job_state_id: form.job_state_id ? parseInt(form.job_state_id, 10) : null,
         job_city_id: form.job_city_id ? parseInt(form.job_city_id, 10) : null,
+        lat: form.lat ? parseFloat(form.lat) : null,
+        lng: form.lng ? parseFloat(form.lng) : null,
         no_vacancy: parseInt(form.no_vacancy) || 1,
+         salary_type_id: form.salary_type_id ? parseInt(form.salary_type_id, 10) : null,
         salary_min: form.salary_min ? parseFloat(form.salary_min) : null,
         salary_max: form.salary_max ? parseFloat(form.salary_max) : null,
         skills: selectedSkills,
@@ -597,6 +611,9 @@ export default function JobForm({
           </select>
         </div>
 
+        <div className="form-group"><label>Latitude</label><input type="number" step="0.0000001" value={form.lat} onChange={e => setField('lat', e.target.value)} placeholder="e.g., 28.6139" /></div>
+        <div className="form-group"><label>Longitude</label><input type="number" step="0.0000001" value={form.lng} onChange={e => setField('lng', e.target.value)} placeholder="e.g., 77.2090" /></div>
+
         {/* Multi-select chips for job fields */}
         <MultiSelectChips
           label="Skills"
@@ -696,6 +713,22 @@ export default function JobForm({
         </div>
 
         {/* Salary */}
+
+        <div className="form-group">
+          <label>Salary Type</label>
+          <select
+            value={form.salary_type_id}
+            onChange={e => setField("salary_type_id", e.target.value)}
+            style={{ padding: "8px", fontSize: "13px", border: "1px solid #ccc", borderRadius: "4px", width: "100%" }}
+          >
+            <option value="">Select salary type</option>
+            {(salaryTypes || []).map(st => (
+              <option key={st.id} value={st.id}>
+                {st.type_english || st.type_hindi || st.id}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="form-group">
           <label>Salary Range</label>
           <div style={{ display: 'flex', gap: '8px' }}>

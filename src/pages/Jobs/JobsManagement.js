@@ -498,7 +498,7 @@ export default function JobsManagement() {
     const headers = [
       'ID','Employer','Employer Phone','Interviewer Contact','Shift Timing',
       'Job Profile','Household','Gender','Experience','Qualification','Shift','Skills','Benefits',
-      'Vacancies','State','City','Salary','Status','Updated','Created'
+      'Vacancies','State','City','Salary Type','Salary','Status','Updated','Created'
     ];
     const escapeCell = (val) => {
       if (val === null || val === undefined) return '';
@@ -522,6 +522,7 @@ export default function JobsManagement() {
       `${job.hired_total || 0}/${job.no_vacancy || 0}`,
       job.job_state || '',
       job.job_city || '',
+      job.salary_type || '',
       job.salary_min && job.salary_max ? `${job.salary_min}-${job.salary_max}` : (job.salary_min || job.salary_max || ''),
       job.status || '',
       formatExportDateTime(job.updated_at),
@@ -1103,6 +1104,9 @@ export default function JobsManagement() {
                         <th>Vacancies</th> {/* CHANGED */}
                         <th>State</th>
                         <th>City</th>
+                        <th>Lat</th>
+                        <th>Lng</th>
+                        <th>Salary Type</th>
                         <th>Salary</th>
                         <th>Status</th>
                         <th>Expiry Date</th>
@@ -1115,7 +1119,7 @@ export default function JobsManagement() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={24}>Loading...{/* CHANGED */}</td>
+                          <td colSpan={27}>Loading...{/* CHANGED */}</td>
                         </tr>
                       ) : rows.length ? (
                         rows.map(job => {
@@ -1172,6 +1176,9 @@ export default function JobsManagement() {
                               <td>{`${Number(job.hired_total ?? 0)}/${Number(job.no_vacancy ?? 0)}`}</td> {/* CHANGED */}
                               <td>{job.job_state || '-'}</td>
                               <td>{job.job_city || '-'}</td>
+                              <td>{job.lat ?? '-'}</td>
+                              <td>{job.lng ?? '-'}</td>
+                              <td>{job.salary_type || '-'}</td>
                               <td>
                                 {job.salary_min && job.salary_max
                                   ? `${job.salary_min} - ${job.salary_max}`
@@ -1317,7 +1324,7 @@ export default function JobsManagement() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan={24}>No data{/* CHANGED */}</td>
+                          <td colSpan={25}>No data{/* CHANGED */}</td>
                         </tr>
                       )}
                     </tbody>

@@ -1670,6 +1670,8 @@ export default function EmployeesManagement() {
                         {employeePerms.canShowPhoneAddress && (
                           <th onClick={() => handleHeaderClick('city')} style={{ cursor:'pointer' }}>City{ind('city')}</th>
                         )}
+                        {employeePerms.canShowPhoneAddress && <th>Lat</th>}
+                        {employeePerms.canShowPhoneAddress && <th>Lng</th>}
                         {employeePerms.canShowPhoneAddress && <th>Pref State</th>}
                         {employeePerms.canShowPhoneAddress && <th>Pref City</th>}
                         <th onClick={() => handleHeaderClick('qualification')} style={{ cursor:'pointer' }}>Qualification{ind('qualification')}</th>
@@ -1773,6 +1775,8 @@ export default function EmployeesManagement() {
                               <td>{calculateAge(e.dob)}</td> {/* MOVED: after Gender */}
                               {employeePerms.canShowPhoneAddress && (<td>{e.State?.state_english || '-'}</td>)}
                               {employeePerms.canShowPhoneAddress && (<td>{e.City?.city_english || '-'}</td>)}
+                              {employeePerms.canShowPhoneAddress && (<td>{e.lat ?? '-'}</td>)}
+                              {employeePerms.canShowPhoneAddress && (<td>{e.lng ?? '-'}</td>)}
                               {employeePerms.canShowPhoneAddress && (<td>{e.PreferredState?.state_english || '-'}</td>)}
                               {employeePerms.canShowPhoneAddress && (<td>{e.PreferredCity?.city_english || '-'}</td>)}
                               <td>{e.Qualification?.qualification_english || '-'}</td>

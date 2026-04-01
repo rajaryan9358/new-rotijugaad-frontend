@@ -17,6 +17,8 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
     gender: '',
     state_id: '',
     city_id: '',
+    lat: '',
+    lng: '',
     preferred_state_id: '',
     preferred_city_id: '',
     qualification_id: '',
@@ -80,6 +82,8 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             gender: e.gender || '',
             state_id: e.state_id || '',
             city_id: e.city_id || '',
+            lat: e.lat ?? '',
+            lng: e.lng ?? '',
             preferred_state_id: e.preferred_state_id || '',
             preferred_city_id: e.preferred_city_id || '',
             qualification_id: e.qualification_id || '',
@@ -221,6 +225,8 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
           ...form,
           state_id: form.state_id || null,
           city_id: form.city_id || null,
+          lat: form.lat || null,
+          lng: form.lng || null,
           preferred_state_id: form.preferred_state_id || null,
           preferred_city_id: form.preferred_city_id || null,
           qualification_id: form.qualification_id || null,
@@ -293,6 +299,8 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
           mobile: userIdToUse ? finalMobile : trimmedMobile,
           state_id: form.state_id || null,
           city_id: form.city_id || null,
+          lat: form.lat || null,
+          lng: form.lng || null,
           preferred_state_id: form.preferred_state_id || null,
           preferred_city_id: form.preferred_city_id || null,
           qualification_id: form.qualification_id || null,
@@ -467,6 +475,10 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             {getFilteredCities(form.state_id).map(c => <option key={c.id} value={c.id}>{c.city_english}</option>)}
           </select>
         </div>
+
+        <div className="form-group"><label htmlFor="lat">Latitude</label><input id="lat" type="number" step="0.0000001" value={form.lat} onChange={e => setField('lat', e.target.value)} placeholder="e.g., 28.6139" /></div>
+
+        <div className="form-group"><label htmlFor="lng">Longitude</label><input id="lng" type="number" step="0.0000001" value={form.lng} onChange={e => setField('lng', e.target.value)} placeholder="e.g., 77.2090" /></div>
 
         <div className="form-group">
           <label htmlFor="preferred_state_id">Preferred State</label>

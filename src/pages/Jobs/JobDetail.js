@@ -17,6 +17,13 @@ const APPLICANT_TABS = [
   { key: 'rejected', label: 'Rejected' }
 ];
 
+const hasExpired = (value) => {
+  if (!value) return false;
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return false;
+  return dt.getTime() <= Date.now();
+};
+
 const statusBadge = (jobOrStatus) => {
   if (jobOrStatus === null || jobOrStatus === undefined) {
     return (
@@ -28,7 +35,7 @@ const statusBadge = (jobOrStatus) => {
 
   const job = (jobOrStatus && typeof jobOrStatus === 'object') ? jobOrStatus : { status: jobOrStatus };
   const status = String(job.status || '').toLowerCase();
-  const expired = Boolean(job.expired_at) || status === 'expired';
+  const expired = hasExpired(job.expired_at) || status === 'expired';
 
   const palette = {
     active: { bg: '#dcfce7', color: '#166534', label: 'Active' },
@@ -142,8 +149,7 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // NOTE: treat expired_at != null as expired (matches backend filtering).
-  const isExpiredJob = React.useCallback((j) => Boolean(j?.expired_at) || String(j?.status || '').toLowerCase() === 'expired', []);
+  const isExpiredJob = React.useCallback((j) => hasExpired(j?.expired_at) || String(j?.status || '').toLowerCase() === 'expired', []);
 
   const setJobStatus = async (nextStatus) => {
     if (!job || !jobPerms.canStatusToggle) {
@@ -609,7 +615,10 @@ function JobDetailTab({ job }) {
 
           <Detail label="State" value={state} />
           <Detail label="City" value={city} />
+          <Detail label="Latitude" value={job.lat ?? "-"} />
+          <Detail label="Longitude" value={job.lng ?? "-"} />
           <Detail label="Salary" value={job.salary_min && job.salary_max ? `${job.salary_min} - ${job.salary_max}` : (job.salary_min || job.salary_max || '-')} />
+          <Detail label="Salary Type" value={job.salary_type || job.SalaryType?.type_english || job.SalaryType?.type_hindi || "-"} />
           <Detail label="Status" value={statusBadge(job)} />
           <Detail label="Expired At" value={job.expired_at ? new Date(job.expired_at).toLocaleString() : '-'} />
           <Detail label="Status Time" value={job.updated_at ? new Date(job.updated_at).toLocaleString() : '-'} />
