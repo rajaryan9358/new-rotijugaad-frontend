@@ -8,6 +8,13 @@ import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import '../Masters/MasterPage.css';
 
 const fieldGroups = {
+  credits: [
+    { label: 'Employee welcome contact credits', name: 'employee_contact_credit', type: 'number', hint: 'Credits added when an employee profile is created first time.' },
+    { label: 'Employee welcome interest credits', name: 'employee_interest_credit', type: 'number', hint: 'Credits added when an employee profile is created first time.' },
+    { label: 'Employer welcome contact credits', name: 'employer_contact_credit', type: 'number', hint: 'Credits added when an employer profile is created first time.' },
+    { label: 'Employer welcome interest credits', name: 'employer_interest_credit', type: 'number', hint: 'Credits added when an employer profile is created first time.' },
+    { label: 'Employer welcome ad credits', name: 'employer_ad_credit', type: 'number', hint: 'Credits added when an employer profile is created first time.' }
+  ],
   support: [
     { label: 'Employee support mobile', name: 'employee_support_mobile', type: 'tel', hint: 'Enter digits only (e.g., 9876543210)' },
     { label: 'Employee support email', name: 'employee_support_email', type: 'email' },
@@ -51,6 +58,8 @@ const renderInput = (field, value, onChange, disabled = false) => {
       onChange={(event) => onChange(event.target.value)}
       className="input-block"
       placeholder={field.mask ? '••••••••' : (field.type === 'text' ? 'https://...' : '')}
+      min={field.type === 'number' ? 0 : undefined}
+      step={field.type === 'number' ? 1 : undefined}
       disabled={disabled}
     />
   );
@@ -107,7 +116,19 @@ export default function SettingsPage() {
     setStatusMessage('');
     setError('');
     try {
-      const res = await settingsApi.updateSettings(formData);
+      const payloadToSend = { ...formData };
+      const numericFieldNames = Object.values(fieldGroups)
+        .flat()
+        .filter((f) => f.type === 'number')
+        .map((f) => f.name);
+
+      numericFieldNames.forEach((name) => {
+        const raw = payloadToSend[name];
+        const parsed = parseInt(String(raw ?? ''), 10);
+        payloadToSend[name] = Number.isFinite(parsed) ? parsed : 0;
+      });
+
+      const res = await settingsApi.updateSettings(payloadToSend);
       if (res.data?.data) {
         setFormData(prev => ({ ...prev, ...res.data.data }));
         setUpdatedAt(res.data.data.updated_at || '');
@@ -148,6 +169,22 @@ export default function SettingsPage() {
                 <form onSubmit={handleSubmit} className="master-form">
                   {error && <div className="error-message">{error}</div>}
                   {statusMessage && <div className="success-message">{statusMessage}</div>}
+                  <div className="form-section" style={{ marginBottom: '20px' }}>
+                    <h3>Welcome Credits</h3>
+                    <div className="form-grid">
+                      {fieldGroups.credits.map(field => (
+                        <div key={field.name} className="form-group">
+                          <label>{field.label}</label>
+                          {renderInput(field, formData[field.name] || '', (val) => handleChange(field.name)(val), !canUpdate)}
+                          {field.hint && (
+                            <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#6b7280' }}>
+                              {field.hint}
+                            </small>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   <div className="form-section" style={{ marginBottom: '20px' }}>
                     <h3>Support Contacts</h3>
                     <div className="form-grid">

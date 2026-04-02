@@ -160,8 +160,12 @@ export default function NotificationsManagement() {
     }
     setSubmitting(true);
     try {
-      await notificationsApi.create(form);
-      setMessage({ type: 'success', text: 'Notification queued successfully' });
+      const res = await notificationsApi.create(form);
+      const push = res?.data?.push;
+      const sentText = push && typeof push.successCount === 'number'
+        ? `Notification sent (${push.successCount}/${push.requested || push.successCount} delivered)`
+        : 'Notification sent successfully';
+      setMessage({ type: 'success', text: sentText });
       setForm({ title: '', body: '', target: TARGET_OPTIONS[0].value });
       setSuggestionState(null);
       await fetchNotifications();
