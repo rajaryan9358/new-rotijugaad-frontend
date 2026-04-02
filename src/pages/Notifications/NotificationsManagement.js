@@ -80,7 +80,7 @@ export default function NotificationsManagement() {
     if (!canView) return;
     setLoading(true);
     try {
-      const res = await notificationsApi.list();
+      const res = await notificationsApi.list({ limit: 200, offset: 0 });
       setNotifications(res.data?.data || []);
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to load notifications' });

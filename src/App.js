@@ -56,6 +56,7 @@ import SettingsPage from "./pages/Settings";
 import LogsPage from "./pages/Logs/LogsPage";
 import ReviewsManagement from "./pages/Reviews/ReviewsManagement";
 import ReferralCredits from "./pages/Masters/ReferralCredits";
+import AppDeepLinkRedirect from "./pages/Public/AppDeepLinkRedirect";
 import Volunteers from "./pages/Masters/Volunteers";
 import InvoiceViewer from "./pages/InvoiceViewer";
 
@@ -130,6 +131,11 @@ function AppRoutes() {
       />
 
       <Route path="/" element={<IndexRedirect />} />
+
+      {/* Public deep links (mobile app): avoid opening admin SPA on server */}
+      <Route path="/app/jobs/:slug" element={<AppDeepLinkRedirect />} />
+      <Route path="/app/candidates/:slug" element={<AppDeepLinkRedirect />} />
+      <Route path="/app/referral/:code" element={<AppDeepLinkRedirect />} />
 
       <Route element={<RequireAuth />}>
         <Route path="/dashboard" element={<Dashboard />} />
