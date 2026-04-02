@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import usersApi from '../../api/usersApi';
 
 export default function UserForm({ id, onClose }) {
   const isEdit = !!id;
@@ -15,29 +16,18 @@ export default function UserForm({ id, onClose }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  function safeJson(response) {
-    const ct = response.headers.get('content-type') || '';
-    if (!response.ok) {
-      return response.text().then(t => {
-        if (ct.includes('application/json')) {
-          try { return JSON.parse(t); } catch {}
-        }
-        throw new Error(`Request failed ${response.status}.`);
-      });
-    }
-    if (!ct.includes('application/json')) {
-      return response.text().then(() => { throw new Error('Non-JSON response'); });
-    }
-    return response.json();
+  function toErrorMessage(err) {
+    return err?.response?.data?.message || err?.message || 'Request failed';
   }
 
   useEffect(() => {
     if (isEdit) {
       setLoading(true);
-      fetch(`/api/users/${id}`)
-        .then(safeJson)
-        .then(d => {
-          if (d.success) {
+      usersApi
+        .getUserById(id)
+        .then((res) => {
+          const d = res?.data;
+          if (d?.success) {
             const u = d.data;
             setForm({
               mobile: u.mobile || '',
@@ -48,9 +38,9 @@ export default function UserForm({ id, onClose }) {
               kyc_status: u.kyc_status || '',
               referral_code: u.referral_code || ''
             });
-          } else setError(d.message || 'Load failed');
+          } else setError(d?.message || 'Load failed');
         })
-        .catch(e => setError(e.message))
+        .catch((e) => setError(toErrorMessage(e)))
         .finally(() => setLoading(false));
     }
   }, [id, isEdit]);
@@ -63,19 +53,18 @@ export default function UserForm({ id, onClose }) {
     e.preventDefault();
     setSaving(true);
     setError('');
-    const method = isEdit ? 'PUT' : 'POST';
-    const url = isEdit ? `/api/users/${id}` : '/api/users';
-    fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
-    })
-      .then(safeJson)
-      .then(d => {
-        if (d.success) onClose(true);
-        else setError(d.message || 'Save failed');
+
+    const request = isEdit
+      ? usersApi.updateUser(id, form)
+      : usersApi.createUser(form);
+
+    request
+      .then((res) => {
+        const d = res?.data;
+        if (d?.success) onClose(true);
+        else setError(d?.message || 'Save failed');
       })
-      .catch(e => setError(e.message))
+      .catch((e) => setError(toErrorMessage(e)))
       .finally(() => setSaving(false));
   }
 

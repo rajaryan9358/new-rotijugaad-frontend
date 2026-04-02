@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import UserForm from './Form';
+import usersApi from '../../api/usersApi';
 
 export default function UsersList() {
   const [rows, setRows] = useState([]);
@@ -19,25 +20,11 @@ export default function UsersList() {
   const canActivate = hasPermission(PERMISSIONS.USERS_ACTIVATE);
   const canDelete = hasPermission(PERMISSIONS.USERS_DELETE);
 
-  function safeJson(response) {
-    const ct = response.headers.get('content-type') || '';
-    if (!response.ok) {
-      return response.text().then(t => {
-        if (ct.includes('application/json')) {
-          try { return JSON.parse(t); } catch {}
-        }
-        throw new Error(`Request failed ${response.status}.`);
-      });
-    }
-    if (!ct.includes('application/json')) {
-      return response.text().then(t => {
-        throw new Error('Non-JSON response');
-      });
-    }
-    return response.json();
+  function toErrorMessage(err) {
+    return err?.response?.data?.message || err?.message || 'Request failed';
   }
 
-  function load() {
+  async function load() {
     if (!canView) { setLoading(false); return; }
     setLoading(true);
 
@@ -48,45 +35,51 @@ export default function UsersList() {
       ...(profileCompletedFilter ? { profile_completed: profileCompletedFilter } : {})
     }).toString();
 
-    fetch(`/api/users?${qs}`)
-      .then(safeJson)
-      .then(d => {
-        if (d.success) {
-          setRows(d.data);
-          setMeta(d.meta);
-          setError('');
-        } else setError(d.message || 'Error');
-      })
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false));
+    try {
+      const res = await usersApi.getUsers({
+        page,
+        limit,
+        ...(profileCompletedFilter ? { profile_completed: profileCompletedFilter } : {})
+      });
+      const d = res?.data;
+      if (d?.success) {
+        setRows(d.data || []);
+        setMeta(d.meta || {});
+        setError('');
+      } else {
+        setError(d?.message || 'Error');
+      }
+    } catch (e) {
+      setError(toErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { load(); }, [page, canView, profileCompletedFilter]);
 
-  function onDelete(id) {
+  async function onDelete(id) {
     if (!window.confirm('Delete user?')) return;
-    fetch(`/api/users/${id}`, { method: 'DELETE' })
-      .then(safeJson)
-      .then(d => {
-        if (d.success) load();
-        else alert(d.message || 'Delete failed');
-      })
-      .catch(e => alert(e.message));
+    try {
+      const res = await usersApi.deleteUser(id);
+      const d = res?.data;
+      if (d?.success) load();
+      else alert(d?.message || 'Delete failed');
+    } catch (e) {
+      alert(toErrorMessage(e));
+    }
   }
 
-  function toggleActive(user) {
+  async function toggleActive(user) {
     const next = !user.is_active;
-    fetch(`/api/users/${user.id}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: next })
-    })
-      .then(safeJson)
-      .then(d => {
-        if (d.success) load();
-        else alert(d.message || 'Status update failed');
-      })
-      .catch(e => alert(e.message));
+    try {
+      const res = await usersApi.updateUserStatus(user.id, next);
+      const d = res?.data;
+      if (d?.success) load();
+      else alert(d?.message || 'Status update failed');
+    } catch (e) {
+      alert(toErrorMessage(e));
+    }
   }
 
   const tableHead = React.createElement('thead', null,
@@ -201,3 +194,4 @@ export default function UsersList() {
     formModal
   ]);
 }
+

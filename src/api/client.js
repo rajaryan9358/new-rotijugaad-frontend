@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+import { getApiBaseUrl } from './baseUrl';
+
+const baseURL = getApiBaseUrl();
 console.log('[API Client] Initializing with baseURL:', baseURL); // added
 
 const client = axios.create({
@@ -44,6 +46,12 @@ client.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (error?.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('admin');
+      // Keep behavior consistent across the app on auth expiry.
+      if (typeof window !== 'undefined') window.location.href = '/login';
+    }
     console.error('[API Client] <<<<<<< RESPONSE ERROR >>>>>>>'); // enhanced
     console.error('[API Client] Error:', error); // added
     console.error('[API Client] Error message:', error.message); // added
@@ -55,3 +63,4 @@ client.interceptors.response.use(
 
 console.log('[API Client] Client configured and exported'); // added
 export default client;
+

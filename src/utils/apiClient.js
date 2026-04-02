@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+import { getApiBaseUrl } from '../api/baseUrl';
+
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || '/api',
+  baseURL: getApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' }
 });
 
@@ -26,3 +28,4 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+

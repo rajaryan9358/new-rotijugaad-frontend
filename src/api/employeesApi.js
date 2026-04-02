@@ -1,10 +1,10 @@
 import axios from 'axios';
 // NOTE: Employers now also show status timestamps similar to Employees (verification_at / kyc_verification_at).
 
-const stripTrailingSlash = (s) => (s || '').replace(/\/+$/, '');
+import { getApiBaseUrl } from './baseUrl';
 
 const api = axios.create({
-	baseURL: stripTrailingSlash(process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || '/api')
+	baseURL: getApiBaseUrl()
 });
 
 api.interceptors.request.use((config) => {
@@ -113,3 +113,4 @@ const employeesApi = {
 
 export const getHiredEmployees = (params = {}) => employeesApi.getHiredEmployees(params); // named export for HiredEmployees.js
 export default employeesApi;
+
