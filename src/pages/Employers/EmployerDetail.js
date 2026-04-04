@@ -1408,6 +1408,7 @@ export default function EmployerDetail() {
               <thead>
                 <tr style={{ background: '#f5f5f5' }}>
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job Profile</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer Name</th>
                   {employerPerms.canShowPhoneAddress && (
                     <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Interviewer Contact</th>
                   )}
@@ -1434,6 +1435,9 @@ export default function EmployerDetail() {
                           {job.job_profile || '-'}
                         </Link>
                       ) : (job.job_profile || '-')}
+                    </td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>
+                      {job.employer_name || employer?.name || employer?.User?.name || '-'}
                     </td>
                     {employerPerms.canShowPhoneAddress && (
                       <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{job.interviewer_contact || '-'}</td>

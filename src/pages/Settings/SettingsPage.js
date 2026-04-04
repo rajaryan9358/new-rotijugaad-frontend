@@ -11,9 +11,11 @@ const fieldGroups = {
   credits: [
     { label: 'Employee welcome contact credits', name: 'employee_contact_credit', type: 'number', hint: 'Credits added when an employee profile is created first time.' },
     { label: 'Employee welcome interest credits', name: 'employee_interest_credit', type: 'number', hint: 'Credits added when an employee profile is created first time.' },
+    { label: 'Employee welcome subscription days', name: 'employee_welcome_subscription_days', type: 'number', hint: 'Credit validity duration (days) for welcome credits on first employee profile creation.' },
     { label: 'Employer welcome contact credits', name: 'employer_contact_credit', type: 'number', hint: 'Credits added when an employer profile is created first time.' },
     { label: 'Employer welcome interest credits', name: 'employer_interest_credit', type: 'number', hint: 'Credits added when an employer profile is created first time.' },
-    { label: 'Employer welcome ad credits', name: 'employer_ad_credit', type: 'number', hint: 'Credits added when an employer profile is created first time.' }
+    { label: 'Employer welcome ad credits', name: 'employer_ad_credit', type: 'number', hint: 'Credits added when an employer profile is created first time.' },
+    { label: 'Employer welcome subscription days', name: 'employer_welcome_subscription_days', type: 'number', hint: 'Credit validity duration (days) for welcome credits on first employer profile creation.' }
   ],
   support: [
     { label: 'Employee support mobile', name: 'employee_support_mobile', type: 'tel', hint: 'Enter digits only (e.g., 9876543210)' },
@@ -56,6 +58,10 @@ const renderInput = (field, value, onChange, disabled = false) => {
       type={type}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      onWheel={field.type === 'number' ? (event) => {
+        event.preventDefault();
+        event.currentTarget.blur();
+      } : undefined}
       className="input-block"
       placeholder={field.mask ? '••••••••' : (field.type === 'text' ? 'https://...' : '')}
       min={field.type === 'number' ? 0 : undefined}
