@@ -15,6 +15,7 @@ import '../Masters/MasterPage.css';
 import jobProfilesApi from '../../api/masters/jobProfilesApi'; // add
 import statesApi from '../../api/masters/statesApi'; // add
 import citiesApi from '../../api/masters/citiesApi'; // add
+import { getApiBaseUrl } from '../../api/baseUrl';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 
 const TABS = [
@@ -120,6 +121,32 @@ function renderInterestStatusChip(value) {
   );
 }
 
+const stripTrailingSlash = (value) => (value || '').toString().replace(/\/+$/, '');
+
+function resolvePublicAssetUrl(path) {
+  const raw = (path || '').toString().trim();
+  if (!raw) return '';
+  if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
+
+  const normalizedPath = raw.startsWith('/') ? raw : `/${raw}`;
+
+  try {
+    const apiBase = stripTrailingSlash(getApiBaseUrl());
+    if (/^https?:\/\//i.test(apiBase)) {
+      const base = new URL(apiBase);
+      return `${base.origin}${normalizedPath}`;
+    }
+  } catch (_) {
+    // fall back to window origin below
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${normalizedPath}`;
+  }
+
+  return normalizedPath;
+}
+
 
 const PANEL_STYLE = {
   position: 'fixed',
@@ -198,6 +225,7 @@ export default function EmployerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const [loading, setLoading] = useState(true);
   const [employer, setEmployer] = useState(null);
   const [activeTab, setActiveTab] = useState(TABS[0]);
@@ -229,6 +257,10 @@ export default function EmployerDetail() {
   const [callReviewsLoading, setCallReviewsLoading] = useState(false); // NEW
   const [callReviewsError, setCallReviewsError] = useState(null); // NEW
   const [applicantTab, setApplicantTab] = useState('all'); // add for tab switching if needed
+
+  const documentLink = resolvePublicAssetUrl(
+    employer?.document_link || employer?.basic?.document_link,
+  );
   const [creditHistoryTab, setCreditHistoryTab] = useState('contact'); // add for sub-tabs
   const [voilationReports, setVoilationReports] = useState([]); // add
   const [voilationLoading, setVoilationLoading] = useState(false); // add
@@ -803,7 +835,24 @@ export default function EmployerDetail() {
         )}
         <Detail label="Aadhar Number" value={basic.aadhar_number} />
         <Detail label="Aadhar Verified At" value={formatDateTime(basic.aadhar_verified_at)} />
-        <Detail label="Document Link" value={basic.document_link} />
+        <Detail
+          label="Document Link"
+          value={documentLink ? (
+            <a
+              href={documentLink}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.open(documentLink, '_blank', 'noopener,noreferrer');
+              }}
+              style={{ fontSize:'12px', color:'#2563eb' }}
+            >
+              View Document
+            </a>
+          ) : '-'}
+        />
         <Detail label="Verification" value={renderStatusBadge(basic.verification_status)} />
         <Detail label="KYC" value={renderStatusBadge(basic.kyc_status)} />
         <Detail label="Contact Credits (used/total)" value={`${basic.contact_credit||0}/${basic.total_contact_credit||0}`} />
@@ -814,14 +863,6 @@ export default function EmployerDetail() {
         <Detail label="Created At" value={formatDateTime(basic.created_at)} />
         <Detail label="Updated At" value={formatDateTime(basic.updated_at)} />
       </div>
-      {basic.document_link && (
-        <div style={{ marginTop:'16px' }}>
-          <strong>Document:</strong><br />
-          <a href={basic.document_link} target="_blank" rel="noreferrer" style={{ fontSize:'12px', color:'#2563eb' }}>
-            View Document
-          </a>
-        </div>
-      )}
       {basic.logo_link && (
         <div style={{ marginTop:'16px' }}>
           <strong>Logo:</strong><br />
