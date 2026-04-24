@@ -22,7 +22,9 @@ const TABS = [
   'Basic details',
   'Jobs',
   'Applicants',
+  'Shortlisted candidates',
   'Credit history',
+  'Contacts unlocked',
   'Subscription history',
   'Call experiences',
   'Call review by employee',       // <- added
@@ -118,6 +120,29 @@ function renderInterestStatusChip(value) {
     >
       {raw}
     </span>
+  );
+}
+
+function getJobOrganizationName(job, employer) {
+  const organizationType = String(
+    job?.employer_organization_type || employer?.organization_type || ''
+  ).trim().toLowerCase();
+  if (organizationType === 'domestic' || organizationType === 'household') {
+    return 'Household';
+  }
+  return (
+    job?.employer_organization_name
+    || employer?.organization_name
+    || '-'
+  );
+}
+
+function getJobOrganizationCategory(job, employer) {
+  return (
+    job?.employer_business_category
+    || employer?.BusinessCategory?.category_english
+    || employer?.BusinessCategory?.category_hindi
+    || '-'
   );
 }
 
@@ -243,10 +268,16 @@ export default function EmployerDetail() {
   const [viewJobId, setViewJobId] = useState(null); // add
 
   const [applicants, setApplicants] = useState([]);
+  const [shortlistedCandidates, setShortlistedCandidates] = useState([]);
+  const [shortlistedCandidatesLoading, setShortlistedCandidatesLoading] = useState(false);
+  const [shortlistedCandidatesError, setShortlistedCandidatesError] = useState(null);
   const [creditHistory, setCreditHistory] = useState([]);
   const [manualCreditHistory, setManualCreditHistory] = useState([]);
   const [manualCreditHistoryLoading, setManualCreditHistoryLoading] = useState(false);
   const [manualCreditHistoryError, setManualCreditHistoryError] = useState(null);
+  const [contactsUnlocked, setContactsUnlocked] = useState([]);
+  const [contactsUnlockedLoading, setContactsUnlockedLoading] = useState(false);
+  const [contactsUnlockedError, setContactsUnlockedError] = useState(null);
   const [subscriptionHistory, setSubscriptionHistory] = useState([]);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false); // added
   const [subscriptionError, setSubscriptionError] = useState(null); // added
@@ -286,7 +317,7 @@ export default function EmployerDetail() {
   const [changeSubError, setChangeSubError] = useState(null);
   const [showChangeSubscriptionDialog, setShowChangeSubscriptionDialog] = useState(false);
   const [showAddCreditsDialog, setShowAddCreditsDialog] = useState(false);
-  const [addCreditsForm, setAddCreditsForm] = useState({ contact: '', interest: '', ad: '', expiry: '' });
+  const [addCreditsForm, setAddCreditsForm] = useState({ contact: '', interest: '', ad: '', expiry: '', reason: '' });
   const [addCreditsSaving, setAddCreditsSaving] = useState(false);
   const [addCreditsError, setAddCreditsError] = useState(null);
 
@@ -326,7 +357,9 @@ export default function EmployerDetail() {
     switch (activeTab) {
       case 'Jobs': fetchJobs(); break;
       case 'Applicants': fetchApplicants(); break;
+      case 'Shortlisted candidates': fetchShortlistedCandidates(); break;
       case 'Credit history': fetchCreditHistory(); break;
+      case 'Contacts unlocked': fetchContactsUnlocked(); break;
       case 'Subscription history': fetchSubscriptionHistory(); break;
       case 'Call experiences': fetchCallExperiences(); break;
       case 'Call review by employee': fetchCallReviews(); break; // CHANGED (was 'Call reviews')
@@ -416,11 +449,37 @@ export default function EmployerDetail() {
       setApplicants(res.data?.data || []);
     } catch {}
   };
+  const fetchShortlistedCandidates = async () => {
+    setShortlistedCandidatesLoading(true);
+    setShortlistedCandidatesError(null);
+    try {
+      const res = await employersApi.getShortlistedCandidates(id);
+      setShortlistedCandidates(res.data?.data || []);
+    } catch (e) {
+      setShortlistedCandidatesError(e.response?.data?.message || 'Failed to load shortlisted candidates');
+      setShortlistedCandidates([]);
+    } finally {
+      setShortlistedCandidatesLoading(false);
+    }
+  };
   const fetchCreditHistory = async () => {
     try {
       const res = await employersApi.getCreditHistory(id);
       setCreditHistory(res.data?.data || []);
     } catch {}
+  };
+  const fetchContactsUnlocked = async () => {
+    setContactsUnlockedLoading(true);
+    setContactsUnlockedError(null);
+    try {
+      const res = await employersApi.getContactsUnlocked(id);
+      setContactsUnlocked(res.data?.data || []);
+    } catch (e) {
+      setContactsUnlockedError('Failed to load unlocked contacts');
+      setContactsUnlocked([]);
+    } finally {
+      setContactsUnlockedLoading(false);
+    }
   };
   const fetchManualCreditHistory = async () => {
     setManualCreditHistoryLoading(true);
@@ -573,7 +632,8 @@ export default function EmployerDetail() {
       contact: '',
       interest: '',
       ad: '',
-      expiry: employer?.credit_expiry_at ? employer.credit_expiry_at.split('T')[0] : ''
+      expiry: employer?.credit_expiry_at ? employer.credit_expiry_at.split('T')[0] : '',
+      reason: ''
     });
     setAddCreditsError(null);
     setShowAddCreditsDialog(true);
@@ -584,10 +644,15 @@ export default function EmployerDetail() {
       contact_credits: Number(addCreditsForm.contact) || 0,
       interest_credits: Number(addCreditsForm.interest) || 0,
       ad_credits: Number(addCreditsForm.ad) || 0,
-      credit_expiry_at: addCreditsForm.expiry || null
+      credit_expiry_at: addCreditsForm.expiry || null,
+      reason: (addCreditsForm.reason || '').trim()
     };
     if (payload.contact_credits <= 0 && payload.interest_credits <= 0 && payload.ad_credits <= 0) {
       setAddCreditsError('Enter credits to add');
+      return;
+    }
+    if (!payload.reason) {
+      setAddCreditsError('Reason is required');
       return;
     }
     setAddCreditsSaving(true);
@@ -755,6 +820,7 @@ export default function EmployerDetail() {
 
   const renderStatusBadge = (status) => {
     const tone = {
+      init: { bg: '#e0f2fe', color: '#075985' },
       approved: { bg: '#dcfce7', color: '#166534' },
       verified: { bg: '#dcfce7', color: '#166534' },
       pending: { bg: '#fef3c7', color: '#92400e' },
@@ -777,7 +843,29 @@ export default function EmployerDetail() {
         color:tone.color,
         textTransform:'capitalize'
       }}>
-        {status || '-'}
+        {(status || '').toString().trim().toLowerCase() === 'init' ? 'Not submitted for review' : (status || '-')}
+      </span>
+    );
+  };
+
+  const renderUnlockedContactBadge = (row) => {
+    const isActive = row?.is_active ?? !row?.deleted_at;
+    const tone = isActive
+      ? { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Unlocked' }
+      : { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca', label: 'Removed' };
+    return (
+      <span style={{
+        display:'inline-flex',
+        alignItems:'center',
+        padding:'2px 10px',
+        borderRadius:'999px',
+        fontSize:'11px',
+        fontWeight:600,
+        background:tone.bg,
+        color:tone.color,
+        border:`1px solid ${tone.border}`
+      }}>
+        {tone.label}
       </span>
     );
   };
@@ -815,7 +903,7 @@ export default function EmployerDetail() {
         <Detail label="User Status" value={renderActiveBadge(basic.User?.is_active)} />
         <Detail label="Status Changed By" value={basic.User?.StatusChangedBy?.name || '-'} /> {/* NEW */}
         <Detail label="Deactivation Reason" value={basic.User?.deactivation_reason || '-'} />
-        <Detail label="Delete Status" value={basic.User?.delete_pending ? 'Pending deletion' : 'Active'} />
+        <Detail label="Delete Status" value={basic.User?.delete_pending ? 'Pending deletion' : 'No'} />
         <Detail label="Delete Requested At" value={formatDateTime(basic.User?.delete_requested_at)} />
         <Detail label="Referral Code" value={basic.User?.referral_code || '-'} />
         <Detail label="Total Referrals" value={basic.User?.total_referred ?? '-'} />
@@ -975,6 +1063,9 @@ export default function EmployerDetail() {
           <thead>
             <tr style={{ background: '#f5f5f5' }}>
               <th style={{ padding: '4px', border: '1px solid #ddd', textAlign: 'left' }}>Job</th>
+              <th style={{ padding: '4px', border: '1px solid #ddd', textAlign: 'left' }}>Designation</th>
+              <th style={{ padding: '4px', border: '1px solid #ddd', textAlign: 'left' }}>Organization Name</th>
+              <th style={{ padding: '4px', border: '1px solid #ddd', textAlign: 'left' }}>Organization Category</th>
               {employerPerms.canShowPhoneAddress && (
                 <th style={{ padding: '4px', border: '1px solid #ddd', textAlign: 'left' }}>Pref. State</th>
               )}
@@ -1002,6 +1093,9 @@ export default function EmployerDetail() {
                     {job.job_profile || '-'}
                   </Link>
                 </td>
+                <td style={{ padding: '4px', border: '1px solid #eee' }}>{job.job_designation || '-'}</td>
+                <td style={{ padding: '4px', border: '1px solid #eee' }}>{getJobOrganizationName(job, employer)}</td>
+                <td style={{ padding: '4px', border: '1px solid #eee' }}>{getJobOrganizationCategory(job, employer)}</td>
                 {employerPerms.canShowPhoneAddress && (
                   <td style={{ padding: '4px', border: '1px solid #eee' }}>{job.job_state || '-'}</td>
                 )}
@@ -1209,6 +1303,78 @@ export default function EmployerDetail() {
       </div>
     );
   };
+  const renderShortlistedCandidates = () => {
+    return (
+      <div>
+        <h2 style={{ marginTop: 0, fontSize: '16px' }}>Shortlisted Candidates</h2>
+        {shortlistedCandidatesError && (
+          <div style={{ color: '#b91c1c', fontSize: '12px', marginBottom: '8px' }}>{shortlistedCandidatesError}</div>
+        )}
+        {shortlistedCandidatesLoading ? (
+          <div style={{ fontSize: '13px' }}>Loading...</div>
+        ) : shortlistedCandidates.length === 0 ? (
+          <div style={{ fontSize: '13px', color: '#666' }}>No shortlisted candidates found.</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+            <thead>
+              <tr style={{ background: '#f5f5f5' }}>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>ID</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Name</th>
+                {canShowEmployeePhoneAddress && (
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Phone</th>
+                )}
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Gender</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Profile Status</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Verification</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>KYC</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Preferred Salary</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Preferred State</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Preferred City</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job Profiles</th>
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Shortlisted Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shortlistedCandidates.map((row) => {
+                const emp = row.employee || {};
+                const name = emp.name || '-';
+                const salary = emp.expected_salary ? `${emp.expected_salary}${emp.expected_salary_frequency ? ` / ${emp.expected_salary_frequency}` : ''}` : '-';
+                const profiles = Array.isArray(emp.job_profiles) && emp.job_profiles.length
+                  ? emp.job_profiles.map((jp) => jp.profile_english || jp.profile_hindi).filter(Boolean).join(', ')
+                  : '-';
+                return (
+                  <tr key={row.id}>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.employee_id || '-'}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>
+                      {row.employee_id && canViewEmployees ? (
+                        <Link to={`/employees/${row.employee_id}`} style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}>
+                          {name}
+                        </Link>
+                      ) : name}
+                    </td>
+                    {canShowEmployeePhoneAddress && (
+                      <td style={{ padding: '6px', border: '1px solid #eee' }}>{emp.mobile || '-'}</td>
+                    )}
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{emp.gender || '-'}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>
+                      {emp.is_active === null || emp.is_active === undefined ? '-' : renderActiveBadge(emp.is_active)}
+                    </td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{renderStatusBadge(emp.verification_status)}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{renderStatusBadge(emp.kyc_status)}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{salary}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{emp.preferred_state || '-'}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{emp.preferred_city || '-'}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{profiles}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{formatDateTime(row.shortlisted_at)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    );
+  };
   const renderCreditHistory = () => {
     // Filter creditHistory based on selected sub-tab
     let filtered = [];
@@ -1397,6 +1563,7 @@ export default function EmployerDetail() {
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Interest Credits</th>
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Ad Credits</th>
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Expiry Date</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Reason</th>
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Created At</th>
                 </tr>
               </thead>
@@ -1408,6 +1575,7 @@ export default function EmployerDetail() {
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.interest_credit ?? '-'}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.ad_credit ?? '-'}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.expiry_date)}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.reason || '-'}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.created_at)}</td>
                   </tr>
                 ))}
@@ -1449,7 +1617,10 @@ export default function EmployerDetail() {
               <thead>
                 <tr style={{ background: '#f5f5f5' }}>
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job Profile</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Designation</th>
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer Name</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Organization Name</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Organization Category</th>
                   {employerPerms.canShowPhoneAddress && (
                     <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Interviewer Contact</th>
                   )}
@@ -1477,9 +1648,12 @@ export default function EmployerDetail() {
                         </Link>
                       ) : (job.job_profile || '-')}
                     </td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{job.job_designation || '-'}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>
                       {job.employer_name || employer?.name || employer?.User?.name || '-'}
                     </td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{getJobOrganizationName(job, employer)}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{getJobOrganizationCategory(job, employer)}</td>
                     {employerPerms.canShowPhoneAddress && (
                       <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{job.interviewer_contact || '-'}</td>
                     )}
@@ -1534,6 +1708,65 @@ export default function EmployerDetail() {
       </div>
     );
   };
+
+  const renderContactsUnlocked = () => (
+    <div>
+      <h2 style={{ marginTop: 0, fontSize: '16px' }}>Contacts Unlocked</h2>
+      {contactsUnlockedError && (
+        <div style={{ color: '#b91c1c', fontSize: '12px', marginBottom: '8px' }}>{contactsUnlockedError}</div>
+      )}
+      {contactsUnlockedLoading ? (
+        <div style={{ fontSize: '13px' }}>Loading...</div>
+      ) : contactsUnlocked.length === 0 ? (
+        <div style={{ fontSize: '13px', color: '#666' }}>No unlocked contacts found.</div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <thead>
+            <tr style={{ background: '#f5f5f5' }}>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employee</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job Profiles</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Location</th>
+              {canShowEmployeePhoneAddress && (
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Mobile</th>
+              )}
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Verification</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>KYC</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Unlocked At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contactsUnlocked.map((row) => {
+              const location = [row.current_city, row.current_state].filter(Boolean).join(', ') || '-';
+              const profiles = Array.isArray(row.employee_job_profiles) && row.employee_job_profiles.length
+                ? row.employee_job_profiles.join(', ')
+                : '-';
+              const employeeCell = row.employee_id && canViewEmployees
+                ? (
+                    <Link to={`/employees/${row.employee_id}`} style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                      {row.employee_name || '-'}
+                    </Link>
+                  )
+                : (row.employee_name || '-');
+
+              return (
+                <tr key={row.id}>
+                  <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{employeeCell}</td>
+                  <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{profiles}</td>
+                  <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{location}</td>
+                  {canShowEmployeePhoneAddress && (
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.employee_mobile || '-'}</td>
+                  )}
+                  <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{renderStatusBadge(row.verification_status)}</td>
+                  <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{renderStatusBadge(row.kyc_status)}</td>
+                  <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.created_at)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
   const renderSubscriptionHistory = () => (
     <div>
       <h2 style={{ marginTop: 0, fontSize: '16px' }}>Subscription History</h2>
@@ -1866,7 +2099,9 @@ export default function EmployerDetail() {
       case 'Basic details': return renderBasicDetails();
       case 'Jobs': return renderJobs();
       case 'Applicants': return renderApplicants();
+      case 'Shortlisted candidates': return renderShortlistedCandidates();
       case 'Credit history': return renderCreditHistory();
+      case 'Contacts unlocked': return renderContactsUnlocked();
       case 'Subscription history': return renderSubscriptionHistory();
       case 'Call experiences': return renderCallExperiences();
       case 'Call review by employee': return renderCallReviews(); // CHANGED (was 'Call reviews')
@@ -2148,6 +2383,16 @@ export default function EmployerDetail() {
               <div className="form-group">
                 <label>Credit Expiry Date</label>
                 <input type="date" value={addCreditsForm.expiry} onChange={(e) => setAddCreditsForm((f) => ({ ...f, expiry: e.target.value }))} disabled={addCreditsSaving} />
+              </div>
+              <div className="form-group">
+                <label>Reason *</label>
+                <textarea
+                  rows={3}
+                  placeholder="Why are you adding these credits?"
+                  value={addCreditsForm.reason}
+                  onChange={(e) => setAddCreditsForm((f) => ({ ...f, reason: e.target.value }))}
+                  disabled={addCreditsSaving}
+                />
               </div>
               <div className="form-actions">
                 <button className="btn-secondary" onClick={() => setShowAddCreditsDialog(false)} disabled={addCreditsSaving}>Cancel</button>

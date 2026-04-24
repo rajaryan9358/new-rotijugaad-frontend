@@ -38,6 +38,27 @@ const VERIFICATION_OPTIONS = [
   { value: 'rejected', label: 'Rejected' }
 ];
 
+const hasValidCoordinates = (lat, lng) => Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+
+const getGoogleMapsUrl = (lat, lng) => (
+  hasValidCoordinates(lat, lng)
+    ? `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`
+    : ''
+);
+
+const getEmployerOrganizationName = (job) => {
+  const organizationType = String(job?.employer_organization_type || job?.Employer?.organization_type || '').trim().toLowerCase();
+  if (organizationType === 'domestic' || organizationType === 'household') return 'Household';
+  return job?.employer_organization_name || job?.Employer?.organization_name || '-';
+};
+
+const getEmployerBusinessCategory = (job) => (
+  job?.employer_business_category
+  || job?.Employer?.BusinessCategory?.category_english
+  || job?.Employer?.BusinessCategory?.category_hindi
+  || '-'
+);
+
 function SingleSelect({
   label,
   options,
@@ -496,7 +517,7 @@ export default function JobsManagement() {
     }
 
     const headers = [
-      'ID','Employer','Employer Phone','Interviewer Contact','Shift Timing',
+      'ID','Employer','Organization Name','Organization Category','Employer Phone','Interviewer Contact','Shift Timing',
       'Job Profile','Household','Gender','Experience','Qualification','Shift','Skills','Benefits',
       'Vacancies','State','City','Salary Type','Salary','Status','Updated','Created'
     ];
@@ -508,6 +529,8 @@ export default function JobsManagement() {
     const rows = exportRows.map(job => [
       job.id,
       job.employer_name || job.employer_id || '',
+      getEmployerOrganizationName(job),
+      getEmployerBusinessCategory(job),
       job.employer_phone || '',
       job.interviewer_contact || '',          // NEW
       job.shift_timing_display || '',         // NEW
@@ -604,6 +627,15 @@ export default function JobsManagement() {
     cursor: 'pointer',
     textDecoration: 'underline',
     fontSize: 'inherit'
+  };
+  const locationCellStyle = {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    gap: '8px',
+    flexWrap: 'wrap',
+    width: '100%',
+    textAlign: 'left'
   };
   const statusPalette = {
     active: { bg: '#dcfce7', color: '#166534', label: 'Active' },
@@ -755,7 +787,10 @@ export default function JobsManagement() {
     return rows.filter(job =>
       String(job.id).includes(s) ||
       (job.employer_name || '').toLowerCase().includes(s) ||
+      getEmployerOrganizationName(job).toLowerCase().includes(s) ||
+      getEmployerBusinessCategory(job).toLowerCase().includes(s) ||
       (job.job_profile || '').toLowerCase().includes(s) ||
+      (job.job_designation || '').toLowerCase().includes(s) ||
       (job.job_state || '').toLowerCase().includes(s) ||
       (job.job_city || '').toLowerCase().includes(s)
     );
@@ -1089,10 +1124,13 @@ export default function JobsManagement() {
                       <tr>
                         <th onClick={() => handleSort('id')} style={{ cursor:'pointer' }}>ID{headerIndicator('id')}</th>
                         <th onClick={() => handleSort('employer_id')} style={{ cursor:'pointer' }}>Employer{headerIndicator('employer_id')}</th>
+                        <th>Organization Name</th>
+                        <th>Organization Category</th>
                         <th>Employer Phone</th>
                         <th>Interviewer Contact</th> {/* NEW */}
                         <th>Shift Timing</th>        {/* NEW */}
                         <th onClick={() => handleSort('job_profile_id')} style={{ cursor:'pointer' }}>Job Profile{headerIndicator('job_profile_id')}</th>
+                        <th>Job Designation</th>
                         <th>Household</th>
                         <th>Gender</th>
                         <th>Experience</th>
@@ -1104,8 +1142,7 @@ export default function JobsManagement() {
                         <th>Vacancies</th> {/* CHANGED */}
                         <th>State</th>
                         <th>City</th>
-                        <th>Lat</th>
-                        <th>Lng</th>
+                        <th>Location</th>
                         <th>Salary Type</th>
                         <th>Salary</th>
                         <th>Status</th>
@@ -1119,7 +1156,7 @@ export default function JobsManagement() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={27}>Loading...{/* CHANGED */}</td>
+                          <td colSpan={30}>Loading...{/* CHANGED */}</td>
                         </tr>
                       ) : rows.length ? (
                         rows.map(job => {
@@ -1129,6 +1166,7 @@ export default function JobsManagement() {
                           const isPending = verification === 'pending'; // NEW
                           const isInactiveRow = String(job.status || '').toLowerCase() === 'inactive'; // NEW (restore neutral row styling)
                           const jobLifeDays = getJobLifeDays(job.created_at);
+                          const mapsUrl = getGoogleMapsUrl(job.lat, job.lng);
 
                           return (
                             <tr
@@ -1154,6 +1192,8 @@ export default function JobsManagement() {
                                   </button>
                                 ) : (job.employer_name || '-')}
                               </td>
+                              <td>{getEmployerOrganizationName(job)}</td>
+                              <td>{getEmployerBusinessCategory(job)}</td>
 
                               <td>{job.employer_phone || '-'}</td>
                               <td>{job.interviewer_contact || '-'}</td>      {/* NEW */}
@@ -1165,6 +1205,7 @@ export default function JobsManagement() {
                                   <span style={NEW_BADGE_STYLE}>New</span>
                                 )}
                               </td>
+                              <td>{job.job_designation || '-'}</td>
                               <td>{job.is_household ? 'Yes' : 'No'}</td>
                               <td>{job.genders || '-'}</td>
                               <td>{job.experiences || '-'}</td>
@@ -1176,8 +1217,22 @@ export default function JobsManagement() {
                               <td>{`${Number(job.hired_total ?? 0)}/${Number(job.no_vacancy ?? 0)}`}</td> {/* CHANGED */}
                               <td>{job.job_state || '-'}</td>
                               <td>{job.job_city || '-'}</td>
-                              <td>{job.lat ?? '-'}</td>
-                              <td>{job.lng ?? '-'}</td>
+                              <td>
+                                {mapsUrl ? (
+                                  <span style={locationCellStyle}>
+                                    <button
+                                      type="button"
+                                      style={linkButtonStyle}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                                      }}
+                                    >
+                                      View location
+                                    </button>
+                                  </span>
+                                ) : '-'}
+                              </td>
                               <td>{job.salary_type || '-'}</td>
                               <td>
                                 {job.salary_min && job.salary_max

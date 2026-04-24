@@ -24,6 +24,63 @@ const hasExpired = (value) => {
   return dt.getTime() <= Date.now();
 };
 
+const hasValidCoordinates = (lat, lng) => Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+
+const getGoogleMapsUrl = (lat, lng) => (
+  hasValidCoordinates(lat, lng)
+    ? `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`
+    : ''
+);
+
+const locationLinkStyle = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  margin: 0,
+  color: '#2563eb',
+  cursor: 'pointer',
+  textDecoration: 'underline',
+  fontSize: 'inherit',
+  fontFamily: 'inherit'
+};
+
+function renderLocationValue({ lat, lng, city, state }) {
+  const mapsUrl = getGoogleMapsUrl(lat, lng);
+  const locationLabel = [city, state].filter(Boolean).join(', ');
+
+  if (!mapsUrl && !locationLabel) return '-';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start', textAlign: 'left' }}>
+      <span>{locationLabel || 'Coordinates available'}</span>
+      {mapsUrl ? (
+        <button
+          type="button"
+          style={locationLinkStyle}
+          onClick={() => window.open(mapsUrl, '_blank', 'noopener,noreferrer')}
+        >
+          View location
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function getEmployerOrganizationName(job) {
+  const organizationType = String(job?.employer_organization_type || job?.Employer?.organization_type || '').trim().toLowerCase();
+  if (organizationType === 'domestic' || organizationType === 'household') return 'Household';
+  return job?.employer_organization_name || job?.Employer?.organization_name || '-';
+}
+
+function getEmployerBusinessCategory(job) {
+  return (
+    job?.employer_business_category
+    || job?.Employer?.BusinessCategory?.category_english
+    || job?.Employer?.BusinessCategory?.category_hindi
+    || '-'
+  );
+}
+
 const statusBadge = (jobOrStatus) => {
   if (jobOrStatus === null || jobOrStatus === undefined) {
     return (
@@ -597,7 +654,10 @@ function JobDetailTab({ job }) {
               || '-'
             }
           />
+          <Detail label="Organization Name" value={getEmployerOrganizationName(job)} />
+          <Detail label="Organization Category" value={getEmployerBusinessCategory(job)} />
           <Detail label="Job Profile" value={job.job_profile || (job.JobProfile?.profile_english)} />
+          <Detail label="Job Designation" value={job.job_designation || '-'} />
           <Detail label="Household" value={job.is_household ? 'Yes' : 'No'} />
           <Detail label="Gender" value={genders} />
           <Detail label="Experiences" value={experiences} />
@@ -615,8 +675,7 @@ function JobDetailTab({ job }) {
 
           <Detail label="State" value={state} />
           <Detail label="City" value={city} />
-          <Detail label="Latitude" value={job.lat ?? "-"} />
-          <Detail label="Longitude" value={job.lng ?? "-"} />
+          <Detail label="Location" value={renderLocationValue({ lat: job.lat, lng: job.lng, city, state })} />
           <Detail label="Salary" value={job.salary_min && job.salary_max ? `${job.salary_min} - ${job.salary_max}` : (job.salary_min || job.salary_max || '-')} />
           <Detail label="Salary Type" value={job.salary_type || job.SalaryType?.type_english || job.SalaryType?.type_hindi || "-"} />
           <Detail label="Status" value={statusBadge(job)} />
@@ -1020,10 +1079,14 @@ function ReportsTab({ reports }) {
 }
 
 function Detail({ label, value }) {
+  const isNode = React.isValidElement(value);
+  const displayValue = isNode
+    ? value
+    : (value !== undefined && value !== null && value !== '' ? value : '-');
   return (
     <div style={{ fontSize: '12px', lineHeight: '1.4', background: '#f9f9f9', padding: '8px', borderRadius: '4px', border: '1px solid #eee' }}>
       <div style={{ fontWeight: 600 }}>{label}</div>
-      <div style={{ color: '#333' }}>{value !== undefined && value !== null && value !== '' ? value : '-'}</div>
+      <div style={{ color: '#333' }}>{displayValue}</div>
     </div>
   );
 }

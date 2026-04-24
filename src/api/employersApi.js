@@ -28,7 +28,9 @@ const employersApi = {
   changeSubscription: (id, payload) => client.post(`/employers/${id}/change-subscription`, payload),
   addCredits: (id, payload) => client.post(`/employers/${id}/add-credits`, payload),
   getApplicants: (id, params) => client.get(`/employers/${id}/applicants`, { params }),
+  getShortlistedCandidates: (id, params) => client.get(`/employers/${id}/shortlisted-candidates`, { params }),
   getCreditHistory: (id, params) => client.get(`/employers/${id}/credit-history`, { params }),
+  getContactsUnlocked: (id) => client.get(`/employers/${id}/contacts-unlocked`),
   getManualCreditHistory: (id, params) => client.get(`/employers/${id}/manual-credit-history`, { params }),
   getSubscriptionHistory: (id) =>
     client.get('/payment-history', { params: { user_type: 'employer', user_id: id } }),

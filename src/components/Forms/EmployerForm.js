@@ -26,7 +26,14 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
     address: '',
     email: '',
     aadhar_number: '',
-    assisted_by: ''
+    assisted_by: '',
+    total_contact_credit: 0,
+    contact_credit: 0,
+    total_interest_credit: 0,
+    interest_credit: 0,
+    total_ad_credit: 0,
+    ad_credit: 0,
+    credit_expiry_at: ''
   });
 
   const [states, setStates] = useState([]);
@@ -71,7 +78,14 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
             address: e.address || '',
             email: e.email || '',
             aadhar_number: e.aadhar_number || '',
-            assisted_by: e.assisted_by || ''
+            assisted_by: e.assisted_by || '',
+            total_contact_credit: e.total_contact_credit || 0,
+            contact_credit: e.contact_credit || 0,
+            total_interest_credit: e.total_interest_credit || 0,
+            interest_credit: e.interest_credit || 0,
+            total_ad_credit: e.total_ad_credit || 0,
+            ad_credit: e.ad_credit || 0,
+            credit_expiry_at: e.credit_expiry_at ? e.credit_expiry_at.split('T')[0] : ''
           });
         })
         .catch(() => setError('Failed to load employer'))
@@ -109,6 +123,20 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
     return EMPLOYER_ORG_TYPES.includes(s) ? s : '';
   };
 
+  const validateCreditFields = () => {
+    const totalContact = Number(form.total_contact_credit || 0);
+    const contact = Number(form.contact_credit || 0);
+    const totalInterest = Number(form.total_interest_credit || 0);
+    const interest = Number(form.interest_credit || 0);
+    const totalAd = Number(form.total_ad_credit || 0);
+    const ad = Number(form.ad_credit || 0);
+
+    if (totalContact < contact) return 'Total contact credit must be greater than or equal to contact credit';
+    if (totalInterest < interest) return 'Total interest credit must be greater than or equal to interest credit';
+    if (totalAd < ad) return 'Total ad credit must be greater than or equal to ad credit';
+    return null;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -140,6 +168,13 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
         return;
       }
 
+      const creditError = validateCreditFields();
+      if (creditError) {
+        setError(creditError);
+        setSaving(false);
+        return;
+      }
+
       const payload = {
         ...form,
         name: nameValue,
@@ -147,7 +182,14 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
         business_category_id: form.business_category_id || null,
         state_id: form.state_id || null,
         city_id: form.city_id || null,
-        assisted_by: form.assisted_by || null
+        assisted_by: form.assisted_by || null,
+        total_contact_credit: Number(form.total_contact_credit || 0),
+        contact_credit: Number(form.contact_credit || 0),
+        total_interest_credit: Number(form.total_interest_credit || 0),
+        interest_credit: Number(form.interest_credit || 0),
+        total_ad_credit: Number(form.total_ad_credit || 0),
+        ad_credit: Number(form.ad_credit || 0),
+        credit_expiry_at: form.credit_expiry_at || null
       };
       if (mobileValue) payload.mobile = mobileValue;
       else delete payload.mobile;
@@ -177,10 +219,24 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
       <div ref={topRef} />
       <div className="form-header">
         <h1>{isEdit ? 'Edit Employer' : 'Add New Employer'}</h1>
-        {isEdit && (
-          <LogsAction category="employer" title="Employer Logs" />
-        )}
-        <button className="btn-close" onClick={onClose}>✕</button>
+        <div className="form-header-actions">
+          {isEdit && (
+            <LogsAction
+              category="employer"
+              title="Employer Logs"
+              buttonLabel="Logs"
+              buttonStyle={{
+                flex: '0 0 auto',
+                width: 'auto',
+                padding: '6px 12px',
+                fontSize: '12px',
+                lineHeight: 1.2,
+                marginRight: 0
+              }}
+            />
+          )}
+          <button className="btn-close" onClick={onClose}>✕</button>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -305,6 +361,81 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
             placeholder="Assistant code or name"
           />
         </div>
+
+        {isEdit && (
+          <>
+            <div className="form-group">
+              <label>Total Contact Credit</label>
+              <input
+                type="number"
+                min="0"
+                value={form.total_contact_credit}
+                onChange={e => setField('total_contact_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Contact Credit</label>
+              <input
+                type="number"
+                min="0"
+                value={form.contact_credit}
+                onChange={e => setField('contact_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Total Interest Credit</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.total_interest_credit}
+                onChange={e => setField('total_interest_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Interest Credit</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.interest_credit}
+                onChange={e => setField('interest_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Total Ad Credit</label>
+              <input
+                type="number"
+                min="0"
+                value={form.total_ad_credit}
+                onChange={e => setField('total_ad_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Ad Credit</label>
+              <input
+                type="number"
+                min="0"
+                value={form.ad_credit}
+                onChange={e => setField('ad_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Credit Expiry Date</label>
+              <input
+                type="date"
+                value={form.credit_expiry_at}
+                onChange={e => setField('credit_expiry_at', e.target.value)}
+              />
+            </div>
+          </>
+        )}
 
         <div className="form-actions">
           <button

@@ -151,6 +151,8 @@ export default function JobForm({
   const [form, setForm] = useState({
     employer_id: '',
     job_profile_id: '',
+    job_designation_english: '',
+    job_designation_hindi: '',
     is_household: false,
     description_english: '',
     description_hindi: '',
@@ -248,6 +250,9 @@ export default function JobForm({
     setForm({
       employer_id: job.employer_id || '',
       job_profile_id: job.job_profile_id || '',
+      job_designation_english:
+        job.job_designation_english || job.job_designation || '',
+      job_designation_hindi: job.job_designation_hindi || '',
       is_household: !!job.is_household,
       description_english: job.description_english || '',
       description_hindi: job.description_hindi || '',
@@ -578,6 +583,24 @@ export default function JobForm({
               <option key={jp.id} value={jp.id}>{jp.profile_english}</option>
             ))}
           </select>
+        </div>
+        <div className="form-group">
+          <label>Job Designation</label>
+          <input
+            type="text"
+            value={form.job_designation_english}
+            onChange={e => setField('job_designation_english', e.target.value)}
+            placeholder="Enter job designation"
+          />
+        </div>
+        <div className="form-group">
+          <label>Job Designation Hindi</label>
+          <input
+            type="text"
+            value={form.job_designation_hindi}
+            onChange={e => setField('job_designation_hindi', e.target.value)}
+            placeholder="Enter job designation in Hindi"
+          />
         </div>
 
         {/* State / City */}

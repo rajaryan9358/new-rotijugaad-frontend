@@ -11,6 +11,7 @@ export default function EmployerSubscriptionPlanForm({ planId, onClose, onSucces
     plan_tagline_english: '',
     plan_tagline_hindi: '',
     plan_price: '',
+    discounted_price: '',
     contact_credits: '',
     interest_credits: '',
     ad_credits: '',
@@ -37,6 +38,7 @@ export default function EmployerSubscriptionPlanForm({ planId, onClose, onSucces
           plan_tagline_english: d.plan_tagline_english ?? '',
           plan_tagline_hindi: d.plan_tagline_hindi ?? '',
           plan_price: d.plan_price ?? '',
+          discounted_price: d.discounted_price ?? '',
           contact_credits: d.contact_credits ?? '',
           interest_credits: d.interest_credits ?? '',
           ad_credits: d.ad_credits ?? '',
@@ -92,6 +94,7 @@ export default function EmployerSubscriptionPlanForm({ planId, onClose, onSucces
       plan_tagline_english: formData.plan_tagline_english || null,
       plan_tagline_hindi: formData.plan_tagline_hindi || null,
       plan_price: formData.plan_price === '' ? 0 : Number(formData.plan_price),
+      discounted_price: formData.discounted_price === '' ? null : Number(formData.discounted_price),
       contact_credits: Number(formData.contact_credits || 0),
       interest_credits: formData.interest_credits === '' ? 0 : Number(formData.interest_credits),
       ad_credits: Number(formData.ad_credits || 0),
@@ -173,6 +176,11 @@ export default function EmployerSubscriptionPlanForm({ planId, onClose, onSucces
         <div className="form-group">
           <label htmlFor="plan_price">Price (₹) *</label>
           <input id="plan_price" name="plan_price" step="0.01" type="number" value={formData.plan_price} onChange={handleChange} placeholder="e.g., 999" required />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="discounted_price">Discounted Price (₹)</label>
+          <input id="discounted_price" name="discounted_price" step="0.01" type="number" value={formData.discounted_price} onChange={handleChange} placeholder="e.g., 799" />
         </div>
 
         <div className="form-group">

@@ -18,6 +18,7 @@ import Qualifications from "./pages/Masters/Qualifications";
 import Shifts from "./pages/Masters/Shifts";
 import JobProfiles from "./pages/Masters/JobProfiles";
 import DocumentTypes from "./pages/Masters/DocumentTypes";
+import AdditionalDocumentTypes from "./pages/Masters/AdditionalDocumentTypes";
 import WorkNatures from "./pages/Masters/WorkNatures";
 import SalaryRanges from "./pages/Masters/SalaryRanges";
 import BusinessCategories from "./pages/Masters/BusinessCategories";
@@ -40,6 +41,7 @@ import EmployersManagement from "./pages/Employers/EmployersManagement";
 import EmployerDetail from "./pages/Employers/EmployerDetail";
 import StoriesManagement from "./pages/Stories/StoriesManagement";
 import CallHistoryManagement from "./pages/CallHistory/CallHistoryManagement";
+import ContactUnlocksManagement from "./pages/ContactUnlocks/ContactUnlocksManagement";
 import PaymentHistoryManagement from "./pages/PaymentHistory/PaymentHistoryManagement";
 import ViolationReportsManagement from "./pages/ViolationReports/ViolationReportsManagement";
 import JobsManagement from "./pages/Jobs/JobsManagement";
@@ -146,6 +148,7 @@ function AppRoutes() {
         <Route path="/masters/shifts" element={<Shifts />} />
         <Route path="/masters/job-profiles" element={<JobProfiles />} />
         <Route path="/masters/document-types" element={<DocumentTypes />} />
+        <Route path="/masters/additional-document-types" element={<AdditionalDocumentTypes />} />
         <Route path="/masters/work-natures" element={<WorkNatures />} />
         <Route path="/masters/business-categories" element={<BusinessCategories />} />
         <Route path="/masters/experiences" element={<Experiences />} />
@@ -170,6 +173,7 @@ function AppRoutes() {
         <Route path="/employers/:id" element={<EmployerDetail />} />
         <Route path="/stories" element={<StoriesManagement />} />
         <Route path="/call-history" element={<CallHistoryManagement />} />
+        <Route path="/contact-unlocks" element={<ContactUnlocksManagement />} />
         <Route path="/payment-history" element={<PaymentHistoryManagement />} />
         <Route path="/violation-reports" element={<ViolationReportsManagement />} />
         <Route path="/jobs" element={<JobsManagement />} />

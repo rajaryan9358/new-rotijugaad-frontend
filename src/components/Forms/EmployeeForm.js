@@ -3,9 +3,29 @@ import employeesApi from '../../api/employeesApi';
 import usersApi from '../../api/usersApi';
 import { getStates } from '../../api/statesApi';
 import { getCities } from '../../api/citiesApi';
+import { getApiBaseUrl } from '../../api/baseUrl';
 import qualificationsApi from '../../api/masters/qualificationsApi';
 import shiftsApi from '../../api/masters/shiftsApi';
 import './MasterForm.css';
+
+const toBackendAssetUrl = (rawPath) => {
+  const value = (rawPath || '').toString().trim();
+  if (!value) return '';
+  if (/^(?:https?:)?\/\//i.test(value) || value.startsWith('data:image')) return value;
+
+  const apiBase = getApiBaseUrl();
+
+  try {
+    if (/^https?:\/\//i.test(apiBase)) {
+      const base = new URL(apiBase);
+      return `${base.origin}${value.startsWith('/') ? value : `/${value}`}`;
+    }
+  } catch (_err) {
+    // fall through to window origin
+  }
+
+  return `${window.location.origin}${value.startsWith('/') ? value : `/${value}`}`;
+};
 
 export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUser, mobileLocked = false }) {
   const isEdit = !!employeeId;
@@ -117,7 +137,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
               .catch(() => {});
           }
           if (e.selfie_link) {
-            setSelfiePreview(e.selfie_link);
+            setSelfiePreview(toBackendAssetUrl(e.selfie_link));
             if (e.selfie_link.startsWith('data:image')) { // added
               setLegacyDataUrl(true); // added
             }
@@ -196,6 +216,17 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
     return prefCities.filter(c => c.state_id === parseInt(stateId));
   };
 
+  const validateCreditFields = () => {
+    const totalContact = Number(form.total_contact_credit || 0);
+    const contact = Number(form.contact_credit || 0);
+    const totalInterest = Number(form.total_interest_credit || 0);
+    const interest = Number(form.interest_credit || 0);
+
+    if (totalContact < contact) return 'Total contact credit must be greater than or equal to contact credit.';
+    if (totalInterest < interest) return 'Total interest credit must be greater than or equal to interest credit.';
+    return null;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -211,6 +242,12 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
     }
     if ((needsMobile || isEdit) && !trimmedMobile) {
       setError('Mobile is required.');
+      setSaving(false);
+      return;
+    }
+    const creditError = validateCreditFields();
+    if (creditError) {
+      setError(creditError);
       setSaving(false);
       return;
     }
@@ -600,6 +637,66 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             onChange={e => setField('aadhar_verified_at', e.target.value)}
           />
         </div>
+
+        {isEdit && (
+          <>
+            <div className="form-group">
+              <label htmlFor="total_contact_credit">Total Contact Credit</label>
+              <input
+                id="total_contact_credit"
+                type="number"
+                min="0"
+                value={form.total_contact_credit}
+                onChange={e => setField('total_contact_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="contact_credit">Contact Credit</label>
+              <input
+                id="contact_credit"
+                type="number"
+                min="0"
+                value={form.contact_credit}
+                onChange={e => setField('contact_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="total_interest_credit">Total Interest Credit</label>
+              <input
+                id="total_interest_credit"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.total_interest_credit}
+                onChange={e => setField('total_interest_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="interest_credit">Interest Credit</label>
+              <input
+                id="interest_credit"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.interest_credit}
+                onChange={e => setField('interest_credit', e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="credit_expiry_at">Credit Expiry Date</label>
+              <input
+                id="credit_expiry_at"
+                type="date"
+                value={form.credit_expiry_at}
+                onChange={e => setField('credit_expiry_at', e.target.value)}
+              />
+            </div>
+          </>
+        )}
 
         <div className="form-group">
           <label>Selfie</label>

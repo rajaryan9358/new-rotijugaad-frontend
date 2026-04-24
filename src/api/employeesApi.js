@@ -29,8 +29,8 @@ const employeesApi = {
 	kycReject: (id) => api.post(`/employees/${id}/kyc/reject`),
 	changeSubscription: (id, subscription_plan_id) =>
 		api.post(`/employees/${id}/change-subscription`, { subscription_plan_id }),
-	addCredits: (id, { contact_credits, interest_credits, credit_expiry_at } = {}) =>
-		api.post(`/employees/${id}/add-credits`, { contact_credits, interest_credits, credit_expiry_at }),
+	addCredits: (id, { contact_credits, interest_credits, credit_expiry_at, reason } = {}) =>
+		api.post(`/employees/${id}/add-credits`, { contact_credits, interest_credits, credit_expiry_at, reason }),
 
 	// job profiles
 	getEmployeeJobProfiles: (id) => api.get(`/employees/${id}/job-profiles`),
@@ -51,11 +51,21 @@ const employeesApi = {
 
 	// documents
 	getEmployeeDocuments: (id) => api.get(`/employees/${id}/documents`),
-	uploadEmployeeDocument: (id, type, fileOrFormData) => {
-		const form = fileOrFormData instanceof FormData ? fileOrFormData : new FormData();
-		if (!(fileOrFormData instanceof FormData)) form.append('file', fileOrFormData);
+	uploadEmployeeDocument: (id, payloadOrType, maybeFile) => {
+		const form = payloadOrType instanceof FormData ? payloadOrType : new FormData();
+		let params = undefined;
+
+		if (!(payloadOrType instanceof FormData)) {
+			if (payloadOrType && typeof payloadOrType === 'object' && !Array.isArray(payloadOrType)) {
+				if (payloadOrType.document_type_id != null) form.append('document_type_id', payloadOrType.document_type_id);
+				if (payloadOrType.file) form.append('file', payloadOrType.file);
+			} else {
+				params = { type: payloadOrType };
+				if (maybeFile) form.append('file', maybeFile);
+			}
+		}
 		return api.post(`/employees/${id}/documents/upload`, form, {
-			params: { type },
+			params,
 			headers: { 'Content-Type': 'multipart/form-data' }
 		});
 	},
@@ -72,6 +82,7 @@ const employeesApi = {
 	getEmployeePaymentHistory: (id) =>
 		api.get('/payment-history', { params: { user_type: 'employee', user_id: id } }),
 	getEmployeeCreditHistory: (id) => api.get(`/employees/${id}/credit-history`),
+	getEmployeeContactsUnlocked: (id) => api.get(`/employees/${id}/contacts-unlocked`),
 	getEmployeeManualCreditHistory: (id) => api.get(`/employees/${id}/manual-credit-history`),
 	getEmployeeCallExperiences: (id) => api.get(`/employees/${id}/call-experiences`),
 	getEmployeeCallReviews: (id) => api.get(`/employees/${id}/call-reviews`),
@@ -82,8 +93,9 @@ const employeesApi = {
 	getHiredEmployees: (params = {}) => api.get('/hired-employees', { params }),
 
 	// masters/helpers (used by EmployeeDetail + EmployeesManagement)
-	getWorkNatures: () => api.get('/work-natures'),
-	getDocumentTypes: () => api.get('/document-types'),
+	getWorkNatures: () => api.get('/masters/work-natures'),
+	getDocumentTypes: () => api.get('/masters/document-types'),
+	getAdditionalDocumentTypes: () => api.get('/masters/additional-document-types'),
 
 	// verify/KYC (used by EmployeeDetail actions menu)
 	approveEmployee: (id) => api.post(`/employees/${id}/approve`),
@@ -94,8 +106,8 @@ const employeesApi = {
 	// subscription/credits (match EmployeeDetail call sites)
 	changeEmployeeSubscription: (id, { subscription_plan_id } = {}) =>
 		api.post(`/employees/${id}/change-subscription`, { subscription_plan_id }),
-	addEmployeeCredits: (id, { contact_credits, interest_credits, credit_expiry_at } = {}) =>
-		api.post(`/employees/${id}/add-credits`, { contact_credits, interest_credits, credit_expiry_at }),
+	addEmployeeCredits: (id, { contact_credits, interest_credits, credit_expiry_at, reason } = {}) =>
+		api.post(`/employees/${id}/add-credits`, { contact_credits, interest_credits, credit_expiry_at, reason }),
 
 	// job profiles (alias used by EmployeeDetail)
 	saveEmployeeJobProfiles: (id, job_profile_ids) => api.post(`/employees/${id}/job-profiles`, { job_profile_ids }),

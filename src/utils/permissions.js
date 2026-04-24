@@ -52,6 +52,9 @@ export const PERMISSIONS = {
   CALL_HISTORY_DELETE: 'call_history.delete',
   CALL_HISTORY_EXPORT: 'call_history.export',
 
+  CONTACT_UNLOCKS_VIEW: 'contact_unlocks.view',
+  CONTACT_UNLOCKS_EXPORT: 'contact_unlocks.export',
+
   PAYMENT_HISTORY_VIEW: 'payment_history.view',
   PAYMENT_HISTORY_DELETE: 'payment_history.delete',
   PAYMENT_HISTORY_EXPORT: 'payment_history.export',
@@ -191,6 +194,14 @@ export const PERMISSION_GROUPS = [
       { code: PERMISSIONS.CALL_HISTORY_MANAGE, label: 'Manage notes/status' },
       { code: PERMISSIONS.CALL_HISTORY_DELETE, label: 'Delete call history' },
       { code: PERMISSIONS.CALL_HISTORY_EXPORT, label: 'Export call history' },
+    ],
+  },
+  {
+    key: 'contact_unlocks',
+    label: 'Contact Unlocks',
+    permissions: [
+      { code: PERMISSIONS.CONTACT_UNLOCKS_VIEW, label: 'View contact unlocks' },
+      { code: PERMISSIONS.CONTACT_UNLOCKS_EXPORT, label: 'Export contact unlocks' },
     ],
   },
   {

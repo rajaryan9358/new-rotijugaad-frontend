@@ -9,6 +9,7 @@ import jobProfilesApi from '../../api/masters/jobProfilesApi';
 import employeeSubscriptionPlansApi from '../../api/subscriptions/employeeSubscriptionPlansApi';
 import reportsApi from '../../api/reportsApi';
 import callHistoryApi from '../../api/callHistoryApi';
+import { getApiBaseUrl } from '../../api/baseUrl';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import EmployeeForm from '../../components/Forms/EmployeeForm';
@@ -24,6 +25,7 @@ const TABS = [
   'Hired jobs',
   'Wishlist',
   'Credit history',
+  'Contacts unlocked',
   'Subscription history',
   'Call experiences',
   'Call review by employer',          // CHANGED (was: 'Call reviews')
@@ -69,6 +71,69 @@ function getEmployeeHeadingSuffix(employee, canShowPhoneAddress) {
 
   if (name && mobile) return `${name} (${mobile})`;
   return name || mobile;
+}
+
+function toBackendAssetUrl(rawPath) {
+  const value = (rawPath || '').toString().trim();
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+
+  const apiBase = getApiBaseUrl();
+
+  try {
+    if (/^https?:\/\//i.test(apiBase)) {
+      const base = new URL(apiBase);
+      return `${base.origin}${value.startsWith('/') ? value : `/${value}`}`;
+    }
+  } catch (_err) {
+    // fall through
+  }
+
+  return `${window.location.origin}${value.startsWith('/') ? value : `/${value}`}`;
+}
+
+function hasValidCoordinates(lat, lng) {
+  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+}
+
+function getGoogleMapsUrl(lat, lng) {
+  return hasValidCoordinates(lat, lng)
+    ? `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`
+    : '';
+}
+
+const locationLinkStyle = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  margin: 0,
+  color: '#2563eb',
+  cursor: 'pointer',
+  textDecoration: 'underline',
+  fontSize: 'inherit',
+  fontFamily: 'inherit'
+};
+
+function renderLocationValue({ lat, lng, city, state }) {
+  const mapsUrl = getGoogleMapsUrl(lat, lng);
+  const locationLabel = [city, state].filter(Boolean).join(', ');
+
+  if (!mapsUrl && !locationLabel) return '-';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start', textAlign: 'left' }}>
+      <span>{locationLabel || 'Coordinates available'}</span>
+      {mapsUrl ? (
+        <button
+          type="button"
+          onClick={() => window.open(mapsUrl, '_blank', 'noopener,noreferrer')}
+          style={locationLinkStyle}
+        >
+          View location
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 // NEW: used by UI where renderActiveBadge(...) is referenced
@@ -211,9 +276,12 @@ export default function EmployeeDetail() {
   });
   const [uploadingCert, setUploadingCert] = useState(false); // added
   const [documents, setDocuments] = useState([]); // added
+  const [additionalDocumentTypes, setAdditionalDocumentTypes] = useState([]);
   const [workNatures, setWorkNatures] = useState([]); // added
   const [docUploading, setDocUploading] = useState(false);
   const [employeeDocs, setEmployeeDocs] = useState([]); // unchanged
+  const [selectedAdditionalDocumentTypeId, setSelectedAdditionalDocumentTypeId] = useState('');
+  const [selectedAdditionalDocumentFile, setSelectedAdditionalDocumentFile] = useState(null);
   const [applications, setApplications] = useState({ sent: [], received: [] });
   const [appTab, setAppTab] = useState('Sent');
   const [appLoading, setAppLoading] = useState(false);
@@ -233,6 +301,9 @@ export default function EmployeeDetail() {
   const [creditHistoryTab, setCreditHistoryTab] = useState('contact'); // add
   const [creditHistoryLoading, setCreditHistoryLoading] = useState(false); // add
   const [creditHistoryError, setCreditHistoryError] = useState(null); // add
+  const [contactsUnlocked, setContactsUnlocked] = useState([]);
+  const [contactsUnlockedLoading, setContactsUnlockedLoading] = useState(false);
+  const [contactsUnlockedError, setContactsUnlockedError] = useState(null);
   const [manualCreditHistory, setManualCreditHistory] = useState([]);
   const [manualCreditHistoryLoading, setManualCreditHistoryLoading] = useState(false);
   const [manualCreditHistoryError, setManualCreditHistoryError] = useState(null);
@@ -263,7 +334,7 @@ export default function EmployeeDetail() {
   const [changeSubSaving, setChangeSubSaving] = useState(false);
   const [changeSubError, setChangeSubError] = useState(null);
   const [showAddCreditsDialog, setShowAddCreditsDialog] = useState(false);
-  const [addCreditsForm, setAddCreditsForm] = useState({ contact: '', interest: '', expiry: '' });
+  const [addCreditsForm, setAddCreditsForm] = useState({ contact: '', interest: '', expiry: '', reason: '' });
   const [addCreditsSaving, setAddCreditsSaving] = useState(false);
   const [addCreditsError, setAddCreditsError] = useState(null);
 
@@ -312,6 +383,7 @@ export default function EmployeeDetail() {
 
   useEffect(() => {
     if (employee && activeTab === 'Documents') {
+      loadAdditionalDocumentTypes();
       fetchEmployeeDocuments(); // added
     }
   }, [employee, activeTab]);
@@ -343,6 +415,12 @@ export default function EmployeeDetail() {
   useEffect(() => {
     if (employee && activeTab === 'Credit history') {
       fetchCreditHistory();
+    }
+  }, [employee, activeTab]);
+
+  useEffect(() => {
+    if (employee && activeTab === 'Contacts unlocked') {
+      fetchContactsUnlocked();
     }
   }, [employee, activeTab]);
 
@@ -473,6 +551,16 @@ export default function EmployeeDetail() {
     }
   };
 
+  const loadAdditionalDocumentTypes = async () => {
+    if (!perms.canView) return;
+    try {
+      const res = await employeesApi.getAdditionalDocumentTypes();
+      setAdditionalDocumentTypes(res.data?.data || []);
+    } catch (e) {
+      console.warn('Failed to load additional document types', e);
+    }
+  };
+
   const fetchApplications = async () => {
     if (!perms.canView) return;
     setAppLoading(true);
@@ -545,6 +633,21 @@ export default function EmployeeDetail() {
       setCreditHistory([]);
     } finally {
       setCreditHistoryLoading(false);
+    }
+  };
+
+  const fetchContactsUnlocked = async () => {
+    if (!perms.canView) return;
+    setContactsUnlockedLoading(true);
+    setContactsUnlockedError(null);
+    try {
+      const res = await employeesApi.getEmployeeContactsUnlocked(id);
+      setContactsUnlocked(res.data?.data || []);
+    } catch (e) {
+      setContactsUnlockedError('Failed to load unlocked contacts');
+      setContactsUnlocked([]);
+    } finally {
+      setContactsUnlockedLoading(false);
     }
   };
 
@@ -666,7 +769,8 @@ export default function EmployeeDetail() {
     setAddCreditsForm({
       contact: '',
       interest: '',
-      expiry: employee?.credit_expiry_at ? employee.credit_expiry_at.split('T')[0] : ''
+      expiry: employee?.credit_expiry_at ? employee.credit_expiry_at.split('T')[0] : '',
+      reason: ''
     });
     setAddCreditsError(null);
     setShowAddCreditsDialog(true);
@@ -679,8 +783,13 @@ export default function EmployeeDetail() {
     }
     const contact = parseInt(addCreditsForm.contact, 10) || 0;
     const interest = parseInt(addCreditsForm.interest, 10) || 0;
+    const reason = (addCreditsForm.reason || '').trim();
     if (contact <= 0 && interest <= 0) {
       setAddCreditsError('Enter credits to add');
+      return;
+    }
+    if (!reason) {
+      setAddCreditsError('Reason is required');
       return;
     }
     setAddCreditsSaving(true);
@@ -689,7 +798,8 @@ export default function EmployeeDetail() {
       await employeesApi.addEmployeeCredits(id, {
         contact_credits: contact,
         interest_credits: interest,
-        credit_expiry_at: addCreditsForm.expiry || null
+        credit_expiry_at: addCreditsForm.expiry || null,
+        reason
       });
       await fetchEmployee();
       setShowAddCreditsDialog(false);
@@ -846,9 +956,16 @@ export default function EmployeeDetail() {
     }
   };
 
+  const getReviewStatusLabel = (status) => {
+    const normalized = (status || '').toString().trim().toLowerCase();
+    if (!normalized) return '-';
+    return normalized === 'init' ? 'Not submitted for review' : status;
+  };
+
   const renderStatusBadge = (status) => {
     const normalized = (status || '').toLowerCase();
     const palette = {
+      init: { bg: '#e0f2fe', color: '#075985' },
       verified: { bg: '#16a34a', color: '#fff' },
       approved: { bg: '#16a34a', color: '#fff' }, // legacy
       pending: { bg: '#f59e0b', color: '#1f2937' },
@@ -869,7 +986,32 @@ export default function EmployeeDetail() {
           color: tone.color
         }}
       >
-        {status || '-'}
+        {getReviewStatusLabel(status)}
+      </span>
+    );
+  };
+
+  const renderUnlockedContactBadge = (row) => {
+    const isActive = row?.is_active ?? !row?.deleted_at;
+    const tone = isActive
+      ? { bg: '#dcfce7', color: '#166534', border: '#86efac', label: 'Unlocked' }
+      : { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca', label: 'Removed' };
+
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '2px 10px',
+          borderRadius: '999px',
+          fontSize: '11px',
+          fontWeight: 600,
+          background: tone.bg,
+          color: tone.color,
+          border: `1px solid ${tone.border}`
+        }}
+      >
+        {tone.label}
       </span>
     );
   };
@@ -923,6 +1065,10 @@ export default function EmployeeDetail() {
 
   const renderBasicDetails = () => (
     <div className="detail-section">
+      {(() => {
+        const selfieUrl = toBackendAssetUrl(basic.selfie_link);
+        return (
+          <>
       <div className="grid-2col" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:'12px' }}>
         <Detail label="ID" value={basic.id} />
         <Detail label="Name" value={basic.name} />
@@ -942,7 +1088,7 @@ export default function EmployeeDetail() {
         {/* NEW: status changed by (admin) */}
         <Detail label="Status Changed By" value={basic.User?.StatusChangedBy?.name || '-'} />
 
-        <Detail label="Delete Status" value={basic.User?.delete_pending ? 'Pending deletion' : 'Active'} />
+        <Detail label="Delete Status" value={basic.User?.delete_pending ? 'Pending deletion' : 'No'} />
         <Detail label="Delete Requested At" value={formatDateTime(basic.User?.delete_requested_at)} />
         <Detail label="Referred By" value={basic.User?.referred_by || '-'} />
         <Detail label="Preferred Language" value={basic.User?.preferred_language || '-'} />
@@ -955,10 +1101,15 @@ export default function EmployeeDetail() {
           <Detail label="City" value={basic.City?.city_english || '-'} />
         )}
         {perms.canShowPhoneAddress && (
-          <Detail label="Latitude" value={basic.lat ?? '-'} />
-        )}
-        {perms.canShowPhoneAddress && (
-          <Detail label="Longitude" value={basic.lng ?? '-'} />
+          <Detail
+            label="Location"
+            value={renderLocationValue({
+              lat: basic.lat,
+              lng: basic.lng,
+              city: basic.City?.city_english,
+              state: basic.State?.state_english
+            })}
+          />
         )}
         {perms.canShowPhoneAddress && (
           <Detail label="Preferred State" value={basic.PreferredState?.state_english || '-'} />
@@ -972,7 +1123,6 @@ export default function EmployeeDetail() {
         <Detail label="Expected Salary" value={basic.expected_salary} />
         <Detail label="Expected Salary Frequency" value={basic.expected_salary_frequency} />
         <Detail label="Job Profiles" value={basic.job_profiles_display} /> {/* added */}
-        <Detail label="Work Nature" value={basic.work_natures_display} /> {/* added */}
         <Detail label="Verification" value={renderStatusBadge(basic.verification_status)} />
         <Detail label="Verification At" value={formatDateTime(basic.verification_at)} /> {/* NEW */}
         <Detail label="KYC" value={renderStatusBadge(basic.kyc_status)} />
@@ -982,11 +1132,11 @@ export default function EmployeeDetail() {
         <Detail label="Credit Expiry" value={formatDateTime(basic.credit_expiry_at)} /> {/* formatted date-time */}
         <Detail label="Created At" value={formatDateTime(basic.created_at)} />
       </div>
-      {basic.selfie_link && (
+      {selfieUrl && (
         <div style={{ marginTop:'16px' }}>
           <strong>Selfie:</strong><br />
           <img
-            src={basic.selfie_link}
+            src={selfieUrl}
             alt="Selfie"
             style={{ maxWidth:'160px', borderRadius:'6px', border:'1px solid #ddd' }}
           />
@@ -998,6 +1148,9 @@ export default function EmployeeDetail() {
           <div style={{ fontSize:'13px', lineHeight:'1.4', marginTop:'4px' }}>{basic.about_user}</div>
         </div>
       )}
+          </>
+        );
+      })()}
     </div>
   );
 
@@ -1133,17 +1286,20 @@ export default function EmployeeDetail() {
 
   const removeCertificate = () => { handleExpField('experience_certificate', ''); }; // added
 
-  const uploadDocument = async (type, file) => { // modified
+  const uploadDocument = async (documentTypeId, file) => { // modified
     if (!perms.canManage) { setError('You do not have permission to upload documents.'); return; }
     if (!file || !employee) return;
     if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
       setError('Only images/PDF allowed'); return;
     }
     if (file.size > 5*1024*1024) { setError('Max size 5MB'); return; }
+    if (!documentTypeId) { setError('Select additional document type'); return; }
     setDocUploading(true);
     setError(null);
     try {
-      await employeesApi.uploadEmployeeDocument(employee.id, type, file); // CHANGED: pass File (not FormData)
+      await employeesApi.uploadEmployeeDocument(employee.id, { document_type_id: documentTypeId, file });
+      setSelectedAdditionalDocumentTypeId('');
+      setSelectedAdditionalDocumentFile(null);
       await fetchEmployeeDocuments();
     } catch (e) {
       setError(e.response?.data?.message || 'Upload failed');
@@ -1155,6 +1311,7 @@ export default function EmployeeDetail() {
   const removeDocument = async (docId) => { // modified
     if (!perms.canDelete) { setError('You do not have permission to delete documents.'); return; }
     if (!employee) return;
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
     try {
       await employeesApi.deleteEmployeeDocument(employee.id, docId);
       setEmployeeDocs(prev => prev.filter(d => d.id !== docId));
@@ -1696,69 +1853,108 @@ export default function EmployeeDetail() {
 
   const renderDocumentsTab = () => { // modified
     if (!employee) return null;
-    const types = [
-      { key:'resume', label:'Resume' },
-      { key:'driving_license', label:'Driving License' },
-      { key:'other', label:'Other Document' }
-    ];
-    const findDoc = (t) => employeeDocs.find(d => d.document_type === t); // changed
+    const sortedDocs = [...employeeDocs].sort((a, b) => (new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()));
+    const selectedType = additionalDocumentTypes.find((type) => String(type.id) === String(selectedAdditionalDocumentTypeId));
+    const toDocumentUrl = (rawPath) => {
+      const value = (rawPath || '').toString().trim();
+      if (!value) return '';
+      if (/^https?:\/\//i.test(value)) return value;
+
+      const apiBase = getApiBaseUrl();
+
+      try {
+        if (/^https?:\/\//i.test(apiBase)) {
+          const base = new URL(apiBase);
+          return `${base.origin}${value.startsWith('/') ? value : `/${value}`}`;
+        }
+      } catch (_err) {
+        // fall back to current origin below
+      }
+
+      return `${window.location.origin}${value.startsWith('/') ? value : `/${value}`}`;
+    };
+
     return (
       <div>
-        <h2 style={{ marginTop:0, fontSize:'16px' }}>Documents</h2>
+        <h2 style={{ marginTop:0, fontSize:'16px' }}>Additional Documents</h2>
         {error && <div style={{ color:'#b91c1c', fontSize:'12px', marginBottom:'8px' }}>{error}</div>}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:'20px' }}>
-          {types.map(d => {
-            const doc = findDoc(d.key);
-            const path = doc?.document_link; // changed
-            const isImage = path && /\.(png|jpe?g|gif)$/i.test(path);
-            return (
-              <div key={d.key} style={{ border:'1px solid #ddd', borderRadius:'8px', padding:'12px', background:'#fafafa' }}>
-                <strong style={{ fontSize:'13px' }}>{d.label}</strong>
-                <div style={{ marginTop:'8px', minHeight:'140px', display:'flex', alignItems:'center', justifyContent:'center', background:'#fff', border:'1px dashed #ccc', borderRadius:'6px', position:'relative' }}>
-                  {path ? (
-                    isImage ? (
-                      <img src={path} alt={d.label} style={{ maxWidth:'100%', maxHeight:'120px', objectFit:'cover', borderRadius:'4px' }} />
-                    ) : (
-                      <a href={path} target="_blank" rel="noreferrer" style={{ fontSize:'12px', color:'#2563eb' }}>
-                        {doc?.document_name || 'View Document'} {/* changed */}
-                      </a>
-                    )
-                  ) : (
-                    <span style={{ fontSize:'11px', color:'#777' }}>No {d.label.toLowerCase()} uploaded</span>
-                  )}
-                  {doc && (
-                    <button
-                      type="button"
-                      onClick={() => removeDocument(doc.id)}
-                      title="Remove"
-                      style={{
-                        position:'absolute', top:'4px', right:'4px',
-                        background:'rgba(220,38,38,0.85)', color:'#fff',
-                        border:'none', borderRadius:'50%', width:'22px',
-                        height:'22px', cursor:'pointer', fontSize:'12px', lineHeight:'1'
-                      }}
-                    >×</button>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  disabled={docUploading || !perms.canManage}
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) uploadDocument(d.key, f);
-                  }}
-                  style={{ marginTop:'10px', width:'100%' }}
-                />
-                {path && (
-                  <small style={{ display:'block', marginTop:'6px', fontSize:'11px', color:'#2563eb' }}>
-                    {doc?.document_name} ({Math.round((doc.document_size||0)/1024)} KB)
-                  </small>
-                )}
-              </div>
-            );
-          })}
+        <div style={{ marginBottom:'16px', padding:'12px', border:'1px solid #fde68a', background:'#fffbeb', borderRadius:'8px', fontSize:'12px', color:'#92400e' }}>
+          Note: Contact information should not be included in any uploaded document.
         </div>
+
+        <div style={{ border:'1px solid #ddd', borderRadius:'8px', padding:'16px', background:'#fafafa', marginBottom:'18px' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:'12px', alignItems:'end' }}>
+            <div>
+              <label style={{ display:'block', marginBottom:'6px', fontSize:'12px', fontWeight:600 }}>Select document type</label>
+              <select
+                value={selectedAdditionalDocumentTypeId}
+                onChange={(e) => setSelectedAdditionalDocumentTypeId(e.target.value)}
+                disabled={docUploading || !perms.canManage}
+                style={{ width:'100%', padding:'10px', borderRadius:'6px', border:'1px solid #cbd5e1' }}
+              >
+                <option value="">Select document type</option>
+                {additionalDocumentTypes.map((type) => (
+                  <option key={type.id} value={type.id}>{type.type_english}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ display:'block', marginBottom:'6px', fontSize:'12px', fontWeight:600 }}>Upload additional document</label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                disabled={docUploading || !perms.canManage}
+                onChange={(e) => setSelectedAdditionalDocumentFile(e.target.files?.[0] || null)}
+                style={{ width:'100%' }}
+              />
+            </div>
+            <div>
+              <button
+                className="btn-primary small"
+                style={{ width:'100%', padding:'10px 14px' }}
+                disabled={docUploading || !perms.canManage || !selectedAdditionalDocumentTypeId || !selectedAdditionalDocumentFile}
+                onClick={() => uploadDocument(selectedAdditionalDocumentTypeId, selectedAdditionalDocumentFile)}
+              >
+                {docUploading ? 'Uploading...' : `Upload${selectedType ? ` ${selectedType.type_english}` : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {sortedDocs.length === 0 ? (
+          <div style={{ fontSize:'13px', color:'#666' }}>No additional documents uploaded.</div>
+        ) : (
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
+            <thead>
+              <tr style={{ background:'#f5f5f5' }}>
+                <th style={{ textAlign:'left', padding:'8px', border:'1px solid #ddd' }}>Document Type</th>
+                <th style={{ textAlign:'left', padding:'8px', border:'1px solid #ddd' }}>File Name</th>
+                <th style={{ textAlign:'left', padding:'8px', border:'1px solid #ddd' }}>Size</th>
+                <th style={{ textAlign:'left', padding:'8px', border:'1px solid #ddd' }}>Uploaded At</th>
+                <th style={{ textAlign:'left', padding:'8px', border:'1px solid #ddd' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedDocs.map((doc) => {
+                const typeLabel = doc.DocumentType?.type_english || doc.AdditionalDocumentType?.type_english || doc.document_type || '-';
+                const fileUrl = toDocumentUrl(doc.document_link);
+                const sizeKb = Math.max(1, Math.round((doc.document_size || 0) / 1024));
+                return (
+                  <tr key={doc.id}>
+                    <td style={{ padding:'8px', border:'1px solid #eee' }}>{typeLabel}</td>
+                    <td style={{ padding:'8px', border:'1px solid #eee' }}>{doc.document_name || '-'}</td>
+                    <td style={{ padding:'8px', border:'1px solid #eee' }}>{doc.document_size ? `${sizeKb} KB` : '-'}</td>
+                    <td style={{ padding:'8px', border:'1px solid #eee' }}>{formatDateTime(doc.created_at)}</td>
+                    <td style={{ padding:'8px', border:'1px solid #eee' }}>
+                      {fileUrl ? <a href={fileUrl} target="_blank" rel="noreferrer" style={{ marginRight:'10px', color:'#2563eb' }}>View</a> : null}
+                      {perms.canDelete && <button className="btn-small btn-delete" onClick={() => removeDocument(doc.id)}>Delete</button>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
         {docUploading && <div style={{ marginTop:'12px', fontSize:'12px', color:'#555' }}>Uploading...</div>}
         {!perms.canManage && <div style={{ marginTop:'8px', fontSize:'12px', color:'#b91c1c' }}>You do not have permission to manage documents.</div>}
       </div>
@@ -2290,6 +2486,7 @@ export default function EmployeeDetail() {
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Interest Credits</th>
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Ad Credits</th>
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Expiry Date</th>
+                  <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Reason</th>
                   <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Created At</th>
                 </tr>
               </thead>
@@ -2301,6 +2498,7 @@ export default function EmployeeDetail() {
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.interest_credit ?? '-'}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.ad_credit ?? '-'}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.expiry_date)}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.reason || '-'}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.created_at)}</td>
                   </tr>
                 ))}
@@ -2312,6 +2510,71 @@ export default function EmployeeDetail() {
     }
     return null;
   };
+
+  const renderContactsUnlockedTab = () => (
+    <div>
+      <h2 style={{ marginTop: 0, fontSize: '16px' }}>Contacts Unlocked</h2>
+      {contactsUnlockedError && (
+        <div style={{ color: '#b91c1c', fontSize: '12px', marginBottom: '8px' }}>{contactsUnlockedError}</div>
+      )}
+      {contactsUnlockedLoading ? (
+        <div style={{ fontSize: '13px' }}>Loading...</div>
+      ) : contactsUnlocked.length === 0 ? (
+        <div style={{ fontSize: '13px', color: '#666' }}>No unlocked contacts found.</div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <thead>
+            <tr style={{ background: '#f5f5f5' }}>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Employer</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Organization</th>
+              {perms.canShowEmployerPhoneAddress && (
+                <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Mobile</th>
+              )}
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Job Status</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Verification</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>KYC</th>
+              <th style={{ padding: '6px', border: '1px solid #ddd', textAlign: 'left' }}>Unlocked At</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contactsUnlocked.map((row) => {
+              const jobLabel = row.job_designation
+                ? `${row.job_profile || '-'} (${row.job_designation})`
+                : (row.job_profile || '-');
+
+              return (
+                <tr key={row.id}>
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>
+                    {row.employer_id ? (
+                      <Link to={`/employers/${row.employer_id}`} style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                        {row.employer_name || '-'}
+                      </Link>
+                    ) : (row.employer_name || '-')}
+                  </td>
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.organization_name || '-'}</td>
+                  {perms.canShowEmployerPhoneAddress && (
+                    <td style={{ padding: '6px', border: '1px solid #eee' }}>{row.employer_mobile || '-'}</td>
+                  )}
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>
+                    {row.job_id ? (
+                      <Link to={`/jobs/${row.job_id}`} style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                        {jobLabel}
+                      </Link>
+                    ) : jobLabel}
+                  </td>
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{renderJobStatusChip(row.job_status)}</td>
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{renderStatusBadge(row.verification_status)}</td>
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{renderStatusBadge(row.kyc_status)}</td>
+                  <td style={{ padding: '6px', border: '1px solid #eee' }}>{formatDateTime(row.created_at)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 
   const renderSubscriptionHistoryTab = () => (
     <div>
@@ -2648,6 +2911,7 @@ export default function EmployeeDetail() {
       case 'Hired jobs': return renderHiredJobsTab();
       case 'Wishlist': return renderWishlistTab();
       case 'Credit history': return renderCreditHistoryTab();
+      case 'Contacts unlocked': return renderContactsUnlockedTab();
       case 'Subscription history': return renderSubscriptionHistoryTab();
       case 'Call experiences': return renderCallExperiencesTab();
       case 'Call review by employer': return renderCallReviewsTab();
@@ -3017,6 +3281,16 @@ export default function EmployeeDetail() {
                     <small style={{ display:'block', color:'#6b7280', marginTop:'4px' }}>
                       Leave blank to keep current expiry ({employee?.credit_expiry_at ? employee.credit_expiry_at.split('T')[0] : 'none'}).
                     </small>
+                  </div>
+                  <div className="form-group">
+                    <label>Reason *</label>
+                    <textarea
+                      rows={3}
+                      value={addCreditsForm.reason}
+                      onChange={e => setAddCreditsForm(f => ({ ...f, reason: e.target.value }))}
+                      placeholder="Why are you adding these credits?"
+                      disabled={addCreditsSaving}
+                    />
                   </div>
                   <div className="form-actions">
                     <button className="btn-secondary" onClick={() => setShowAddCreditsDialog(false)} disabled={addCreditsSaving}>Cancel</button>

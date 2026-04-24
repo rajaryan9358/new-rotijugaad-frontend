@@ -293,6 +293,7 @@ export default function EmployersManagement() {
   const renderStatusBadge = (value, at) => {
     const normalized = (value || '').toLowerCase();
     const palette = {
+      init: { bg: '#e0f2fe', color: '#075985', label: 'Not submitted for review' },
       approved: { bg: '#dcfce7', color: '#166534', label: 'Approved' },
       verified: { bg: '#dcfce7', color: '#166534', label: 'Verified' },
       pending: { bg: '#fef3c7', color: '#92400e', label: 'Pending' },
@@ -759,8 +760,13 @@ export default function EmployersManagement() {
     const headers = [
       'ID',
       'Name',
+      'Phone Number',
+      'Organization Type',
       'Organization',
+      'Assisted By',
       'Email',
+      'Business Category',
+      'Address',
       'State',
       'City',
       'Verification',
@@ -768,7 +774,9 @@ export default function EmployersManagement() {
       'Subscription Plan',
       'Active',
       'Status Changed By', // NEW
+      'Active Jobs',
       'Last Seen',
+      'User Life (days)',
       // NEW: credit balances
       'Contact Credit (used/total)',
       'Interest Credit (used/total)',
@@ -782,26 +790,36 @@ export default function EmployersManagement() {
       return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
     };
 
-    const rows = exportRows.map((e) => [
-      e.id,
-      e.name || '',
-      e.organization_name || '',
-      e.email || '',
-      e.State?.state_english || '',
-      e.City?.city_english || '',
-      e.verification_status || '',
-      e.kyc_status || '',
-      e.SubscriptionPlan?.plan_name_english || '',
-      e.User?.is_active ? 'Active' : 'Inactive',
-      e.User?.StatusChangedBy?.name || '', // NEW
-      formatExportDateTime(e.User?.last_active_at) || '',
-      // NEW: credit balances
-      `${e.contact_credit || 0}/${e.total_contact_credit || 0}`,
-      `${e.interest_credit || 0}/${e.total_interest_credit || 0}`,
-      `${e.ad_credit || 0}/${e.total_ad_credit || 0}`,
-      formatExportDateTime(e.credit_expiry_at) || '',
-      formatExportDateTime(e.created_at) || ''
-    ]);
+    const rows = exportRows.map((e) => {
+      const userCreatedAt = e.User?.created_at || null;
+      return [
+        e.id,
+        e.name || '',
+        e.User?.mobile || '',
+        e.organization_type || '',
+        e.organization_name || '',
+        e.assisted_by || '',
+        e.email || '',
+        getBusinessCategoryName(e),
+        e.address || '',
+        e.State?.state_english || '',
+        e.City?.city_english || '',
+        (e.verification_status || '').toLowerCase() === 'init' ? 'Not submitted for review' : (e.verification_status || ''),
+        (e.kyc_status || '').toLowerCase() === 'init' ? 'Not submitted for review' : (e.kyc_status || ''),
+        e.SubscriptionPlan?.plan_name_english || '',
+        e.User?.is_active ? 'Active' : 'Inactive',
+        e.User?.StatusChangedBy?.name || '', // NEW
+        e.active_jobs_count ?? 0,
+        formatExportDateTime(e.User?.last_active_at) || '',
+        getUserLifeDays(userCreatedAt),
+        // NEW: credit balances
+        `${e.contact_credit || 0}/${e.total_contact_credit || 0}`,
+        `${e.interest_credit || 0}/${e.total_interest_credit || 0}`,
+        `${e.ad_credit || 0}/${e.total_ad_credit || 0}`,
+        formatExportDateTime(e.credit_expiry_at) || '',
+        formatExportDateTime(e.created_at) || ''
+      ];
+    });
 
     const csv = [headers.map(escape).join(','), ...rows.map((row) => row.map(escape).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

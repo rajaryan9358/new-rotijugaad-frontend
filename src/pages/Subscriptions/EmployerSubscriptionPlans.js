@@ -24,7 +24,7 @@ export default function EmployerSubscriptionPlans() {
   const canManageSubs = hasPermission(PERMISSIONS.SUBSCRIPTIONS_MANAGE);
   const canDeleteSubs = hasPermission(PERMISSIONS.SUBSCRIPTIONS_DELETE);
   const showActions = canManageSubs || canDeleteSubs;
-  const columnCount = 11 + (showActions ? 1 : 0) + (canManageSubs ? 1 : 0);
+  const columnCount = 12 + (showActions ? 1 : 0) + (canManageSubs ? 1 : 0);
 
   useEffect(() => {
     setSidebarOpen(getSidebarState());
@@ -198,6 +198,7 @@ export default function EmployerSubscriptionPlans() {
                         <th>Tagline (EN)</th>
                         <th>Tagline (HI)</th>
                         <th>Price (₹)</th>
+                        <th>Discounted Price (₹)</th>
                         <th>Contact Cr</th>
                         <th>Interest Cr</th>
                         <th>Ad Cr</th>
@@ -229,6 +230,7 @@ export default function EmployerSubscriptionPlans() {
                             <td>{p.plan_tagline_english ?? '-'}</td>
                             <td>{p.plan_tagline_hindi ?? '-'}</td>
                             <td>{p.plan_price != null ? Number(p.plan_price).toFixed(2) : '-'}</td>
+                            <td>{p.discounted_price != null ? Number(p.discounted_price).toFixed(2) : '-'}</td>
                             <td>{p.contact_credits ?? '-'}</td>
                             <td>{p.interest_credits != null ? Number(p.interest_credits) : '-'}</td>
                             <td>{p.ad_credits ?? '-'}</td>

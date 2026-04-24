@@ -38,6 +38,16 @@ function getUserLifeDays(value) {
 	return days >= 0 ? days : '-';
 }
 
+function hasValidCoordinates(lat, lng) {
+  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+}
+
+function getGoogleMapsUrl(lat, lng) {
+  return hasValidCoordinates(lat, lng)
+    ? `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`
+    : '';
+}
+
 export default function EmployeesManagement() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -97,6 +107,23 @@ export default function EmployeesManagement() {
   const [confirm, setConfirm] = useState({ open: false, id: null, title: '', message: '' });
   const [message, setMessage] = useState(null);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const locationButtonStyle = useMemo(() => ({
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    margin: 0,
+    color: '#2563eb',
+    cursor: 'pointer',
+    textDecoration: 'underline',
+    fontSize: 'inherit',
+    fontFamily: 'inherit'
+  }), []);
+  const locationCellStyle = useMemo(() => ({
+    display: 'flex',
+    justifyContent: 'flex-start',
+    width: '100%',
+    textAlign: 'left'
+  }), []);
   const [draftFilters, setDraftFilters] = useState({
     stateFilter: '',
     cityFilter: '',
@@ -487,6 +514,7 @@ export default function EmployeesManagement() {
     const headers = [
       'ID',
       'Name',
+      'Phone Number',
       'Email',
       'Assistant Code', // NEW
       'DOB',
@@ -494,6 +522,8 @@ export default function EmployeesManagement() {
       'Age',
       'State',
       'City',
+      'Latitude',
+      'Longitude',
       'Pref State',
       'Pref City',
       'Qualification',
@@ -505,8 +535,9 @@ export default function EmployeesManagement() {
       'Subscription Plan',
       'Subscription Expiry',
       'Status',
+      'Deactivation Reason',
+      'Status Changed By',
       'Job Profiles',
-      'Work Nature',
       'Last Seen',
       'Employee Created At',
       'User Created At',
@@ -524,17 +555,20 @@ export default function EmployeesManagement() {
       const userCreatedAt = e.User?.created_at || null;
       const isActive = e.User?.is_active === true;
 
+      const verificationLabel = getReviewStatusLabel(e.verification_status);
       const verificationExport = e.verification_at
-        ? `${e.verification_status || ''} (${formatExportDateTime(e.verification_at)})`
-        : (e.verification_status || '');
+        ? `${verificationLabel} (${formatExportDateTime(e.verification_at)})`
+        : verificationLabel;
 
+      const kycLabel = getReviewStatusLabel(e.kyc_status);
       const kycExport = e.kyc_verification_at
-        ? `${e.kyc_status || ''} (${formatExportDateTime(e.kyc_verification_at)})`
-        : (e.kyc_status || '');
+        ? `${kycLabel} (${formatExportDateTime(e.kyc_verification_at)})`
+        : kycLabel;
 
       return [
         e.id,
         e.name || '',
+        e.User?.mobile || '',
         e.email || '',
         e.assistant_code || '', // NEW
         formatDateOnly(e.dob) || '',
@@ -543,6 +577,8 @@ export default function EmployeesManagement() {
 
         e.State?.state_english || '',
         e.City?.city_english || '',
+        e.lat ?? '',
+        e.lng ?? '',
         e.PreferredState?.state_english || '',
         e.PreferredCity?.city_english || '',
         e.Qualification?.qualification_english || '',
@@ -558,9 +594,10 @@ export default function EmployeesManagement() {
         formatExportDateTime(e.credit_expiry_at),
 
         isActive ? 'Active' : 'Inactive',
+        e.User?.deactivation_reason || '',
+        e.User?.StatusChangedBy?.name || '',
 
         e.job_profiles_display || '',
-        e.work_natures_display || '',
 
         formatExportDateTime(e.User?.last_active_at),
 
@@ -663,7 +700,13 @@ export default function EmployeesManagement() {
       return;
     }
     try {
-      await employeesApi.updateEmployee(id, { verification_status: status });
+      if (status === 'verified') {
+        await employeesApi.approveEmployee(id);
+      } else if (status === 'rejected') {
+        await employeesApi.rejectEmployee(id);
+      } else {
+        await employeesApi.updateEmployee(id, { verification_status: status });
+      }
       await fetchEmployees();
       setMessage({ type: 'success', text: `Verification ${status}` });
     } catch (e) {
@@ -923,9 +966,15 @@ export default function EmployeesManagement() {
   };
 
   const statusBadgePalette = {
+    init: { bg: '#e0f2fe', color: '#075985' },
     pending: { bg: '#fef3c7', color: '#b45309' },
     verified: { bg: '#dcfce7', color: '#15803d' },
     rejected: { bg: '#fee2e2', color: '#b91c1c' }
+  };
+  const getReviewStatusLabel = (status) => {
+    const normalized = (status || '').toString().trim().toLowerCase();
+    if (!normalized) return '-';
+    return normalized === 'init' ? 'Not submitted for review' : status;
   };
   const formatGender = (value) => {
     if (!value) return '-';
@@ -937,6 +986,7 @@ export default function EmployeesManagement() {
     if (!status) return '-';
     const palette = statusBadgePalette[status.toLowerCase()] || { bg: '#e2e8f0', color: '#475569' };
     const atLabel = at ? formatDisplayDateTime(at) : null;
+    const label = getReviewStatusLabel(status);
 
     return (
       <span
@@ -957,7 +1007,7 @@ export default function EmployeesManagement() {
           whiteSpace: 'nowrap'
         }}
       >
-        <span>{status}</span>
+        <span>{label}</span>
         {atLabel && <span style={{ fontSize: '11px', fontWeight: 600, opacity: 0.95 }}>{atLabel}</span>}
       </span>
     );
@@ -1670,8 +1720,7 @@ export default function EmployeesManagement() {
                         {employeePerms.canShowPhoneAddress && (
                           <th onClick={() => handleHeaderClick('city')} style={{ cursor:'pointer' }}>City{ind('city')}</th>
                         )}
-                        {employeePerms.canShowPhoneAddress && <th>Lat</th>}
-                        {employeePerms.canShowPhoneAddress && <th>Lng</th>}
+                        {employeePerms.canShowPhoneAddress && <th>Location</th>}
                         {employeePerms.canShowPhoneAddress && <th>Pref State</th>}
                         {employeePerms.canShowPhoneAddress && <th>Pref City</th>}
                         <th onClick={() => handleHeaderClick('qualification')} style={{ cursor:'pointer' }}>Qualification{ind('qualification')}</th>
@@ -1685,7 +1734,6 @@ export default function EmployeesManagement() {
                         <th>Deactivation Reason</th>
                         <th>Status Changed By</th> {/* NEW */}
                         <th>Job Profiles</th>
-                        <th>Work Nature</th> {/* added */}
                         <th>Last Seen</th>
                         <th onClick={() => handleHeaderClick('created_at')} style={{ cursor:'pointer' }}>Created{ind('created_at')}</th>
                         <th>User Life (days)</th>
@@ -1705,6 +1753,7 @@ export default function EmployeesManagement() {
                           const userLifeDays = getUserLifeDays(userCreatedAt);
                           const volunteerName = e.volunteer_name || getVolunteerByAssistantCode(e.assistant_code)?.name || null;
                           const volunteerId = e.volunteer_id || getVolunteerByAssistantCode(e.assistant_code)?.id || null;
+                          const mapsUrl = getGoogleMapsUrl(e.lat, e.lng);
 
                           return (
                             <tr
@@ -1775,8 +1824,24 @@ export default function EmployeesManagement() {
                               <td>{calculateAge(e.dob)}</td> {/* MOVED: after Gender */}
                               {employeePerms.canShowPhoneAddress && (<td>{e.State?.state_english || '-'}</td>)}
                               {employeePerms.canShowPhoneAddress && (<td>{e.City?.city_english || '-'}</td>)}
-                              {employeePerms.canShowPhoneAddress && (<td>{e.lat ?? '-'}</td>)}
-                              {employeePerms.canShowPhoneAddress && (<td>{e.lng ?? '-'}</td>)}
+                              {employeePerms.canShowPhoneAddress && (
+                                <td>
+                                  {mapsUrl ? (
+                                    <div style={locationCellStyle}>
+                                      <button
+                                        type="button"
+                                        onClick={(ev) => {
+                                          ev.stopPropagation();
+                                          window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                                        }}
+                                        style={locationButtonStyle}
+                                      >
+                                        View location
+                                      </button>
+                                    </div>
+                                  ) : '-'}
+                                </td>
+                              )}
                               {employeePerms.canShowPhoneAddress && (<td>{e.PreferredState?.state_english || '-'}</td>)}
                               {employeePerms.canShowPhoneAddress && (<td>{e.PreferredCity?.city_english || '-'}</td>)}
                               <td>{e.Qualification?.qualification_english || '-'}</td>
@@ -1794,7 +1859,6 @@ export default function EmployeesManagement() {
                               <td>{e.User?.deactivation_reason || '-'}</td>
                               <td>{e.User?.StatusChangedBy?.name || '-'}</td> {/* NEW */}
                               <td>{e.job_profiles_display || '-'}</td> {/* added */}
-                              <td>{e.work_natures_display || '-'}</td> {/* added */}
                               <td>{lastSeenLabel}</td>
 
 
@@ -1867,8 +1931,7 @@ export default function EmployeesManagement() {
                         })
                       ) : (
                         <tr>
-                          {/* CHANGED: update colSpan (+1 for Status Changed By) */}
-                          <td colSpan="29" className="no-data">
+                          <td colSpan="28" className="no-data">
                             {loading ? 'Loading...' : meta.total ? 'No records on this page' : 'No employees found'}
                           </td>
                         </tr>
