@@ -1143,12 +1143,10 @@ export default function EmployeeDetail() {
           />
         </div>
       )}
-      {basic.about_user && (
-        <div style={{ marginTop:'16px' }}>
-          <strong>About:</strong>
-          <div style={{ fontSize:'13px', lineHeight:'1.4', marginTop:'4px' }}>{basic.about_user}</div>
-        </div>
-      )}
+      <div style={{ marginTop:'16px' }}>
+        <strong>About:</strong>
+        <div style={{ fontSize:'13px', lineHeight:'1.4', marginTop:'4px' }}>{basic.about_user || '-'}</div>
+      </div>
           </>
         );
       })()}
