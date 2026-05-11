@@ -41,6 +41,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
     lng: '',
     preferred_state_id: '',
     preferred_city_id: '',
+    preferred_location: '',
     qualification_id: '',
     expected_salary: '',
     expected_salary_frequency: '',
@@ -69,6 +70,8 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
   const [shifts, setShifts] = useState([]);
   const [error, setError] = useState(null);
   const topRef = useRef(null);
+  const prefLocInputRef = useRef(null);
+  const prefLocAutocompleteRef = useRef(null);
   const [selfiePreview, setSelfiePreview] = useState(null);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
   const [legacyDataUrl, setLegacyDataUrl] = useState(false);
@@ -81,6 +84,32 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
     if (!error) return;
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [error]);
+
+  useEffect(() => {
+    if (!prefLocInputRef.current) return;
+    if (!window.google?.maps?.places) return;
+
+    const autocomplete = new window.google.maps.places.Autocomplete(prefLocInputRef.current, {
+      fields: ['formatted_address', 'geometry'],
+    });
+
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) return;
+      const address = place.formatted_address || '';
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setForm(f => ({ ...f, preferred_location: address, lat, lng }));
+    });
+
+    prefLocAutocompleteRef.current = autocomplete;
+
+    return () => {
+      if (prefLocAutocompleteRef.current) {
+        window.google.maps.event.clearInstanceListeners(prefLocAutocompleteRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     console.log('[EmployeeForm] Component mounted, isEdit:', isEdit); // added
@@ -106,6 +135,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             lng: e.lng ?? '',
             preferred_state_id: e.preferred_state_id || '',
             preferred_city_id: e.preferred_city_id || '',
+            preferred_location: e.preferred_location || '',
             qualification_id: e.qualification_id || '',
             expected_salary: e.expected_salary || '',
             expected_salary_frequency: e.expected_salary_frequency || '',
@@ -513,10 +543,6 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
           </select>
         </div>
 
-        <div className="form-group"><label htmlFor="lat">Latitude</label><input id="lat" type="number" step="0.0000001" value={form.lat} onChange={e => setField('lat', e.target.value)} placeholder="e.g., 28.6139" /></div>
-
-        <div className="form-group"><label htmlFor="lng">Longitude</label><input id="lng" type="number" step="0.0000001" value={form.lng} onChange={e => setField('lng', e.target.value)} placeholder="e.g., 77.2090" /></div>
-
         <div className="form-group">
           <label htmlFor="preferred_state_id">Preferred State</label>
           <select
@@ -544,7 +570,22 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
 
         <div className="form-group">
           <label htmlFor="preferred_location">Preferred Location</label>
-          <input id="preferred_location" type="text" value={form.preferred_location ?? ''} onChange={e => setField('preferred_location', e.target.value)} placeholder="e.g., Connaught Place, New Delhi" />
+          <input
+            ref={prefLocInputRef}
+            id="preferred_location"
+            type="text"
+            value={form.preferred_location ?? ''}
+            onChange={e => setField('preferred_location', e.target.value)}
+            placeholder="Search for a location..."
+            autoComplete="off"
+            style={{ padding: '8px', fontSize: '13px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+          />
+          {(form.lat || form.lng) && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+              <input type="text" readOnly value={form.lat} style={{ flex: 1, padding: '5px 8px', fontSize: '12px', border: '1px solid #e0e0e0', borderRadius: 4, background: '#f5f5f5', color: '#666' }} />
+              <input type="text" readOnly value={form.lng} style={{ flex: 1, padding: '5px 8px', fontSize: '12px', border: '1px solid #e0e0e0', borderRadius: 4, background: '#f5f5f5', color: '#666' }} />
+            </div>
+          )}
         </div>
 
         <div className="form-group">
