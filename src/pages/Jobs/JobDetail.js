@@ -695,6 +695,10 @@ function JobDetailTab({ job }) {
           <div style={{ fontSize: '13px', lineHeight: '1.4', marginTop: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{job.description_hindi}</div>
         </div>
         <div style={{ marginTop: 16 }}>
+          <strong>Job Location:</strong>
+          <div style={{ fontSize: '13px', lineHeight: '1.4', marginTop: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{job.job_location || '-'}</div>
+        </div>
+        <div style={{ marginTop: 16 }}>
           <strong>Job Address (English):</strong>
           <div style={{ fontSize: '13px', lineHeight: '1.4', marginTop: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{job.job_address_english}</div>
         </div>

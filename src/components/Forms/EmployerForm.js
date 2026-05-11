@@ -370,7 +370,10 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
                 type="number"
                 min="0"
                 value={form.total_contact_credit}
-                onChange={e => setField('total_contact_credit', e.target.value)}
+                onChange={e => {
+                  setField('total_contact_credit', e.target.value);
+                  setField('contact_credit', e.target.value);
+                }}
               />
             </div>
 
@@ -391,7 +394,10 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
                 min="0"
                 step="0.01"
                 value={form.total_interest_credit}
-                onChange={e => setField('total_interest_credit', e.target.value)}
+                onChange={e => {
+                  setField('total_interest_credit', e.target.value);
+                  setField('interest_credit', e.target.value);
+                }}
               />
             </div>
 
@@ -412,7 +418,10 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
                 type="number"
                 min="0"
                 value={form.total_ad_credit}
-                onChange={e => setField('total_ad_credit', e.target.value)}
+                onChange={e => {
+                  setField('total_ad_credit', e.target.value);
+                  setField('ad_credit', e.target.value);
+                }}
               />
             </div>
 

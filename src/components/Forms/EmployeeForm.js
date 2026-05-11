@@ -543,6 +543,11 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
         </div>
 
         <div className="form-group">
+          <label htmlFor="preferred_location">Preferred Location</label>
+          <input id="preferred_location" type="text" value={form.preferred_location ?? ''} onChange={e => setField('preferred_location', e.target.value)} placeholder="e.g., Connaught Place, New Delhi" />
+        </div>
+
+        <div className="form-group">
           <label htmlFor="qualification_id">Qualification</label>
           <select
             id="qualification_id"
@@ -574,9 +579,8 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             onChange={e => setField('expected_salary_frequency', e.target.value)}
           >
             <option value="">-- Select --</option>
-            <option value="daily">Daily</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
+            <option value="day">Day</option>
+            <option value="month">Month</option>
           </select>
         </div>
 
@@ -647,7 +651,10 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
                 type="number"
                 min="0"
                 value={form.total_contact_credit}
-                onChange={e => setField('total_contact_credit', e.target.value)}
+                onChange={e => {
+                  setField('total_contact_credit', e.target.value);
+                  setField('contact_credit', e.target.value);
+                }}
               />
             </div>
 
@@ -670,7 +677,10 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
                 step="0.01"
                 min="0"
                 value={form.total_interest_credit}
-                onChange={e => setField('total_interest_credit', e.target.value)}
+                onChange={e => {
+                  setField('total_interest_credit', e.target.value);
+                  setField('interest_credit', e.target.value);
+                }}
               />
             </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import jobApi from '../../api/jobApi';
 import employersApi from '../../api/employersApi';
 import skillsApi from '../../api/masters/skillsApi';
@@ -158,6 +158,7 @@ export default function JobForm({
     description_hindi: '',
     no_vacancy: 1,
     interviewer_contact: '',
+    job_location: '',
     job_address_english: '',
     job_address_hindi: '',
     job_state_id: '',
@@ -258,6 +259,7 @@ export default function JobForm({
       description_hindi: job.description_hindi || '',
       no_vacancy: job.no_vacancy || 1,
       interviewer_contact: job.interviewer_contact || '',
+      job_location: job.job_location || '',
       job_address_english: job.job_address_english || '',
       job_address_hindi: job.job_address_hindi || '',
       job_state_id: job.job_state_id || '',
@@ -423,6 +425,35 @@ export default function JobForm({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmployerDropdown]);
+
+  const addressInputRef = useRef(null);
+  const autocompleteRef = useRef(null);
+
+  useEffect(() => {
+    if (!open || !addressInputRef.current) return;
+    if (!window.google?.maps?.places) return;
+
+    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+      fields: ['formatted_address', 'geometry'],
+    });
+
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) return;
+      const address = place.formatted_address || '';
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setForm(f => ({ ...f, job_location: address, lat, lng }));
+    });
+
+    autocompleteRef.current = autocomplete;
+
+    return () => {
+      if (autocompleteRef.current) {
+        window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
+      }
+    };
+  }, [open]);
 
   const isEdit = !!jobId;
 
@@ -634,8 +665,6 @@ export default function JobForm({
           </select>
         </div>
 
-        <div className="form-group"><label>Latitude</label><input type="number" step="0.0000001" value={form.lat} onChange={e => setField('lat', e.target.value)} placeholder="e.g., 28.6139" /></div>
-        <div className="form-group"><label>Longitude</label><input type="number" step="0.0000001" value={form.lng} onChange={e => setField('lng', e.target.value)} placeholder="e.g., 77.2090" /></div>
 
         {/* Multi-select chips for job fields */}
         <MultiSelectChips
@@ -724,14 +753,42 @@ export default function JobForm({
           />
         </div>
         <div className="form-group">
-          <label>Job Address</label>
+          <label>Job Location</label>
+          <input
+            ref={addressInputRef}
+            type="text"
+            value={form.job_location}
+            onChange={e => setField('job_location', e.target.value)}
+            placeholder="Search for a location..."
+            autoComplete="off"
+            style={{ padding: '8px', fontSize: '13px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+          />
+          {(form.lat || form.lng) && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+              <input
+                type="text"
+                readOnly
+                value={form.lat}
+                style={{ flex: 1, padding: '5px 8px', fontSize: '12px', border: '1px solid #e0e0e0', borderRadius: 4, background: '#f5f5f5', color: '#666' }}
+              />
+              <input
+                type="text"
+                readOnly
+                value={form.lng}
+                style={{ flex: 1, padding: '5px 8px', fontSize: '12px', border: '1px solid #e0e0e0', borderRadius: 4, background: '#f5f5f5', color: '#666' }}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label>Job Address (optional)</label>
           <textarea
             value={form.job_address_english}
             onChange={e => setField('job_address_english', e.target.value)}
+            placeholder="Enter full job address"
             rows={2}
-            placeholder="Enter job address"
-            className="styled-textarea"
-            style={{ resize:'vertical', padding:'8px', fontSize:'13px', lineHeight:'1.4', border:'1px solid #ccc', borderRadius:'4px' }}
+            style={{ resize: 'vertical', padding: '8px', fontSize: '13px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
           />
         </div>
 

@@ -1117,6 +1117,7 @@ export default function EmployeeDetail() {
         {perms.canShowPhoneAddress && (
           <Detail label="Preferred City" value={basic.PreferredCity?.city_english || '-'} />
         )}
+        <Detail label="Preferred Location" value={basic.preferred_location || '-'} />
         <Detail label="Qualification" value={basic.Qualification?.qualification_english} /> {/* joined */}
         <Detail label="Preferred Shift" value={basic.Shift?.shift_english} />  {/* joined */}
         <Detail label="Subscription Plan" value={basic.SubscriptionPlan?.plan_name_english} /> {/* joined */}
@@ -1615,7 +1616,7 @@ export default function EmployeeDetail() {
                   </td>
                   <td style={{ padding:'6px', border:'1px solid #eee' }}>
                     {exp.experience_certificate
-                      ? <a href={exp.experience_certificate} target="_blank" rel="noreferrer">View</a>
+                      ? <a href={toBackendAssetUrl(exp.experience_certificate)} target="_blank" rel="noreferrer">View</a>
                       : '-'}
                   </td>
 

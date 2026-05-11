@@ -1483,9 +1483,8 @@ export default function EmployeesManagement() {
                         <label className="filter-label" style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>Salary Freq</label>
                         <select className="state-filter-select" value={draftFilters.salaryFreqFilter} onChange={e => setDraftFilters(f => ({ ...f, salaryFreqFilter: e.target.value }))} style={{ width:'100%' }}>
                           <option value="">All</option>
-                          <option value="daily">Daily</option>
-                          <option value="monthly">Monthly</option>
-                          <option value="yearly">Yearly</option>
+                          <option value="day">Day</option>
+                          <option value="month">Month</option>
                         </select>
                       </div>
                       <div>
