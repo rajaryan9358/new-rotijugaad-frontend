@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import PlacesAutocomplete from '../PlacesAutocomplete';
 import jobApi from '../../api/jobApi';
 import employersApi from '../../api/employersApi';
 import skillsApi from '../../api/masters/skillsApi';
@@ -426,35 +427,6 @@ export default function JobForm({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmployerDropdown]);
 
-  const addressInputRef = useRef(null);
-  const autocompleteRef = useRef(null);
-
-  useEffect(() => {
-    if (!open || !addressInputRef.current) return;
-    if (!window.google?.maps?.places) return;
-
-    const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-      fields: ['formatted_address', 'geometry'],
-    });
-
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (!place.geometry) return;
-      const address = place.formatted_address || '';
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      setForm(f => ({ ...f, job_location: address, lat, lng }));
-    });
-
-    autocompleteRef.current = autocomplete;
-
-    return () => {
-      if (autocompleteRef.current) {
-        window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
-      }
-    };
-  }, [open]);
-
   const isEdit = !!jobId;
 
   // If presetEmployer is provided, always use its id and name
@@ -754,28 +726,16 @@ export default function JobForm({
         </div>
         <div className="form-group">
           <label>Job Location</label>
-          <input
-            ref={addressInputRef}
-            type="text"
+          <PlacesAutocomplete
             value={form.job_location}
-            onChange={e => setField('job_location', e.target.value)}
+            onChange={val => setField('job_location', val)}
+            onPlaceSelected={(address, lat, lng) => setForm(f => ({ ...f, job_location: address, lat, lng }))}
             placeholder="Search for a location..."
-            autoComplete="off"
           />
           {(form.lat || form.lng) && (
             <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-              <input
-                type="text"
-                readOnly
-                value={form.lat}
-                style={{ flex: 1, padding: '5px 8px', fontSize: '12px', border: '1px solid #e0e0e0', borderRadius: 4, background: '#f5f5f5', color: '#666' }}
-              />
-              <input
-                type="text"
-                readOnly
-                value={form.lng}
-                style={{ flex: 1, padding: '5px 8px', fontSize: '12px', border: '1px solid #e0e0e0', borderRadius: 4, background: '#f5f5f5', color: '#666' }}
-              />
+              <input type="text" readOnly value={form.lat} style={{ flex: 1, padding: '5px 8px', fontSize: '12px', border: '1px solid #e0e0e0', borderRadius: 4, background: '#f5f5f5', color: '#666' }} />
+              <input type="text" readOnly value={form.lng} style={{ flex: 1, padding: '5px 8px', fontSize: '12px', border: '1px solid #e0e0e0', borderRadius: 4, background: '#f5f5f5', color: '#666' }} />
             </div>
           )}
         </div>

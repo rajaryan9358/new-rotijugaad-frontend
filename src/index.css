@@ -37,9 +37,3 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
-
-/* Google Places Autocomplete dropdown — must be fixed so body overflow:hidden doesn't clip it */
-.pac-container {
-  position: fixed !important;
-  z-index: 10000 !important;
-}

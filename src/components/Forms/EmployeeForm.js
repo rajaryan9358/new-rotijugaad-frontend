@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import PlacesAutocomplete from '../PlacesAutocomplete';
 import employeesApi from '../../api/employeesApi';
 import usersApi from '../../api/usersApi';
 import { getStates } from '../../api/statesApi';
@@ -70,8 +71,6 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
   const [shifts, setShifts] = useState([]);
   const [error, setError] = useState(null);
   const topRef = useRef(null);
-  const prefLocInputRef = useRef(null);
-  const prefLocAutocompleteRef = useRef(null);
   const [selfiePreview, setSelfiePreview] = useState(null);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
   const [legacyDataUrl, setLegacyDataUrl] = useState(false);
@@ -85,31 +84,6 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [error]);
 
-  useEffect(() => {
-    if (!prefLocInputRef.current) return;
-    if (!window.google?.maps?.places) return;
-
-    const autocomplete = new window.google.maps.places.Autocomplete(prefLocInputRef.current, {
-      fields: ['formatted_address', 'geometry'],
-    });
-
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (!place.geometry) return;
-      const address = place.formatted_address || '';
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      setForm(f => ({ ...f, preferred_location: address, lat, lng }));
-    });
-
-    prefLocAutocompleteRef.current = autocomplete;
-
-    return () => {
-      if (prefLocAutocompleteRef.current) {
-        window.google.maps.event.clearInstanceListeners(prefLocAutocompleteRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     console.log('[EmployeeForm] Component mounted, isEdit:', isEdit); // added
@@ -570,14 +544,12 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
 
         <div className="form-group">
           <label htmlFor="preferred_location">Preferred Location</label>
-          <input
-            ref={prefLocInputRef}
+          <PlacesAutocomplete
             id="preferred_location"
-            type="text"
             value={form.preferred_location ?? ''}
-            onChange={e => setField('preferred_location', e.target.value)}
+            onChange={val => setField('preferred_location', val)}
+            onPlaceSelected={(address, lat, lng) => setForm(f => ({ ...f, preferred_location: address, lat, lng }))}
             placeholder="Search for a location..."
-            autoComplete="off"
           />
           {(form.lat || form.lng) && (
             <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
