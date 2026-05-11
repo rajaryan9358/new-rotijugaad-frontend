@@ -578,7 +578,6 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             onChange={e => setField('preferred_location', e.target.value)}
             placeholder="Search for a location..."
             autoComplete="off"
-            style={{ padding: '8px', fontSize: '13px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
           />
           {(form.lat || form.lng) && (
             <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
