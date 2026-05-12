@@ -8,7 +8,10 @@ import LogsAction from '../../components/LogsAction';
 import jobProfilesApi from '../../api/masters/jobProfilesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import './MasterPage.css';
+
+const DEFAULTS = { english_name: 150, hindi_name: 150, image: 80, sequence: 80, status: 80, actions: 90 };
 
 export default function JobProfiles() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -23,6 +26,7 @@ export default function JobProfiles() {
   const canManageMasters = hasPermission(PERMISSIONS.MASTERS_MANAGE);
   const canDeleteMasters = hasPermission(PERMISSIONS.MASTERS_DELETE);
   const navigate = useNavigate();
+  const { colWidths, rHandle } = useResizableColumns('job-profiles-col-widths', DEFAULTS);
 
   useEffect(() => {
     setSidebarOpen(getSidebarState());
@@ -195,16 +199,16 @@ export default function JobProfiles() {
                 </div>
 
                 <div className="table-container">
-                  <table className="data-table draggable">
+                  <table className="data-table draggable col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
                         <th className="drag-handle"></th>
-                        <th>English Name</th>
-                        <th>Hindi Name</th>
-                        <th>Image</th>
-                        <th>Sequence</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th style={{ width: colWidths.english_name }}>English Name{rHandle('english_name')}</th>
+                        <th style={{ width: colWidths.hindi_name }}>Hindi Name{rHandle('hindi_name')}</th>
+                        <th style={{ width: colWidths.image }}>Image{rHandle('image')}</th>
+                        <th style={{ width: colWidths.sequence }}>Sequence{rHandle('sequence')}</th>
+                        <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>

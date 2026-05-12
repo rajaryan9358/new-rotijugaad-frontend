@@ -4,6 +4,7 @@ import Sidebar from '../../components/Sidebar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import callHistoryApi from '../../api/callHistoryApi';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { formatMobile } from '../../utils/formatters';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
 
@@ -442,7 +443,7 @@ export default function CallHistoryManagement() {
         r.user_id || '',
         r.called_id || '',
         r.user_name || r.entity?.name || r.user?.name || '',
-        r.user_mobile || r.user?.mobile || '',
+        formatMobile(r.user_mobile ?? r.user?.mobile),
         r.experience
           ? (r.experience.experience_english || r.experience.experience_hindi || r.call_experience_id || '')
           : (r.call_experience_id || ''),
@@ -456,13 +457,13 @@ export default function CallHistoryManagement() {
             getJobProfileLabel(r.called_job_profile),
             (r.called_employer?.organization_name || r.called_employer?.name || ''),
             getBusinessCategoryLabel(r.called_business_category),
-            (r.called_employer_user?.mobile || '')
+            formatMobile(r.called_employer_user?.mobile)
           ]
         : [
             (r.called_employee?.name || r.called_employee_user?.name || ''),
             getStateLabel(r.preferred_state),
             getCityLabel(r.preferred_city),
-            (r.called_employee_user?.mobile || ''),
+            formatMobile(r.called_employee_user?.mobile),
             getJobProfileLabel(r.called_employee_job_profile)
           ];
 
@@ -784,7 +785,7 @@ export default function CallHistoryManagement() {
                             )}
                           </td>
 
-                          <td>{r.user_mobile || r.user?.mobile || '-'}</td>
+                          <td>{formatMobile(r.user_mobile ?? r.user?.mobile)}</td>
 
                           {globalUserType === 'employee' ? (
                             <>
@@ -799,7 +800,7 @@ export default function CallHistoryManagement() {
                               </td>
                               <td>{r.called_employer?.organization_name || r.called_employer?.name || '-'}</td>
                               <td>{getBusinessCategoryLabel(r.called_business_category)}</td>
-                              <td>{r.called_employer_user?.mobile || '-'}</td>
+                              <td>{formatMobile(r.called_employer_user?.mobile)}</td>
                             </>
                           ) : (
                             <>
@@ -814,7 +815,7 @@ export default function CallHistoryManagement() {
                               </td>
                               <td>{getStateLabel(r.preferred_state) || '-'}</td>
                               <td>{getCityLabel(r.preferred_city) || '-'}</td>
-                              <td>{r.called_employee_user?.mobile || '-'}</td>
+                              <td>{formatMobile(r.called_employee_user?.mobile)}</td>
                               <td>{getJobProfileLabel(r.called_employee_job_profile)}</td>
                             </>
                           )}
@@ -961,7 +962,7 @@ export default function CallHistoryManagement() {
                       <strong style={{ textAlign: 'right', color: '#64748b' }}>Name:</strong>
                       <span>{viewItem.user_name || viewItem.entity?.name || viewItem.user?.name || '—'}</span>
                       <strong style={{ textAlign: 'right', color: '#64748b' }}>Mobile:</strong>
-                      <span>{viewItem.user_mobile || viewItem.user?.mobile || '—'}</span>
+                      <span>{formatMobile(viewItem.user_mobile ?? viewItem.user?.mobile)}</span>
                       <strong style={{ textAlign: 'right', color: '#64748b' }}>Experience:</strong>
                       <span>
                         {viewItem.experience

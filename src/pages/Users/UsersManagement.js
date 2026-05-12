@@ -10,6 +10,8 @@ import EmployeeForm from '../../components/Forms/EmployeeForm';
 import EmployerForm from '../../components/Forms/EmployerForm';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { formatMobile } from '../../utils/formatters';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import '../Masters/MasterPage.css';
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -22,7 +24,14 @@ const LAST_ACTIVE_SINCE_OPTIONS = [
   { value: '365', label: 'Last 365 days' }
 ];
 
+const DEFAULTS = {
+  id: 60, mobile: 110, name: 140, user_type: 90, referral_code: 110, referred: 80,
+  verification: 110, kyc: 80, status: 80, deactivation_reason: 160,
+  status_changed_by: 130, last_seen: 150, profile_completed: 130, created: 110, user_life: 100, actions: 90
+};
+
 export default function UsersManagement() {
+  const { colWidths, rHandle } = useResizableColumns('users-col-widths', DEFAULTS);
   const location = useLocation();
   const recencyIsNew = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -582,7 +591,7 @@ export default function UsersManagement() {
     };
     const rows = exportRows.map(u => [
       u.id,
-      u.mobile || '',
+      formatMobile(u.mobile),
       u.name || '',
       u.user_type || '',
       u.referral_code || '',
@@ -1033,55 +1042,55 @@ export default function UsersManagement() {
                   </div>
                 )}
                 <div className="table-container">
-                  <table className="data-table">
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
-                        <th onClick={() => handleHeaderClick('id')} style={{ cursor:'pointer' }}>
-                          ID{headerSortIndicator('id')}
+                        <th onClick={() => handleHeaderClick('id')} style={{ cursor:'pointer', width: colWidths.id }}>
+                          ID{headerSortIndicator('id')}{rHandle('id')}
                         </th>
-                        <th onClick={() => handleHeaderClick('mobile')} style={{ cursor:'pointer' }}>
-                          Mobile{headerSortIndicator('mobile')}
+                        <th onClick={() => handleHeaderClick('mobile')} style={{ cursor:'pointer', width: colWidths.mobile }}>
+                          Mobile{headerSortIndicator('mobile')}{rHandle('mobile')}
                         </th>
-                        <th onClick={() => handleHeaderClick('name')} style={{ cursor:'pointer' }}>
-                          Name{headerSortIndicator('name')}
+                        <th onClick={() => handleHeaderClick('name')} style={{ cursor:'pointer', width: colWidths.name }}>
+                          Name{headerSortIndicator('name')}{rHandle('name')}
                         </th>
-                        <th onClick={() => handleHeaderClick('user_type')} style={{ cursor:'pointer' }}>
-                          User Type{headerSortIndicator('user_type')}
+                        <th onClick={() => handleHeaderClick('user_type')} style={{ cursor:'pointer', width: colWidths.user_type }}>
+                          User Type{headerSortIndicator('user_type')}{rHandle('user_type')}
                         </th>
-                        <th onClick={() => handleHeaderClick('referral_code')} style={{ cursor:'pointer' }}>
-                          Referral Code{headerSortIndicator('referral_code')}
+                        <th onClick={() => handleHeaderClick('referral_code')} style={{ cursor:'pointer', width: colWidths.referral_code }}>
+                          Referral Code{headerSortIndicator('referral_code')}{rHandle('referral_code')}
                         </th>
-                        <th onClick={() => handleHeaderClick('total_referred')} style={{ cursor:'pointer' }}>
-                          Referred{headerSortIndicator('total_referred')}
+                        <th onClick={() => handleHeaderClick('total_referred')} style={{ cursor:'pointer', width: colWidths.referred }}>
+                          Referred{headerSortIndicator('total_referred')}{rHandle('referred')}
                         </th>
-                        <th onClick={() => handleHeaderClick('verification_status')} style={{ cursor:'pointer' }}>
-                          Verification{headerSortIndicator('verification_status')}
+                        <th onClick={() => handleHeaderClick('verification_status')} style={{ cursor:'pointer', width: colWidths.verification }}>
+                          Verification{headerSortIndicator('verification_status')}{rHandle('verification')}
                         </th>
-                        <th onClick={() => handleHeaderClick('kyc_status')} style={{ cursor:'pointer' }}>
-                          KYC{headerSortIndicator('kyc_status')}
+                        <th onClick={() => handleHeaderClick('kyc_status')} style={{ cursor:'pointer', width: colWidths.kyc }}>
+                          KYC{headerSortIndicator('kyc_status')}{rHandle('kyc')}
                         </th>
-                        <th onClick={() => handleHeaderClick('is_active')} style={{ cursor:'pointer' }}>
-                          Status{headerSortIndicator('is_active')}
+                        <th onClick={() => handleHeaderClick('is_active')} style={{ cursor:'pointer', width: colWidths.status }}>
+                          Status{headerSortIndicator('is_active')}{rHandle('status')}
                         </th>
-                        <th>Deactivation Reason</th>
+                        <th style={{ width: colWidths.deactivation_reason }}>Deactivation Reason{rHandle('deactivation_reason')}</th>
 
                         {/* NEW */}
-                        <th>Status Changed By</th>
+                        <th style={{ width: colWidths.status_changed_by }}>Status Changed By{rHandle('status_changed_by')}</th>
 
-                        <th onClick={() => handleHeaderClick('last_active_at')} style={{ cursor:'pointer' }}>
-                          Last Seen{headerSortIndicator('last_active_at')}
+                        <th onClick={() => handleHeaderClick('last_active_at')} style={{ cursor:'pointer', width: colWidths.last_seen }}>
+                          Last Seen{headerSortIndicator('last_active_at')}{rHandle('last_seen')}
                         </th>
 
                         {/* NEW */}
-                        <th onClick={() => handleHeaderClick('profile_completed_at')} style={{ cursor:'pointer' }}>
-                          Profile Completed{headerSortIndicator('profile_completed_at')}
+                        <th onClick={() => handleHeaderClick('profile_completed_at')} style={{ cursor:'pointer', width: colWidths.profile_completed }}>
+                          Profile Completed{headerSortIndicator('profile_completed_at')}{rHandle('profile_completed')}
                         </th>
 
-                        <th onClick={() => handleHeaderClick('created_at')} style={{ cursor:'pointer' }}>
-                          Created{headerSortIndicator('created_at')}
+                        <th onClick={() => handleHeaderClick('created_at')} style={{ cursor:'pointer', width: colWidths.created }}>
+                          Created{headerSortIndicator('created_at')}{rHandle('created')}
                         </th>
-                        <th>User Life (days)</th>
-                        <th>Actions</th>
+                        <th style={{ width: colWidths.user_life }}>User Life (days){rHandle('user_life')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1111,9 +1120,9 @@ export default function UsersManagement() {
                               <td>{u.id}</td>
                               <td>{(() => {
                                 const type = (u.user_type || '').toLowerCase();
-                                if (type === 'employee') return canShowEmployeePhoneAddress ? (u.mobile || '-') : '-';
-                                if (type === 'employer') return canShowEmployerPhoneAddress ? (u.mobile || '-') : '-';
-                                return u.mobile || '-';
+                                if (type === 'employee') return canShowEmployeePhoneAddress ? formatMobile(u.mobile) : '-';
+                                if (type === 'employer') return canShowEmployerPhoneAddress ? formatMobile(u.mobile) : '-';
+                                return formatMobile(u.mobile);
                               })()}</td>
                               <td>
                                 {isEmployeeType && hasEmployeeProfile ? (

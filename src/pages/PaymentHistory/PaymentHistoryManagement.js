@@ -9,8 +9,12 @@ import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
 import '../Masters/MasterPage.css';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+
+const DEFAULTS = { id: 60, invoice: 110, user_type: 90, user: 140, plan: 130, total_price: 100, status: 90, order_id: 160, payment_id: 160, created: 120, actions: 90 };
 
 export default function PaymentHistoryManagement() {
+  const { colWidths, rHandle } = useResizableColumns('payments-col-widths', DEFAULTS);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -909,20 +913,20 @@ export default function PaymentHistoryManagement() {
             )}
 
             <div className="table-container">
-              <table className="data-table" style={{ minWidth:'1300px' }}>
+              <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
-                    <th onClick={() => handleSort('id')} style={{ cursor:'pointer' }}>ID{sortField === 'id' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th onClick={() => handleSort('invoice_number')} style={{ cursor:'pointer' }}>Invoice #{sortField === 'invoice_number' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th onClick={() => handleSort('user_type')} style={{ cursor:'pointer' }}>User Type{sortField === 'user_type' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th>User</th>
-                    <th>Plan</th>
-                    <th onClick={() => handleSort('price_total')} style={{ cursor:'pointer' }}>Total Price{sortField === 'price_total' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th onClick={() => handleSort('status')} style={{ cursor:'pointer' }}>Status{sortField === 'status' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th>Order ID</th>
-                    <th>Payment ID</th>
-                    <th onClick={() => handleSort('created_at')} style={{ cursor:'pointer' }}>Created{sortField === 'created_at' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th>Actions</th>
+                    <th onClick={() => handleSort('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{sortField === 'id' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('id')}</th>
+                    <th onClick={() => handleSort('invoice_number')} style={{ cursor:'pointer', width: colWidths.invoice }}>Invoice #{sortField === 'invoice_number' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('invoice')}</th>
+                    <th onClick={() => handleSort('user_type')} style={{ cursor:'pointer', width: colWidths.user_type }}>User Type{sortField === 'user_type' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('user_type')}</th>
+                    <th style={{ width: colWidths.user }}>User{rHandle('user')}</th>
+                    <th style={{ width: colWidths.plan }}>Plan{rHandle('plan')}</th>
+                    <th onClick={() => handleSort('price_total')} style={{ cursor:'pointer', width: colWidths.total_price }}>Total Price{sortField === 'price_total' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('total_price')}</th>
+                    <th onClick={() => handleSort('status')} style={{ cursor:'pointer', width: colWidths.status }}>Status{sortField === 'status' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('status')}</th>
+                    <th style={{ width: colWidths.order_id }}>Order ID{rHandle('order_id')}</th>
+                    <th style={{ width: colWidths.payment_id }}>Payment ID{rHandle('payment_id')}</th>
+                    <th onClick={() => handleSort('created_at')} style={{ cursor:'pointer', width: colWidths.created }}>Created{sortField === 'created_at' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('created')}</th>
+                    <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>

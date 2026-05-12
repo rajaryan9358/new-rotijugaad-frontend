@@ -6,6 +6,9 @@ import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import logsApi from '../../api/logsApi';
 import '../Masters/MasterPage.css';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+
+const DEFAULTS = { date: 170, category: 160, admin: 180, type: 90, log: 300 };
 
 const toIsoStartOfDayUtc = (yyyyMmDd) => (yyyyMmDd ? `${yyyyMmDd}T00:00:00.000Z` : '');
 const toIsoEndOfDayUtc = (yyyyMmDd) => (yyyyMmDd ? `${yyyyMmDd}T23:59:59.999Z` : '');
@@ -27,6 +30,7 @@ const escapeCsv = (value) => {
 };
 export default function LogsPage() {
   const navigate = useNavigate();
+  const { colWidths, rHandle } = useResizableColumns('logs-col-widths', DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = useState(() => getSidebarState());
 
   const canView = hasPermission(PERMISSIONS.LOGS_VIEW);
@@ -290,14 +294,14 @@ export default function LogsPage() {
 
             <div className="data-card" style={{ padding: 0 }}>
               <div className="table-container" style={{ padding: 0 }}>
-                <table className="data-table">
+                <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                   <thead>
                     <tr>
-                      <th style={{ width: 170 }}>Date</th>
-                      <th style={{ width: 160 }}>Category</th>
-                      <th style={{ width: 180 }}>Admin</th>
-                      <th style={{ width: 90 }}>Type</th>
-                      <th>Log</th>
+                      <th style={{ width: colWidths.date }}>Date{rHandle('date')}</th>
+                      <th style={{ width: colWidths.category }}>Category{rHandle('category')}</th>
+                      <th style={{ width: colWidths.admin }}>Admin{rHandle('admin')}</th>
+                      <th style={{ width: colWidths.type }}>Type{rHandle('type')}</th>
+                      <th style={{ width: colWidths.log }}>Log{rHandle('log')}</th>
                     </tr>
                   </thead>
                   <tbody>

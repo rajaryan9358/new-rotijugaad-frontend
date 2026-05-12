@@ -10,7 +10,18 @@ import employeeSubscriptionPlansApi from '../../api/subscriptions/employeeSubscr
 import employerSubscriptionPlansApi from '../../api/subscriptions/employerSubscriptionPlansApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import '../Masters/MasterPage.css';
+
+const DEFAULTS = {
+  seq: 60,
+  type: 90,
+  plan: 120,
+  benefit_en: 200,
+  benefit_hi: 200,
+  status: 80,
+  actions: 90,
+};
 
 const DEFAULT_FILTERS = {
   subscription_type: '',
@@ -41,6 +52,7 @@ export default function PlanBenefits() {
   const canDeleteSubs = hasPermission(PERMISSIONS.SUBSCRIPTIONS_DELETE);
   const showActions = canManageSubs || canDeleteSubs;
   const columnCount = 6 + (showActions ? 1 : 0) + (canManageSubs ? 1 : 0);
+  const { colWidths, rHandle } = useResizableColumns('plan-benefits-col-widths', DEFAULTS);
 
   useEffect(() => {
     setSidebarOpen(getSidebarState());
@@ -424,17 +436,17 @@ export default function PlanBenefits() {
                 )}
 
                 <div className="table-container">
-                  <table className="data-table">
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
                         {canManageSubs && <th className="drag-handle"></th>}
-                        <th onClick={() => handleSortHeaderClick('sequence')} style={{ cursor: 'pointer' }}>Seq{sortIndicator('sequence')}</th>
-                        <th onClick={() => handleSortHeaderClick('subscription_type')} style={{ cursor: 'pointer' }}>Type{sortIndicator('subscription_type')}</th>
-                        <th onClick={() => handleSortHeaderClick('plan_id')} style={{ cursor: 'pointer' }}>Plan{sortIndicator('plan_id')}</th>
-                        <th onClick={() => handleSortHeaderClick('benefit_english')} style={{ cursor: 'pointer' }}>Benefit (EN){sortIndicator('benefit_english')}</th>
-                        <th onClick={() => handleSortHeaderClick('benefit_hindi')} style={{ cursor: 'pointer' }}>Benefit (HI){sortIndicator('benefit_hindi')}</th>
-                        <th onClick={() => handleSortHeaderClick('is_active')} style={{ cursor: 'pointer' }}>Status{sortIndicator('is_active')}</th>
-                        {showActions && <th>Actions</th>}
+                        <th onClick={() => handleSortHeaderClick('sequence')} style={{ cursor: 'pointer', width: colWidths.seq }}>Seq{sortIndicator('sequence')}{rHandle('seq')}</th>
+                        <th onClick={() => handleSortHeaderClick('subscription_type')} style={{ cursor: 'pointer', width: colWidths.type }}>Type{sortIndicator('subscription_type')}{rHandle('type')}</th>
+                        <th onClick={() => handleSortHeaderClick('plan_id')} style={{ cursor: 'pointer', width: colWidths.plan }}>Plan{sortIndicator('plan_id')}{rHandle('plan')}</th>
+                        <th onClick={() => handleSortHeaderClick('benefit_english')} style={{ cursor: 'pointer', width: colWidths.benefit_en }}>Benefit (EN){sortIndicator('benefit_english')}{rHandle('benefit_en')}</th>
+                        <th onClick={() => handleSortHeaderClick('benefit_hindi')} style={{ cursor: 'pointer', width: colWidths.benefit_hi }}>Benefit (HI){sortIndicator('benefit_hindi')}{rHandle('benefit_hi')}</th>
+                        <th onClick={() => handleSortHeaderClick('is_active')} style={{ cursor: 'pointer', width: colWidths.status }}>Status{sortIndicator('is_active')}{rHandle('status')}</th>
+                        {showActions && <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
                       </tr>
                     </thead>
                     <tbody>

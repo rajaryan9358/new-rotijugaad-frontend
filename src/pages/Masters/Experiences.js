@@ -8,7 +8,10 @@ import LogsAction from '../../components/LogsAction';
 import experiencesApi from '../../api/masters/experiencesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import './MasterPage.css';
+
+const DEFAULTS = { english_title: 150, hindi_title: 150, type: 90, from_val: 80, to_val: 80, sequence: 80, status: 80, actions: 90 };
 
 export default function Experiences() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -23,6 +26,7 @@ export default function Experiences() {
   const canManageMasters = hasPermission(PERMISSIONS.MASTERS_MANAGE);
   const canDeleteMasters = hasPermission(PERMISSIONS.MASTERS_DELETE);
   const navigate = useNavigate();
+  const { colWidths, rHandle } = useResizableColumns('experiences-col-widths', DEFAULTS);
 
   useEffect(() => {
     setSidebarOpen(getSidebarState());
@@ -201,18 +205,18 @@ export default function Experiences() {
                 </div>
 
                 <div className="table-container">
-                  <table className="data-table draggable">
+                  <table className="data-table draggable col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
                         <th className="drag-handle"></th>
-                        <th>English Title</th>
-                        <th>Hindi Title</th>
-                        <th>Type</th>
-                        <th>From</th>
-                        <th>To</th>
-                        <th>Sequence</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th style={{ width: colWidths.english_title }}>English Title{rHandle('english_title')}</th>
+                        <th style={{ width: colWidths.hindi_title }}>Hindi Title{rHandle('hindi_title')}</th>
+                        <th style={{ width: colWidths.type }}>Type{rHandle('type')}</th>
+                        <th style={{ width: colWidths.from_val }}>From{rHandle('from_val')}</th>
+                        <th style={{ width: colWidths.to_val }}>To{rHandle('to_val')}</th>
+                        <th style={{ width: colWidths.sequence }}>Sequence{rHandle('sequence')}</th>
+                        <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>

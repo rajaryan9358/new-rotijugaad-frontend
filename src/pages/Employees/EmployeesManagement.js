@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
@@ -17,6 +18,7 @@ import volunteersApi from '../../api/masters/volunteersApi'; // NEW
 import VolunteerForm from '../../components/Forms/VolunteerForm'; // NEW
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { formatMobile } from '../../utils/formatters';
 import '../Masters/MasterPage.css';
 
 // HOISTED helpers (fixes runtime ReferenceError during render/HMR)
@@ -47,6 +49,16 @@ function getGoogleMapsUrl(lat, lng) {
     ? `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`
     : '';
 }
+
+const EMPLOYEE_COL_DEFAULTS = {
+  id: 60, name: 150, phone: 120, email: 180, assistant_code: 130,
+  dob: 100, gender: 80, age: 60, state: 100, city: 100,
+  location: 140, pref_state: 100, pref_city: 100, qualification: 120,
+  salary: 90, freq: 70, shift: 80, verification: 110, kyc: 90,
+  subscription: 130, status: 80, deactivation_reason: 160,
+  status_changed_by: 130, job_profiles: 150, last_seen: 150,
+  created: 110, user_life_days: 100, credit_balances: 130, actions: 100,
+};
 
 export default function EmployeesManagement() {
   const location = useLocation();
@@ -150,6 +162,8 @@ export default function EmployeesManagement() {
     kycVerifiedToFilter: ''    // NEW
   });
   const PAGE_SCROLL_KEY = 'employees-scroll';
+
+  const { colWidths, rHandle } = useResizableColumns('employees-col-widths', EMPLOYEE_COL_DEFAULTS);
 
   const employeePerms = React.useMemo(() => ({
     canView: hasPermission(PERMISSIONS.EMPLOYEES_VIEW),
@@ -568,7 +582,7 @@ export default function EmployeesManagement() {
       return [
         e.id,
         e.name || '',
-        e.User?.mobile || '',
+        formatMobile(e.User?.mobile),
         e.email || '',
         e.assistant_code || '', // NEW
         formatDateOnly(e.dob) || '',
@@ -1697,47 +1711,47 @@ export default function EmployeesManagement() {
                 )}
 
                 <div className="table-container">
-                  <table className="data-table" style={{ minWidth: '2000px' }}>
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
-                        <th onClick={() => handleHeaderClick('id')} style={{ cursor:'pointer' }}>ID{ind('id')}</th>
-                        <th onClick={() => handleHeaderClick('name')} style={{ cursor:'pointer' }}>Name{ind('name')}</th>
+                        <th onClick={() => handleHeaderClick('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{ind('id')}{rHandle('id')}</th>
+                        <th onClick={() => handleHeaderClick('name')} style={{ cursor:'pointer', width: colWidths.name }}>Name{ind('name')}{rHandle('name')}</th>
 
                         {/* NEW */}
-                        {employeePerms.canShowPhoneAddress && <th>Phone</th>}
+                        {employeePerms.canShowPhoneAddress && <th style={{ width: colWidths.phone }}>Phone{rHandle('phone')}</th>}
 
-                        <th onClick={() => handleHeaderClick('email')} style={{ cursor:'pointer' }}>Email{ind('email')}</th>
-                        <th onClick={() => handleHeaderClick('assistant_code')} style={{ cursor:'pointer' }}>Assistant Code{ind('assistant_code')}</th>
-                        <th onClick={() => handleHeaderClick('dob')} style={{ cursor:'pointer' }}>DOB{ind('dob')}</th>
-                        <th onClick={() => handleHeaderClick('gender')} style={{ cursor:'pointer' }}>Gender{ind('gender')}</th>
+                        <th onClick={() => handleHeaderClick('email')} style={{ cursor:'pointer', width: colWidths.email }}>Email{ind('email')}{rHandle('email')}</th>
+                        <th onClick={() => handleHeaderClick('assistant_code')} style={{ cursor:'pointer', width: colWidths.assistant_code }}>Assistant Code{ind('assistant_code')}{rHandle('assistant_code')}</th>
+                        <th onClick={() => handleHeaderClick('dob')} style={{ cursor:'pointer', width: colWidths.dob }}>DOB{ind('dob')}{rHandle('dob')}</th>
+                        <th onClick={() => handleHeaderClick('gender')} style={{ cursor:'pointer', width: colWidths.gender }}>Gender{ind('gender')}{rHandle('gender')}</th>
 
-                        <th>Age</th> {/* MOVED: after Gender */}
+                        <th style={{ width: colWidths.age }}>Age{rHandle('age')}</th>
 
                         {employeePerms.canShowPhoneAddress && (
-                          <th onClick={() => handleHeaderClick('state')} style={{ cursor:'pointer' }}>State{ind('state')}</th>
+                          <th onClick={() => handleHeaderClick('state')} style={{ cursor:'pointer', width: colWidths.state }}>State{ind('state')}{rHandle('state')}</th>
                         )}
                         {employeePerms.canShowPhoneAddress && (
-                          <th onClick={() => handleHeaderClick('city')} style={{ cursor:'pointer' }}>City{ind('city')}</th>
+                          <th onClick={() => handleHeaderClick('city')} style={{ cursor:'pointer', width: colWidths.city }}>City{ind('city')}{rHandle('city')}</th>
                         )}
-                        {employeePerms.canShowPhoneAddress && <th>Location</th>}
-                        {employeePerms.canShowPhoneAddress && <th>Pref State</th>}
-                        {employeePerms.canShowPhoneAddress && <th>Pref City</th>}
-                        <th onClick={() => handleHeaderClick('qualification')} style={{ cursor:'pointer' }}>Qualification{ind('qualification')}</th>
-                        <th onClick={() => handleHeaderClick('expected_salary')} style={{ cursor:'pointer' }}>Salary{ind('expected_salary')}</th>
-                        <th>Freq</th>
-                        <th onClick={() => handleHeaderClick('shift')} style={{ cursor:'pointer' }}>Shift{ind('shift')}</th>
-                        <th onClick={() => handleHeaderClick('verification_status')} style={{ cursor:'pointer' }}>Verification{ind('verification_status')}</th>
-                        <th onClick={() => handleHeaderClick('kyc_status')} style={{ cursor: 'pointer' }}>KYC{ind('kyc_status')}</th>
-                        <th style={{ cursor: 'pointer' }}>Subscription</th>
-                        <th onClick={() => handleHeaderClick('is_active')} style={{ cursor:'pointer' }}>Status{ind('is_active')}</th>
-                        <th>Deactivation Reason</th>
-                        <th>Status Changed By</th> {/* NEW */}
-                        <th>Job Profiles</th>
-                        <th>Last Seen</th>
-                        <th onClick={() => handleHeaderClick('created_at')} style={{ cursor:'pointer' }}>Created{ind('created_at')}</th>
-                        <th>User Life (days)</th>
-                        <th>Credit Balances</th> {/* NEW */}
-                        <th>Actions</th>
+                        {employeePerms.canShowPhoneAddress && <th style={{ width: colWidths.location }}>Location{rHandle('location')}</th>}
+                        {employeePerms.canShowPhoneAddress && <th style={{ width: colWidths.pref_state }}>Pref State{rHandle('pref_state')}</th>}
+                        {employeePerms.canShowPhoneAddress && <th style={{ width: colWidths.pref_city }}>Pref City{rHandle('pref_city')}</th>}
+                        <th onClick={() => handleHeaderClick('qualification')} style={{ cursor:'pointer', width: colWidths.qualification }}>Qualification{ind('qualification')}{rHandle('qualification')}</th>
+                        <th onClick={() => handleHeaderClick('expected_salary')} style={{ cursor:'pointer', width: colWidths.salary }}>Salary{ind('expected_salary')}{rHandle('salary')}</th>
+                        <th style={{ width: colWidths.freq }}>Freq{rHandle('freq')}</th>
+                        <th onClick={() => handleHeaderClick('shift')} style={{ cursor:'pointer', width: colWidths.shift }}>Shift{ind('shift')}{rHandle('shift')}</th>
+                        <th onClick={() => handleHeaderClick('verification_status')} style={{ cursor:'pointer', width: colWidths.verification }}>Verification{ind('verification_status')}{rHandle('verification')}</th>
+                        <th onClick={() => handleHeaderClick('kyc_status')} style={{ cursor: 'pointer', width: colWidths.kyc }}>KYC{ind('kyc_status')}{rHandle('kyc')}</th>
+                        <th style={{ width: colWidths.subscription }}>Subscription{rHandle('subscription')}</th>
+                        <th onClick={() => handleHeaderClick('is_active')} style={{ cursor:'pointer', width: colWidths.status }}>Status{ind('is_active')}{rHandle('status')}</th>
+                        <th style={{ width: colWidths.deactivation_reason }}>Deactivation Reason{rHandle('deactivation_reason')}</th>
+                        <th style={{ width: colWidths.status_changed_by }}>Status Changed By{rHandle('status_changed_by')}</th>
+                        <th style={{ width: colWidths.job_profiles }}>Job Profiles{rHandle('job_profiles')}</th>
+                        <th onClick={() => handleHeaderClick('last_active_at')} style={{ cursor:'pointer', width: colWidths.last_seen }}>Last Seen{ind('last_active_at')}{rHandle('last_seen')}</th>
+                        <th onClick={() => handleHeaderClick('created_at')} style={{ cursor:'pointer', width: colWidths.created }}>Created{ind('created_at')}{rHandle('created')}</th>
+                        <th style={{ width: colWidths.user_life_days }}>User Life (days){rHandle('user_life_days')}</th>
+                        <th style={{ width: colWidths.credit_balances }}>Credit Balances{rHandle('credit_balances')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1786,7 +1800,7 @@ export default function EmployeesManagement() {
                               </td>
 
                               {/* NEW */}
-                              {employeePerms.canShowPhoneAddress && (<td>{e.User?.mobile || '-'}</td>)}
+                              {employeePerms.canShowPhoneAddress && (<td>{formatMobile(e.User?.mobile)}</td>)}
 
                               <td>{e.email || '-'}</td>
                               <td>

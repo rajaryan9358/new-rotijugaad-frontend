@@ -8,6 +8,7 @@ import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { reviewsApi } from '../../api/reviews';
 import logsApi from '../../api/logsApi';
 import '../Masters/MasterPage.css';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const FilterField = ({ label, children }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -17,6 +18,9 @@ const FilterField = ({ label, children }) => (
 );
 
 const headerCellStyle = { cursor: 'pointer' };
+
+const DEFAULTS = { id: 60, user_type: 90, reviewer: 140, rating: 80, review: 250, status: 90, updated: 130, actions: 90 };
+
 const INITIAL_FILTERS = Object.freeze({
   user_type: '',
   rating: '',
@@ -31,6 +35,7 @@ const INITIAL_PANEL_FILTERS = Object.freeze({
 
 export default function ReviewsManagement() {
   const navigate = useNavigate();
+  const { colWidths, rHandle } = useResizableColumns('reviews-col-widths', DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -452,17 +457,17 @@ export default function ReviewsManagement() {
               ))}
             </div>
             <div className="table-container">
-              <table className="data-table" style={{ minWidth: '1200px' }}>
+              <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
-                    <th onClick={() => handleHeaderClick('id')} style={{ cursor: 'pointer' }}>ID{ind('id')}</th>
-                    <th>User Type</th>
-                    <th>Reviewer</th>
-                    <th onClick={() => handleHeaderClick('rating')} style={{ cursor: 'pointer' }}>Rating{ind('rating')}</th>
-                    <th>Review</th>
-                    <th>Status</th>
-                    <th onClick={() => handleHeaderClick('updated_at')} style={{ cursor: 'pointer' }}>Updated{ind('updated_at')}</th>
-                    {showActions && <th>Actions</th>}
+                    <th onClick={() => handleHeaderClick('id')} style={{ cursor: 'pointer', width: colWidths.id }}>ID{ind('id')}{rHandle('id')}</th>
+                    <th style={{ width: colWidths.user_type }}>User Type{rHandle('user_type')}</th>
+                    <th style={{ width: colWidths.reviewer }}>Reviewer{rHandle('reviewer')}</th>
+                    <th onClick={() => handleHeaderClick('rating')} style={{ cursor: 'pointer', width: colWidths.rating }}>Rating{ind('rating')}{rHandle('rating')}</th>
+                    <th style={{ width: colWidths.review }}>Review{rHandle('review')}</th>
+                    <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
+                    <th onClick={() => handleHeaderClick('updated_at')} style={{ cursor: 'pointer', width: colWidths.updated }}>Updated{ind('updated_at')}{rHandle('updated')}</th>
+                    {showActions && <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
                   </tr>
                 </thead>
                 <tbody>

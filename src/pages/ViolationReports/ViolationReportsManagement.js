@@ -9,8 +9,12 @@ import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
 import '../Masters/MasterPage.css';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+
+const DEFAULTS = { id: 60, report_type: 120, reporter_name: 140, reported_entity: 140, reason: 140, description: 200, created: 120, actions: 90 };
 
 export default function ViolationReportsManagement() {
+  const { colWidths, rHandle } = useResizableColumns('violation-reports-col-widths', DEFAULTS);
   const navigate = useNavigate();
   const location = useLocation();
   const normalizedReportTypeFromQuery = React.useMemo(() => {
@@ -590,17 +594,17 @@ export default function ViolationReportsManagement() {
             )}
 
             <div className="table-container">
-              <table className="data-table" style={{ minWidth:'1400px' }}>
+              <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
-                    <th onClick={() => handleSort('id')} style={{ cursor:'pointer' }}>ID{headerIndicator('id')}</th>
-                    <th onClick={() => handleSort('report_type')} style={{ cursor:'pointer' }}>Report Type{headerIndicator('report_type')}</th>
-                    <th>Reporter Name</th>
-                    <th>Reported Entity</th>
-                    <th>Reason</th>
-                    <th>Description</th>
-                    <th onClick={() => handleSort('created_at')} style={{ cursor:'pointer' }}>Created{headerIndicator('created_at')}</th>
-                    <th>Actions</th>
+                    <th onClick={() => handleSort('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{headerIndicator('id')}{rHandle('id')}</th>
+                    <th onClick={() => handleSort('report_type')} style={{ cursor:'pointer', width: colWidths.report_type }}>Report Type{headerIndicator('report_type')}{rHandle('report_type')}</th>
+                    <th style={{ width: colWidths.reporter_name }}>Reporter Name{rHandle('reporter_name')}</th>
+                    <th style={{ width: colWidths.reported_entity }}>Reported Entity{rHandle('reported_entity')}</th>
+                    <th style={{ width: colWidths.reason }}>Reason{rHandle('reason')}</th>
+                    <th style={{ width: colWidths.description }}>Description{rHandle('description')}</th>
+                    <th onClick={() => handleSort('created_at')} style={{ cursor:'pointer', width: colWidths.created }}>Created{headerIndicator('created_at')}{rHandle('created')}</th>
+                    <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                   </tr>
                 </thead>
                 <tbody>

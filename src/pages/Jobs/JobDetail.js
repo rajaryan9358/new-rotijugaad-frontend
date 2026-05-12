@@ -128,6 +128,7 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [notice, setNotice] = useState(null); // add
+  const [showUnverifiedDialog, setShowUnverifiedDialog] = useState(false);
   const jobPerms = useMemo(() => ({
     canView: hasPermission(PERMISSIONS.JOBS_VIEW),
     canManage: hasPermission(PERMISSIONS.JOBS_MANAGE),
@@ -256,6 +257,14 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
       setOptionsOpen(false);
       if (!jobPerms.canManage) alert('You do not have permission to verify jobs.');
       return;
+    }
+    if (next === 'approved') {
+      const evs = String(job?.Employer?.verification_status || 'pending').toLowerCase();
+      if (evs !== 'verified' && evs !== 'approved') {
+        setShowUnverifiedDialog(true);
+        setOptionsOpen(false);
+        return;
+      }
     }
     try {
       await jobApi.setVerificationStatus(job.id, next);
@@ -509,6 +518,31 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
           </div>
         </main>
       </div>
+
+      {showUnverifiedDialog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: '10px', padding: '28px 24px', maxWidth: '360px', width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Profile Not Verified</h3>
+            <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#475569' }}>
+              The employer's profile is not verified. Please verify the profile before approving this job.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowUnverifiedDialog(false)}
+                style={{ padding: '8px 18px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowUnverifiedDialog(false); navigate(`/employers/${job?.employer_id}`); }}
+                style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', background: '#2563eb', color: '#fff', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
+              >
+                View Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

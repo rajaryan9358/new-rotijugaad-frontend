@@ -8,6 +8,7 @@ import '../Masters/MasterPage.css';
 import { adminsApi } from '../../api/admins';
 import { rolesApi } from '../../api/roles';
 import LogsAction from '../../components/LogsAction';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const FormField = ({ label, children }) => (
   <div style={{ marginBottom: '18px' }}>
@@ -17,6 +18,8 @@ const FormField = ({ label, children }) => (
 );
 
 const headerCellStyle = { cursor: 'pointer' };
+
+const DEFAULTS = { id: 60, name: 140, email: 160, role: 120, status: 80, updated: 130, actions: 90 };
 
 export default function AdminsManagement() {
   const navigate = useNavigate();
@@ -28,6 +31,7 @@ export default function AdminsManagement() {
   const [form, setForm] = useState({ name: '', email: '', password: '', role_id: '' });
   const [editingId, setEditingId] = useState(null);
 
+  const { colWidths, rHandle } = useResizableColumns('admins-col-widths', DEFAULTS);
   const canView = hasPermission(PERMISSIONS.ADMINS_VIEW);
   const canManage = hasPermission(PERMISSIONS.ADMINS_MANAGE);
   const canDelete = hasPermission(PERMISSIONS.ADMINS_DELETE);
@@ -242,16 +246,16 @@ export default function AdminsManagement() {
               )}
               <div className="data-card" style={{ padding:'0' }}>
                 <div className="table-container" style={{ padding:'0' }}>
-                   <table className="data-table">
+                   <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                      <thead>
                        <tr>
-                         <th style={headerCellStyle}>ID</th>
-                         <th style={headerCellStyle}>Name</th>
-                         <th style={headerCellStyle}>Email</th>
-                         <th style={headerCellStyle}>Role</th>
-                         <th style={headerCellStyle}>Status</th>
-                         <th style={headerCellStyle}>Updated</th>
-                         {showActions && <th style={headerCellStyle}>Actions</th>}
+                         <th style={{ ...headerCellStyle, width: colWidths.id }}>ID{rHandle('id')}</th>
+                         <th style={{ ...headerCellStyle, width: colWidths.name }}>Name{rHandle('name')}</th>
+                         <th style={{ ...headerCellStyle, width: colWidths.email }}>Email{rHandle('email')}</th>
+                         <th style={{ ...headerCellStyle, width: colWidths.role }}>Role{rHandle('role')}</th>
+                         <th style={{ ...headerCellStyle, width: colWidths.status }}>Status{rHandle('status')}</th>
+                         <th style={{ ...headerCellStyle, width: colWidths.updated }}>Updated{rHandle('updated')}</th>
+                         {showActions && <th style={{ ...headerCellStyle, width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
                        </tr>
                      </thead>
                      <tbody>

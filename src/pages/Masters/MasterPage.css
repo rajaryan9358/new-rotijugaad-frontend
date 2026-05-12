@@ -90,6 +90,33 @@
   min-width: 600px;
 }
 
+.col-resizable td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
+}
+
+.col-resizable thead th {
+  white-space: nowrap;
+  position: sticky;
+}
+
+.col-resizable thead th .resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.col-resizable thead th .resize-handle:hover,
+.col-resizable thead th .resize-handle:active {
+  background: rgba(37, 99, 235, 0.3);
+}
+
 .data-table thead {
   background-color: #f5f5f5;
   border-bottom: 2px solid #ddd;

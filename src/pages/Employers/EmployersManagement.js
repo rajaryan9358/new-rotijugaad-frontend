@@ -14,10 +14,20 @@ import EmployerForm from '../../components/Forms/EmployerForm'; // added
 import VolunteerForm from '../../components/Forms/VolunteerForm'; // NEW
 import '../Masters/MasterPage.css';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { formatMobile } from '../../utils/formatters';
 import volunteersApi from '../../api/masters/volunteersApi'; // NEW
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const DEFAULT_PAGE_SIZE = 25;
 const PAGE_SCROLL_KEY = 'employers-scroll';
+
+const DEFAULTS = {
+  id: 60, name: 150, phone: 120, org_type: 110, org_name: 150, assisted_by: 120,
+  email: 160, business_category: 140, address: 140, state: 90, city: 90,
+  verification: 110, kyc: 90, subscription: 130, active: 80, status_changed_by: 130,
+  active_jobs: 100, last_seen: 150, created_at: 110, user_life: 100, credit_balances: 130,
+  actions: 100
+};
 
 export default function EmployersManagement() {
   const location = useLocation();
@@ -101,6 +111,8 @@ export default function EmployersManagement() {
     canShowPhoneAddress: hasPermission(PERMISSIONS.EMPLOYERS_SHOW_PHONE_ADDRESS),
   }), []);
   const canViewEmployers = employerPerms.canView;
+
+  const { colWidths, rHandle } = useResizableColumns('employers-col-widths', DEFAULTS);
 
   const fetchStates = React.useCallback(async () => {
     try {
@@ -795,7 +807,7 @@ export default function EmployersManagement() {
       return [
         e.id,
         e.name || '',
-        e.User?.mobile || '',
+        formatMobile(e.User?.mobile),
         e.organization_type || '',
         e.organization_name || '',
         e.assisted_by || '',
@@ -1279,34 +1291,34 @@ export default function EmployersManagement() {
 
                 {/* Table */}
                 <div className="table-container">
-                  <table className="data-table" style={{ minWidth:'1900px' }}>
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
-                        <th onClick={()=>headerClick('id')} style={{ cursor:'pointer' }}>ID{ind('id')}</th>
-                        <th onClick={()=>headerClick('name')} style={{ cursor:'pointer' }}>Name{ind('name')}</th>
+                        <th onClick={()=>headerClick('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{ind('id')}{rHandle('id')}</th>
+                        <th onClick={()=>headerClick('name')} style={{ cursor:'pointer', width: colWidths.name }}>Name{ind('name')}{rHandle('name')}</th>
 
                         {/* NEW */}
-                        {employerPerms.canShowPhoneAddress && <th>Phone</th>}
+                        {employerPerms.canShowPhoneAddress && <th style={{ width: colWidths.phone }}>Phone{rHandle('phone')}</th>}
 
-                        <th onClick={()=>headerClick('organization_type')} style={{ cursor:'pointer' }}>Org Type{ind('organization_type')}</th>
-                        <th onClick={()=>headerClick('organization_name')} style={{ cursor:'pointer' }}>Org Name{ind('organization_name')}</th>
-                        <th>Assisted By</th> {/* MOVED: was later (e.g. after Email) */}
-                        <th onClick={()=>headerClick('email')} style={{ cursor:'pointer' }}>Email{ind('email')}</th>
-                        <th onClick={()=>headerClick('businessCategoryName')} style={{ cursor:'pointer' }}>Business Category{ind('businessCategoryName')}</th>
-                        {employerPerms.canShowPhoneAddress && <th>Address</th>}
-                        {employerPerms.canShowPhoneAddress && <th>State</th>}
-                        {employerPerms.canShowPhoneAddress && <th>City</th>}
-                        <th onClick={()=>headerClick('verification_status')} style={{ cursor:'pointer' }}>Verification{ind('verification_status')}</th>
-                        <th onClick={()=>headerClick('kyc_status')} style={{ cursor:'pointer' }}>KYC{ind('kyc_status')}</th>
-                        <th>Subscription</th>
-                        <th onClick={()=>headerClick('is_active')} style={{ cursor:'pointer' }}>Active{ind('is_active')}</th>
-                        <th>Status Changed By</th> {/* NEW */}
-                        <th>Active Jobs No.</th>
-                        <th>Last Seen</th>
-                        <th onClick={()=>headerClick('created_at')} style={{ cursor:'pointer' }}>Created At{ind('created_at')}</th>
-                        <th>User Life (days)</th>
-                        <th>Credit Balances</th> {/* NEW */}
-                        <th>Actions</th>
+                        <th onClick={()=>headerClick('organization_type')} style={{ cursor:'pointer', width: colWidths.org_type }}>Org Type{ind('organization_type')}{rHandle('org_type')}</th>
+                        <th onClick={()=>headerClick('organization_name')} style={{ cursor:'pointer', width: colWidths.org_name }}>Org Name{ind('organization_name')}{rHandle('org_name')}</th>
+                        <th style={{ width: colWidths.assisted_by }}>Assisted By{rHandle('assisted_by')}</th> {/* MOVED: was later (e.g. after Email) */}
+                        <th onClick={()=>headerClick('email')} style={{ cursor:'pointer', width: colWidths.email }}>Email{ind('email')}{rHandle('email')}</th>
+                        <th onClick={()=>headerClick('businessCategoryName')} style={{ cursor:'pointer', width: colWidths.business_category }}>Business Category{ind('businessCategoryName')}{rHandle('business_category')}</th>
+                        {employerPerms.canShowPhoneAddress && <th style={{ width: colWidths.address }}>Address{rHandle('address')}</th>}
+                        {employerPerms.canShowPhoneAddress && <th style={{ width: colWidths.state }}>State{rHandle('state')}</th>}
+                        {employerPerms.canShowPhoneAddress && <th style={{ width: colWidths.city }}>City{rHandle('city')}</th>}
+                        <th onClick={()=>headerClick('verification_status')} style={{ cursor:'pointer', width: colWidths.verification }}>Verification{ind('verification_status')}{rHandle('verification')}</th>
+                        <th onClick={()=>headerClick('kyc_status')} style={{ cursor:'pointer', width: colWidths.kyc }}>KYC{ind('kyc_status')}{rHandle('kyc')}</th>
+                        <th style={{ width: colWidths.subscription }}>Subscription{rHandle('subscription')}</th>
+                        <th onClick={()=>headerClick('is_active')} style={{ cursor:'pointer', width: colWidths.active }}>Active{ind('is_active')}{rHandle('active')}</th>
+                        <th style={{ width: colWidths.status_changed_by }}>Status Changed By{rHandle('status_changed_by')}</th> {/* NEW */}
+                        <th style={{ width: colWidths.active_jobs }}>Active Jobs No.{rHandle('active_jobs')}</th>
+                        <th onClick={()=>headerClick('last_active_at')} style={{ cursor:'pointer', width: colWidths.last_seen }}>Last Seen{ind('last_active_at')}{rHandle('last_seen')}</th>
+                        <th onClick={()=>headerClick('created_at')} style={{ cursor:'pointer', width: colWidths.created_at }}>Created At{ind('created_at')}{rHandle('created_at')}</th>
+                        <th style={{ width: colWidths.user_life }}>User Life (days){rHandle('user_life')}</th>
+                        <th style={{ width: colWidths.credit_balances }}>Credit Balances{rHandle('credit_balances')}</th> {/* NEW */}
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1356,7 +1368,7 @@ export default function EmployersManagement() {
                               </td>
 
                               {/* NEW */}
-                              {employerPerms.canShowPhoneAddress && (<td>{e.User?.mobile || '-'}</td>)}
+                              {employerPerms.canShowPhoneAddress && (<td>{formatMobile(e.User?.mobile)}</td>)}
 
                               <td>{e.organization_type || '-'}</td>
                               <td>{e.organization_name || '-'}</td>

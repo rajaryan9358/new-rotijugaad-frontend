@@ -7,13 +7,20 @@ import logsApi from '../../api/logsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { formatMobile } from '../../utils/formatters';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const normalizeUserTypeParam = (value) => {
   const normalized = (value || '').trim().toLowerCase();
   return normalized === 'employee' || normalized === 'employer' ? normalized : '';
 };
 
+const DEFAULTS = {
+  user: 150, mobile: 110, type: 80, entity: 150, requested_at: 130, last_seen: 150, user_life: 100, actions: 160
+};
+
 export default function PendingDeletionUsers() {
+  const { colWidths, rHandle } = useResizableColumns('pending-deletion-col-widths', DEFAULTS);
   const navigate = useNavigate();
   const location = useLocation();
   const normalizedUserTypeFromQuery = useMemo(() => {
@@ -296,7 +303,7 @@ export default function PendingDeletionUsers() {
       const rows = exportRows.map((row) => [
         row.id,
         row.name || '',
-        row.mobile || '',
+        formatMobile(row.mobile),
         row.user_type || '',
         row.entity?.name || '',
         formatExportDateTime(row.deletion_requested_at || row.delete_requested_at)
@@ -444,17 +451,17 @@ export default function PendingDeletionUsers() {
               <div className="inline-message error">You do not have permission to view pending deletions.</div>
             ) : (
               <div className="table-container">
-                <table className="data-table">
+                <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                   <thead>
                     <tr>
-                      <th>User</th>
-                      <th>Mobile</th>
-                      <th>Type</th>
-                      <th>Entity</th>
-                      <th>Requested at</th>
-                      <th>Last seen</th>
-                      <th>User life (days)</th>
-                      <th style={{ width: 160 }}>Actions</th>
+                      <th style={{ width: colWidths.user }}>User{rHandle('user')}</th>
+                      <th style={{ width: colWidths.mobile }}>Mobile{rHandle('mobile')}</th>
+                      <th style={{ width: colWidths.type }}>Type{rHandle('type')}</th>
+                      <th style={{ width: colWidths.entity }}>Entity{rHandle('entity')}</th>
+                      <th style={{ width: colWidths.requested_at }}>Requested at{rHandle('requested_at')}</th>
+                      <th style={{ width: colWidths.last_seen }}>Last seen{rHandle('last_seen')}</th>
+                      <th style={{ width: colWidths.user_life }}>User life (days){rHandle('user_life')}</th>
+                      <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -462,7 +469,7 @@ export default function PendingDeletionUsers() {
                       rows.map(row => (
                         <tr key={row.id}>
                           <td>{renderNameCell(row)}</td>
-                          <td>{row.mobile || '-'}</td>
+                          <td>{formatMobile(row.mobile)}</td>
                           <td style={{ textTransform: 'capitalize' }}>{row.user_type || '-'}</td>
                           <td>{row.entity?.name || '-'}</td>
                           <td>{formatDateTime(row.deletion_requested_at || row.delete_requested_at)}</td>

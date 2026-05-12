@@ -7,6 +7,7 @@ import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import '../Masters/MasterPage.css';
 import { rolesApi } from '../../api/roles';
 import LogsAction from '../../components/LogsAction';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const PERMISSION_OPTIONS = ['*', ...new Set(Object.values(PERMISSIONS))];
 
@@ -33,7 +34,10 @@ const normalizePermissions = (input) => {
   return [];
 };
 
+const DEFAULTS = { id: 60, name: 130, slug: 130, permissions: 300, updated: 130, actions: 90 };
+
 export default function RolesManagement() {
+  const { colWidths, rHandle } = useResizableColumns('roles-col-widths', DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = useState(getSidebarState());
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -282,15 +286,15 @@ export default function RolesManagement() {
               )}
               <div className="data-card" style={{ padding:'0' }}>
                 <div className="table-container" style={{ padding:'0' }}>
-                  <table className="data-table">
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Slug</th>
-                        <th>Permissions</th>
-                        <th>Updated</th>
-                        {showActions && <th>Actions</th>}
+                        <th style={{ width: colWidths.id }}>ID{rHandle('id')}</th>
+                        <th style={{ width: colWidths.name }}>Name{rHandle('name')}</th>
+                        <th style={{ width: colWidths.slug }}>Slug{rHandle('slug')}</th>
+                        <th style={{ width: colWidths.permissions }}>Permissions{rHandle('permissions')}</th>
+                        <th style={{ width: colWidths.updated }}>Updated{rHandle('updated')}</th>
+                        {showActions && <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
                       </tr>
                     </thead>
                     <tbody>

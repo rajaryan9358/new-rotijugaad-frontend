@@ -7,13 +7,22 @@ import logsApi from '../../api/logsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { useLocation } from 'react-router-dom';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { formatMobile } from '../../utils/formatters';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const normalizeUserTypeParam = (value) => {
   const normalized = (value || '').trim().toLowerCase();
   return normalized === 'employee' || normalized === 'employer' ? normalized : '';
 };
 
+const DEFAULTS = {
+  id: 60, name: 130, mobile: 110, referred_by: 120, deleted_by: 120, user_type: 90,
+  deleted_at: 130, last_seen: 150, user_life: 90, org_type: 110, org_name: 140,
+  business_category: 140, email: 160, created_at: 110
+};
+
 export default function DeletedUsers() {
+  const { colWidths, rHandle } = useResizableColumns('deleted-users-col-widths', DEFAULTS);
   const location = useLocation();
   const normalizedUserTypeFromQuery = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -219,7 +228,7 @@ export default function DeletedUsers() {
       const rows = exportRows.map((row) => [
         row.id,
         row.name || '',
-        row.mobile || '',
+        formatMobile(row.mobile),
         row.referred_by || '',
         (row.DeletedBy?.name || row.deleted_by_name || (row.deleted_by ?? '')),
         row.user_type || '',
@@ -409,23 +418,23 @@ export default function DeletedUsers() {
               <div className="inline-message error">You do not have permission to view deleted users.</div>
             ) : (
               <div className="table-container">
-                <table className="data-table">
+                <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>Name</th>
-                      <th>Mobile</th>
-                      <th>Referred by</th>
-                      <th>Deleted by</th>
-                      <th>User type</th>
-                      <th>Deleted at</th>
-                      <th>Last seen</th>
-                      <th>User life</th>
-                      <th>Organization type</th>
-                      <th>Organization name</th>
-                      <th>Business category</th>
-                      <th>Email</th>
-                      <th>Created at</th>
+                      <th style={{ width: colWidths.id }}>ID{rHandle('id')}</th>
+                      <th style={{ width: colWidths.name }}>Name{rHandle('name')}</th>
+                      <th style={{ width: colWidths.mobile }}>Mobile{rHandle('mobile')}</th>
+                      <th style={{ width: colWidths.referred_by }}>Referred by{rHandle('referred_by')}</th>
+                      <th style={{ width: colWidths.deleted_by }}>Deleted by{rHandle('deleted_by')}</th>
+                      <th style={{ width: colWidths.user_type }}>User type{rHandle('user_type')}</th>
+                      <th style={{ width: colWidths.deleted_at }}>Deleted at{rHandle('deleted_at')}</th>
+                      <th style={{ width: colWidths.last_seen }}>Last seen{rHandle('last_seen')}</th>
+                      <th style={{ width: colWidths.user_life }}>User life{rHandle('user_life')}</th>
+                      <th style={{ width: colWidths.org_type }}>Organization type{rHandle('org_type')}</th>
+                      <th style={{ width: colWidths.org_name }}>Organization name{rHandle('org_name')}</th>
+                      <th style={{ width: colWidths.business_category }}>Business category{rHandle('business_category')}</th>
+                      <th style={{ width: colWidths.email }}>Email{rHandle('email')}</th>
+                      <th style={{ width: colWidths.created_at }}>Created at{rHandle('created_at')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -443,7 +452,7 @@ export default function DeletedUsers() {
                               )}
                             </span>
                           </td>
-                          <td>{row.mobile || '-'}</td>
+                          <td>{formatMobile(row.mobile)}</td>
                           <td>{row.referred_by || '-'}</td>
                           <td>{row.DeletedBy?.name || row.deleted_by_name || (row.deleted_by ?? '-') }</td>
                           <td style={{ textTransform: 'capitalize' }}>{row.user_type || '-'}</td>

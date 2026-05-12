@@ -8,7 +8,23 @@ import EmployeeSubscriptionPlanForm from '../../components/Forms/EmployeeSubscri
 import employeeSubscriptionPlansApi from '../../api/subscriptions/employeeSubscriptionPlansApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import '../Masters/MasterPage.css';
+
+const DEFAULTS = {
+  seq: 60,
+  name_en: 140,
+  name_hi: 140,
+  validity: 110,
+  tagline_en: 180,
+  tagline_hi: 180,
+  price: 90,
+  discounted_price: 130,
+  contact_cr: 90,
+  interest_cr: 90,
+  status: 80,
+  actions: 90,
+};
 
 export default function EmployeeSubscriptionPlans() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -26,6 +42,7 @@ export default function EmployeeSubscriptionPlans() {
   const canDeleteSubs = hasPermission(PERMISSIONS.SUBSCRIPTIONS_DELETE);
   const showActions = canManageSubs || canDeleteSubs;
   const columnCount = 11 + (showActions ? 1 : 0) + (canManageSubs ? 1 : 0);
+  const { colWidths, rHandle } = useResizableColumns('employee-plans-col-widths', DEFAULTS);
 
   useEffect(() => {
     setSidebarOpen(getSidebarState());
@@ -189,22 +206,22 @@ export default function EmployeeSubscriptionPlans() {
                 </div>
 
                 <div className="table-container">
-                  <table className="data-table">
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
                         {canManageSubs && <th className="drag-handle"></th>}
-                        <th>Seq</th>
-                        <th>Name (EN)</th>
-                        <th>Name (HI)</th>
-                        <th>Validity (Days)</th>
-                        <th>Tagline (EN)</th>
-                        <th>Tagline (HI)</th>
-                        <th>Price (₹)</th>
-                        <th>Discounted Price (₹)</th>
-                        <th>Contact Cr</th>
-                        <th>Interest Cr</th>
-                        <th>Status</th>
-                        {showActions && <th>Actions</th>}
+                        <th style={{ width: colWidths.seq }}>Seq{rHandle('seq')}</th>
+                        <th style={{ width: colWidths.name_en }}>Name (EN){rHandle('name_en')}</th>
+                        <th style={{ width: colWidths.name_hi }}>Name (HI){rHandle('name_hi')}</th>
+                        <th style={{ width: colWidths.validity }}>Validity (Days){rHandle('validity')}</th>
+                        <th style={{ width: colWidths.tagline_en }}>Tagline (EN){rHandle('tagline_en')}</th>
+                        <th style={{ width: colWidths.tagline_hi }}>Tagline (HI){rHandle('tagline_hi')}</th>
+                        <th style={{ width: colWidths.price }}>Price (₹){rHandle('price')}</th>
+                        <th style={{ width: colWidths.discounted_price }}>Discounted Price (₹){rHandle('discounted_price')}</th>
+                        <th style={{ width: colWidths.contact_cr }}>Contact Cr{rHandle('contact_cr')}</th>
+                        <th style={{ width: colWidths.interest_cr }}>Interest Cr{rHandle('interest_cr')}</th>
+                        <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
+                        {showActions && <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
                       </tr>
                     </thead>
                     <tbody>

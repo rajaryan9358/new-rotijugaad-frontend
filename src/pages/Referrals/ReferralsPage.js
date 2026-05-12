@@ -8,6 +8,7 @@ import logsApi from '../../api/logsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import '../Masters/MasterPage.css';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const headerCellStyle = { cursor: 'pointer' };
 const linkButtonStyle = {
@@ -27,8 +28,11 @@ const getDetailRoute = (entityType, entityId) => {
   return `/employees/${entityId}`;
 };
 
+const DEFAULTS = { id: 60, referrer: 140, user: 140, referral_code: 120, target: 100, contact_credit: 110, interest_credit: 110, ads_credit: 90, created: 110 };
+
 export default function ReferralsPage({ title, userType }) {
   const navigate = useNavigate();
+  const { colWidths, rHandle } = useResizableColumns('referrals-col-widths', DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = useState(getSidebarState());
   const [referrals, setReferrals] = useState([]);
   const [meta, setMeta] = useState({ page: 1, pageSize: 25, total: 0, totalPages: 1 });
@@ -281,18 +285,18 @@ export default function ReferralsPage({ title, userType }) {
 
             <div className="data-card" style={{ padding: '0' }}>
               <div className="table-container" style={{ padding: '0' }}>
-                <table className="data-table">
+                <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                   <thead>
                     <tr>
-                      <th style={headerCellStyle} onClick={() => handleSort('id')}>ID{sortIndicator('id')}</th>
-                      <th style={headerCellStyle} onClick={() => handleSort('referrer')}>Referrer{sortIndicator('referrer')}</th>
-                      <th style={headerCellStyle} onClick={() => handleSort('user')}>User{sortIndicator('user')}</th>
-                      <th style={headerCellStyle} onClick={() => handleSort('referral_code')}>Referral Code{sortIndicator('referral_code')}</th>
-                      <th style={headerCellStyle}>Target</th>
-                      <th style={headerCellStyle}>Contact Credit</th>
-                      <th style={headerCellStyle}>Interest Credit</th>
-                      {showAdsColumn && <th style={headerCellStyle}>Ads Credit</th>}
-                      <th style={headerCellStyle} onClick={() => handleSort('created_at')}>Created{sortIndicator('created_at')}</th>
+                      <th style={{ ...headerCellStyle, width: colWidths.id }} onClick={() => handleSort('id')}>ID{sortIndicator('id')}{rHandle('id')}</th>
+                      <th style={{ ...headerCellStyle, width: colWidths.referrer }} onClick={() => handleSort('referrer')}>Referrer{sortIndicator('referrer')}{rHandle('referrer')}</th>
+                      <th style={{ ...headerCellStyle, width: colWidths.user }} onClick={() => handleSort('user')}>User{sortIndicator('user')}{rHandle('user')}</th>
+                      <th style={{ ...headerCellStyle, width: colWidths.referral_code }} onClick={() => handleSort('referral_code')}>Referral Code{sortIndicator('referral_code')}{rHandle('referral_code')}</th>
+                      <th style={{ ...headerCellStyle, width: colWidths.target }}>Target{rHandle('target')}</th>
+                      <th style={{ ...headerCellStyle, width: colWidths.contact_credit }}>Contact Credit{rHandle('contact_credit')}</th>
+                      <th style={{ ...headerCellStyle, width: colWidths.interest_credit }}>Interest Credit{rHandle('interest_credit')}</th>
+                      {showAdsColumn && <th style={{ ...headerCellStyle, width: colWidths.ads_credit }}>Ads Credit{rHandle('ads_credit')}</th>}
+                      <th style={{ ...headerCellStyle, width: colWidths.created }} onClick={() => handleSort('created_at')}>Created{sortIndicator('created_at')}{rHandle('created')}</th>
                     </tr>
                   </thead>
                   <tbody>

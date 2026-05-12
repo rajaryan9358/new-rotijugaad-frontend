@@ -8,7 +8,9 @@ import jobProfilesApi from '../../api/masters/jobProfilesApi';
 import logsApi from '../../api/logsApi';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
+import { formatMobile } from '../../utils/formatters';
 import '../Masters/MasterPage.css';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const statusFilters = [
   { label: 'All', value: '' },
@@ -98,6 +100,8 @@ const senderTypeOptions = [
 ];
 const senderTypeLabel = (v) => senderTypeOptions.find(o => o.value === v)?.label || 'All';
 
+const DEFAULTS = { employee: 150, employer: 130, organization: 130, job_profile: 130, job_status: 100, profile_status: 110, salary: 100, status: 90, otp: 80, contact_at: 130 };
+
 export default function HiredEmployees() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -156,6 +160,7 @@ export default function HiredEmployees() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  const { colWidths, rHandle } = useResizableColumns('hired-col-widths', DEFAULTS);
   const canView = hasPermission(PERMISSIONS.HIRED_EMPLOYEES_VIEW);
   const canExport = hasPermission(PERMISSIONS.HIRED_EMPLOYEES_EXPORT);
 
@@ -471,9 +476,9 @@ export default function HiredEmployees() {
       dataset.forEach(row => {
         const csvRow = [
           row.employee?.name || '',
-          row.employee?.mobile || '',
+          formatMobile(row.employee?.mobile),
           row.employer?.name || '',
-          row.employer?.mobile || '',
+          formatMobile(row.employer?.mobile),
           row.job?.employer_organization_name || '',
           row.job?.profile_name || '',
           row.job?.status || '',
@@ -697,19 +702,19 @@ export default function HiredEmployees() {
             )}
 
             <div className="table-container">
-              <table className="data-table" style={{ minWidth:'1500px' }}>
+              <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
-                    <th onClick={() => handleSort('employee_name')} style={{ cursor:'pointer' }}>Employee{headerIndicator('employee_name')}</th>
-                    <th onClick={() => handleSort('employer_name')} style={{ cursor:'pointer' }}>Employer{headerIndicator('employer_name')}</th>
-                    <th>Organization</th>
-                    <th onClick={() => handleSort('job_profile')} style={{ cursor:'pointer' }}>Job (Profile){headerIndicator('job_profile')}</th>
-                    <th>Job Status</th>
-                    <th>Profile Status</th>
-                    <th>Salary</th>
-                    <th onClick={() => handleSort('status')} style={{ cursor:'pointer' }}>Status{headerIndicator('status')}</th>
-                    <th>OTP</th>
-                    <th>Contact At</th>
+                    <th onClick={() => handleSort('employee_name')} style={{ cursor:'pointer', width: colWidths.employee }}>Employee{headerIndicator('employee_name')}{rHandle('employee')}</th>
+                    <th onClick={() => handleSort('employer_name')} style={{ cursor:'pointer', width: colWidths.employer }}>Employer{headerIndicator('employer_name')}{rHandle('employer')}</th>
+                    <th style={{ width: colWidths.organization }}>Organization{rHandle('organization')}</th>
+                    <th onClick={() => handleSort('job_profile')} style={{ cursor:'pointer', width: colWidths.job_profile }}>Job (Profile){headerIndicator('job_profile')}{rHandle('job_profile')}</th>
+                    <th style={{ width: colWidths.job_status }}>Job Status{rHandle('job_status')}</th>
+                    <th style={{ width: colWidths.profile_status }}>Profile Status{rHandle('profile_status')}</th>
+                    <th style={{ width: colWidths.salary }}>Salary{rHandle('salary')}</th>
+                    <th onClick={() => handleSort('status')} style={{ cursor:'pointer', width: colWidths.status }}>Status{headerIndicator('status')}{rHandle('status')}</th>
+                    <th style={{ width: colWidths.otp }}>OTP{rHandle('otp')}</th>
+                    <th style={{ width: colWidths.contact_at }}>Contact At{rHandle('contact_at')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -727,7 +732,7 @@ export default function HiredEmployees() {
                             row.employee?.name || '-'
                           )}
                           <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                            {row.employee?.mobile || '-'}
+                            {formatMobile(row.employee?.mobile)}
                           </div>
                         </td>
                         <td>
@@ -739,7 +744,7 @@ export default function HiredEmployees() {
                             row.employer?.name || '-'
                           )}
                           <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                            {row.employer?.mobile || '-'}
+                            {formatMobile(row.employer?.mobile)}
                           </div>
                         </td>
                         <td>

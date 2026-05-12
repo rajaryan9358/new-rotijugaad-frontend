@@ -8,7 +8,10 @@ import LogsAction from '../../components/LogsAction';
 import salaryRangesApi from '../../api/masters/salaryRangesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import './MasterPage.css';
+
+const DEFAULTS = { salary_from: 120, salary_to: 120, status: 80, actions: 90 };
 
 export default function SalaryRanges() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -22,6 +25,7 @@ export default function SalaryRanges() {
   const canManageMasters = hasPermission(PERMISSIONS.MASTERS_MANAGE);
   const canDeleteMasters = hasPermission(PERMISSIONS.MASTERS_DELETE);
   const navigate = useNavigate();
+  const { colWidths, rHandle } = useResizableColumns('salary-ranges-col-widths', DEFAULTS);
 
   useEffect(() => {
     setSidebarOpen(getSidebarState());
@@ -148,13 +152,13 @@ export default function SalaryRanges() {
 </div>
 
                 <div className="table-container">
-                  <table className="data-table">
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
-                        <th>Salary From</th>
-                        <th>Salary To</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th style={{ width: colWidths.salary_from }}>Salary From{rHandle('salary_from')}</th>
+                        <th style={{ width: colWidths.salary_to }}>Salary To{rHandle('salary_to')}</th>
+                        <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>

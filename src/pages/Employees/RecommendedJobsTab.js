@@ -1,6 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import employeesApi from '../../api/employeesApi';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+
+const REC_JOBS_COL_DEFAULTS = {
+  employer: 160, organization: 180, org_type: 130, employer_phone: 140,
+  interviewer_contact: 160, job_profile: 180, shift_timing: 140, household: 110,
+  gender: 140, experience: 180, qualification: 180, shift: 160,
+  skills: 260, benefits: 260, verification: 140, vacancies: 120,
+  state: 160, city: 160, job_status: 140, job_life: 110, created_at: 180
+};
 
 const formatDateTime = (value) => {
   if (!value) return '-';
@@ -73,6 +82,7 @@ const renderJobStatusChip = (jobStatus, isExpired) => {
 };
 
 export default function RecommendedJobsTab({ employeeId, perms }) {
+  const { colWidths, rHandle } = useResizableColumns('rec-jobs-col-widths', REC_JOBS_COL_DEFAULTS);
   const [recommendedJobs, setRecommendedJobs] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
@@ -120,32 +130,32 @@ export default function RecommendedJobsTab({ employeeId, perms }) {
         <div style={{ fontSize: '13px', color: '#666' }}>No matching jobs found.</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <table className="col-resizable" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed' }}>
             <thead>
               <tr style={{ background: '#f5f5f5' }}>
-                <th style={th(160)}>Employer</th>
-                <th style={th(180)}>Organization</th>
-                <th style={th(130)}>Org Type</th>
+                <th style={{ ...th(0), width: colWidths.employer }}>Employer{rHandle('employer')}</th>
+                <th style={{ ...th(0), width: colWidths.organization }}>Organization{rHandle('organization')}</th>
+                <th style={{ ...th(0), width: colWidths.org_type }}>Org Type{rHandle('org_type')}</th>
                 {perms?.canShowEmployerPhoneAddress && (
-                  <th style={th(140)}>Employer Phone</th>
+                  <th style={{ ...th(0), width: colWidths.employer_phone }}>Employer Phone{rHandle('employer_phone')}</th>
                 )}
-                <th style={th(160)}>Interviewer Contact</th>
-                <th style={th(180)}>Job Profile</th>
-                <th style={th(140)}>Shift Timing</th>
-                <th style={th(110)}>Household</th>
-                <th style={th(140)}>Gender</th>
-                <th style={th(180)}>Experience</th>
-                <th style={th(180)}>Qualification</th>
-                <th style={th(160)}>Shift</th>
-                <th style={th(260)}>Skills</th>
-                <th style={th(260)}>Benefits</th>
-                <th style={th(140)}>Verification</th>
-                <th style={th(120)}>Vacancies</th>
-                <th style={th(160)}>State</th>
-                <th style={th(160)}>City</th>
-                <th style={th(140)}>Job Status</th>
-                <th style={th(110)}>Job Life</th>
-                <th style={th(180)}>Created At</th>
+                <th style={{ ...th(0), width: colWidths.interviewer_contact }}>Interviewer Contact{rHandle('interviewer_contact')}</th>
+                <th style={{ ...th(0), width: colWidths.job_profile }}>Job Profile{rHandle('job_profile')}</th>
+                <th style={{ ...th(0), width: colWidths.shift_timing }}>Shift Timing{rHandle('shift_timing')}</th>
+                <th style={{ ...th(0), width: colWidths.household }}>Household{rHandle('household')}</th>
+                <th style={{ ...th(0), width: colWidths.gender }}>Gender{rHandle('gender')}</th>
+                <th style={{ ...th(0), width: colWidths.experience }}>Experience{rHandle('experience')}</th>
+                <th style={{ ...th(0), width: colWidths.qualification }}>Qualification{rHandle('qualification')}</th>
+                <th style={{ ...th(0), width: colWidths.shift }}>Shift{rHandle('shift')}</th>
+                <th style={{ ...th(0), width: colWidths.skills }}>Skills{rHandle('skills')}</th>
+                <th style={{ ...th(0), width: colWidths.benefits }}>Benefits{rHandle('benefits')}</th>
+                <th style={{ ...th(0), width: colWidths.verification }}>Verification{rHandle('verification')}</th>
+                <th style={{ ...th(0), width: colWidths.vacancies }}>Vacancies{rHandle('vacancies')}</th>
+                <th style={{ ...th(0), width: colWidths.state }}>State{rHandle('state')}</th>
+                <th style={{ ...th(0), width: colWidths.city }}>City{rHandle('city')}</th>
+                <th style={{ ...th(0), width: colWidths.job_status }}>Job Status{rHandle('job_status')}</th>
+                <th style={{ ...th(0), width: colWidths.job_life }}>Job Life{rHandle('job_life')}</th>
+                <th style={{ ...th(0), width: colWidths.created_at }}>Created At{rHandle('created_at')}</th>
               </tr>
             </thead>
             <tbody>

@@ -15,6 +15,7 @@ import JobDetail from './JobDetail'; // (to be created below)
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
@@ -115,6 +116,15 @@ const buildExportFilename = () => {
   return `jobs_${pad(now.getDate())}-${pad(now.getMonth()+1)}-${now.getFullYear()}_${pad(hours)}_${pad(now.getMinutes())}_${pad(now.getSeconds())}_${suffix}_.csv`;
 };
 
+const DEFAULTS = {
+  id: 60, employer: 120, org_name: 140, org_category: 130, employer_phone: 120,
+  interviewer_contact: 140, shift_timing: 110, job_profile: 130, job_designation: 130,
+  household: 90, gender: 80, experience: 130, qualification: 120, shift: 110,
+  skills: 130, benefits: 130, verification: 110, vacancies: 90, state: 90, city: 90,
+  location: 120, salary_type: 100, salary: 100, status: 90, expiry_date: 110,
+  status_time: 130, created: 110, job_life: 90, actions: 100
+};
+
 export default function JobsManagement() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -160,6 +170,7 @@ export default function JobsManagement() {
   const [editJobId, setEditJobId] = useState(null);
   const [viewJobId, setViewJobId] = useState(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+  const [unverifiedEmployerJob, setUnverifiedEmployerJob] = useState(null);
   const [cloneJobId, setCloneJobId] = useState(null);
   const activeFilterCount = React.useMemo(
     () => Object.entries(filters).reduce((sum, [key, val]) => {
@@ -186,6 +197,8 @@ export default function JobsManagement() {
     canRepost: hasPermission(PERMISSIONS.JOBS_REPOST),
     canExport: hasPermission(PERMISSIONS.JOBS_EXPORT)
   }), []);
+
+  const { colWidths, rHandle } = useResizableColumns('jobs-col-widths', DEFAULTS);
 
   const normalizedStatusFromQuery = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -727,6 +740,13 @@ export default function JobsManagement() {
 
   const handleVerifyJob = async (job, next) => {
     if (!jobPerms.canManage || statusUpdatingId) return;
+    if (next === 'approved') {
+      const evs = String(job.employer_verification_status || 'pending').toLowerCase();
+      if (evs !== 'verified' && evs !== 'approved') {
+        setUnverifiedEmployerJob(job);
+        return;
+      }
+    }
     setStatusUpdatingId(job.id);
     try {
       if (next === 'approved') await jobApi.approveJob(job.id);
@@ -875,6 +895,32 @@ export default function JobsManagement() {
         <Sidebar isOpen={sidebarOpen} />
         <main className={`main-content jobs-management-page ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
           <div className="content-wrapper">
+
+            {unverifiedEmployerJob && (
+              <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <div style={{ background:'#fff', borderRadius:12, padding:'28px 24px', maxWidth:420, width:'90%', boxShadow:'0 8px 32px rgba(0,0,0,0.18)' }}>
+                  <h3 style={{ margin:'0 0 10px', fontSize:17, fontWeight:700, color:'#1e293b' }}>Profile Not Verified</h3>
+                  <p style={{ margin:'0 0 20px', fontSize:14, color:'#475569', lineHeight:1.5 }}>
+                    The employer's profile is not verified. Please verify the profile first before approving this job.
+                  </p>
+                  <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+                    <button
+                      className="btn-secondary small"
+                      onClick={() => setUnverifiedEmployerJob(null)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-primary small"
+                      onClick={() => { navigate(`/employers/${unverifiedEmployerJob.employer_id}`); setUnverifiedEmployerJob(null); }}
+                    >
+                      View Profile
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {message && (
               <div className={`inline-message ${message.type === 'error' ? 'error' : 'success'}`}>
                 {message.text}
@@ -1119,38 +1165,38 @@ export default function JobsManagement() {
                 )}
 
                 <div className="table-container">
-                  <table className="data-table" style={{ minWidth:'2000px' }}>
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
-                        <th onClick={() => handleSort('id')} style={{ cursor:'pointer' }}>ID{headerIndicator('id')}</th>
-                        <th onClick={() => handleSort('employer_id')} style={{ cursor:'pointer' }}>Employer{headerIndicator('employer_id')}</th>
-                        <th>Organization Name</th>
-                        <th>Organization Category</th>
-                        <th>Employer Phone</th>
-                        <th>Interviewer Contact</th> {/* NEW */}
-                        <th>Shift Timing</th>        {/* NEW */}
-                        <th onClick={() => handleSort('job_profile_id')} style={{ cursor:'pointer' }}>Job Profile{headerIndicator('job_profile_id')}</th>
-                        <th>Job Designation</th>
-                        <th>Household</th>
-                        <th>Gender</th>
-                        <th>Experience</th>
-                        <th>Qualification</th>
-                        <th>Shift</th>
-                        <th>Skills</th>
-                        <th>Benefits</th>
-                        <th>Verification</th> {/* NEW */}
-                        <th>Vacancies</th> {/* CHANGED */}
-                        <th>State</th>
-                        <th>City</th>
-                        <th>Location</th>
-                        <th>Salary Type</th>
-                        <th>Salary</th>
-                        <th>Status</th>
-                        <th>Expiry Date</th>
-                        <th>Status Time</th>
-                        <th>Created</th>
-                        <th>Job Life (days)</th>
-                        <th>Actions</th>
+                        <th onClick={() => handleSort('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{headerIndicator('id')}{rHandle('id')}</th>
+                        <th onClick={() => handleSort('employer_id')} style={{ cursor:'pointer', width: colWidths.employer }}>Employer{headerIndicator('employer_id')}{rHandle('employer')}</th>
+                        <th style={{ width: colWidths.org_name }}>Organization Name{rHandle('org_name')}</th>
+                        <th style={{ width: colWidths.org_category }}>Organization Category{rHandle('org_category')}</th>
+                        <th style={{ width: colWidths.employer_phone }}>Employer Phone{rHandle('employer_phone')}</th>
+                        <th style={{ width: colWidths.interviewer_contact }}>Interviewer Contact{rHandle('interviewer_contact')}</th> {/* NEW */}
+                        <th style={{ width: colWidths.shift_timing }}>Shift Timing{rHandle('shift_timing')}</th>        {/* NEW */}
+                        <th onClick={() => handleSort('job_profile_id')} style={{ cursor:'pointer', width: colWidths.job_profile }}>Job Profile{headerIndicator('job_profile_id')}{rHandle('job_profile')}</th>
+                        <th style={{ width: colWidths.job_designation }}>Job Designation{rHandle('job_designation')}</th>
+                        <th style={{ width: colWidths.household }}>Household{rHandle('household')}</th>
+                        <th style={{ width: colWidths.gender }}>Gender{rHandle('gender')}</th>
+                        <th style={{ width: colWidths.experience }}>Experience{rHandle('experience')}</th>
+                        <th style={{ width: colWidths.qualification }}>Qualification{rHandle('qualification')}</th>
+                        <th style={{ width: colWidths.shift }}>Shift{rHandle('shift')}</th>
+                        <th style={{ width: colWidths.skills }}>Skills{rHandle('skills')}</th>
+                        <th style={{ width: colWidths.benefits }}>Benefits{rHandle('benefits')}</th>
+                        <th style={{ width: colWidths.verification }}>Verification{rHandle('verification')}</th> {/* NEW */}
+                        <th style={{ width: colWidths.vacancies }}>Vacancies{rHandle('vacancies')}</th> {/* CHANGED */}
+                        <th style={{ width: colWidths.state }}>State{rHandle('state')}</th>
+                        <th style={{ width: colWidths.city }}>City{rHandle('city')}</th>
+                        <th style={{ width: colWidths.location }}>Location{rHandle('location')}</th>
+                        <th style={{ width: colWidths.salary_type }}>Salary Type{rHandle('salary_type')}</th>
+                        <th style={{ width: colWidths.salary }}>Salary{rHandle('salary')}</th>
+                        <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
+                        <th style={{ width: colWidths.expiry_date }}>Expiry Date{rHandle('expiry_date')}</th>
+                        <th style={{ width: colWidths.status_time }}>Status Time{rHandle('status_time')}</th>
+                        <th style={{ width: colWidths.created }}>Created{rHandle('created')}</th>
+                        <th style={{ width: colWidths.job_life }}>Job Life (days){rHandle('job_life')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>

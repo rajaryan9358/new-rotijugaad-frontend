@@ -91,7 +91,7 @@ export default function MasterList({ title, apiEndpoint, columns, onAddNew }) {
                 </div>
 
                 <div className="table-container">
-                  <table className="data-table">
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
                         {columns.map((col, idx) => (

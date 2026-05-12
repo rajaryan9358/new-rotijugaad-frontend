@@ -4,6 +4,8 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import contactUnlocksApi from '../../api/contactUnlocksApi';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { formatMobile } from '../../utils/formatters';
 import '../Masters/MasterPage.css';
 
 const TAB_OPTIONS = [
@@ -42,6 +44,12 @@ const chipCloseStyle = {
 
 const linkStyle = { color: '#2563eb', textDecoration: 'underline' };
 
+const DEFAULTS = {
+  id: 60, unlocked_at: 130,
+  employee: 130, employee_mobile: 120, employer: 130, organization: 140, employer_mobile: 120, job: 120, verification: 110, kyc: 80,
+  employer2: 130, org2: 140, employer_mobile2: 120, employee2: 130, employee_mobile2: 120, job_profiles: 150, location: 120, verification2: 110, kyc2: 80,
+};
+
 export default function ContactUnlocksManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rows, setRows] = useState([]);
@@ -64,6 +72,8 @@ export default function ContactUnlocksManagement() {
   const canExport = hasPermission(PERMISSIONS.CONTACT_UNLOCKS_EXPORT);
   const canShowEmployeePhone = hasPermission(PERMISSIONS.EMPLOYEES_SHOW_PHONE_ADDRESS);
   const canShowEmployerPhone = hasPermission(PERMISSIONS.EMPLOYERS_SHOW_PHONE_ADDRESS);
+
+  const { colWidths, rHandle } = useResizableColumns('contact-unlocks-col-widths', DEFAULTS);
 
   const buildQueryParams = useCallback(() => ({
     page: currentPage,
@@ -255,10 +265,10 @@ export default function ContactUnlocksManagement() {
           row.id,
           formatDateTime(row.created_at),
           row.employee_name || '',
-          canShowEmployeePhone ? (row.employee_mobile || '') : '',
+          canShowEmployeePhone ? formatMobile(row.employee_mobile) : '',
           row.employer_name || '',
           row.organization_name || '',
-          canShowEmployerPhone ? (row.employer_mobile || '') : '',
+          canShowEmployerPhone ? formatMobile(row.employer_mobile) : '',
           row.job_profile || '',
           row.job_designation || '',
           row.job_status || '',
@@ -272,9 +282,9 @@ export default function ContactUnlocksManagement() {
         formatDateTime(row.created_at),
         row.employer_name || '',
         row.organization_name || '',
-        canShowEmployerPhone ? (row.employer_mobile || '') : '',
+        canShowEmployerPhone ? formatMobile(row.employer_mobile) : '',
         row.employee_name || '',
-        canShowEmployeePhone ? (row.employee_mobile || '') : '',
+        canShowEmployeePhone ? formatMobile(row.employee_mobile) : '',
         Array.isArray(row.employee_job_profiles) ? row.employee_job_profiles.join(', ') : '',
         [row.current_city, row.current_state].filter(Boolean).join(', '),
         row.verification_status || '',
@@ -417,33 +427,33 @@ export default function ContactUnlocksManagement() {
             )}
 
             <div className="table-container">
-              <table className="data-table" style={{ minWidth: userType === 'employee' ? '1300px' : '1250px' }}>
+              <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('id')}>ID{headerIndicator('id')}</th>
-                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('created_at')}>Unlocked At{headerIndicator('created_at')}</th>
+                    <th style={{ cursor: 'pointer', width: colWidths.id }} onClick={() => handleSort('id')}>ID{headerIndicator('id')}{rHandle('id')}</th>
+                    <th style={{ cursor: 'pointer', width: colWidths.unlocked_at }} onClick={() => handleSort('created_at')}>Unlocked At{headerIndicator('created_at')}{rHandle('unlocked_at')}</th>
                     {userType === 'employee' ? (
                       <>
-                        <th>Employee</th>
-                        {canShowEmployeePhone && <th>Employee Mobile</th>}
-                        <th>Employer</th>
-                        <th>Organization</th>
-                        {canShowEmployerPhone && <th>Employer Mobile</th>}
-                        <th>Job</th>
-                        <th>Verification</th>
-                        <th>KYC</th>
+                        <th style={{ width: colWidths.employee }}>Employee{rHandle('employee')}</th>
+                        {canShowEmployeePhone && <th style={{ width: colWidths.employee_mobile }}>Employee Mobile{rHandle('employee_mobile')}</th>}
+                        <th style={{ width: colWidths.employer }}>Employer{rHandle('employer')}</th>
+                        <th style={{ width: colWidths.organization }}>Organization{rHandle('organization')}</th>
+                        {canShowEmployerPhone && <th style={{ width: colWidths.employer_mobile }}>Employer Mobile{rHandle('employer_mobile')}</th>}
+                        <th style={{ width: colWidths.job }}>Job{rHandle('job')}</th>
+                        <th style={{ width: colWidths.verification }}>Verification{rHandle('verification')}</th>
+                        <th style={{ width: colWidths.kyc }}>KYC{rHandle('kyc')}</th>
                       </>
                     ) : (
                       <>
-                        <th>Employer</th>
-                        <th>Organization</th>
-                        {canShowEmployerPhone && <th>Employer Mobile</th>}
-                        <th>Employee</th>
-                        {canShowEmployeePhone && <th>Employee Mobile</th>}
-                        <th>Job Profiles</th>
-                        <th>Location</th>
-                        <th>Verification</th>
-                        <th>KYC</th>
+                        <th style={{ width: colWidths.employer2 }}>Employer{rHandle('employer2')}</th>
+                        <th style={{ width: colWidths.org2 }}>Organization{rHandle('org2')}</th>
+                        {canShowEmployerPhone && <th style={{ width: colWidths.employer_mobile2 }}>Employer Mobile{rHandle('employer_mobile2')}</th>}
+                        <th style={{ width: colWidths.employee2 }}>Employee{rHandle('employee2')}</th>
+                        {canShowEmployeePhone && <th style={{ width: colWidths.employee_mobile2 }}>Employee Mobile{rHandle('employee_mobile2')}</th>}
+                        <th style={{ width: colWidths.job_profiles }}>Job Profiles{rHandle('job_profiles')}</th>
+                        <th style={{ width: colWidths.location }}>Location{rHandle('location')}</th>
+                        <th style={{ width: colWidths.verification2 }}>Verification{rHandle('verification2')}</th>
+                        <th style={{ width: colWidths.kyc2 }}>KYC{rHandle('kyc2')}</th>
                       </>
                     )}
                   </tr>
@@ -467,12 +477,12 @@ export default function ContactUnlocksManagement() {
                           <td>
                             {row.employee_id ? <Link to={`/employees/${row.employee_id}`} style={linkStyle}>{row.employee_name || '-'}</Link> : (row.employee_name || '-')}
                           </td>
-                          {canShowEmployeePhone && <td>{row.employee_mobile || '-'}</td>}
+                          {canShowEmployeePhone && <td>{formatMobile(row.employee_mobile)}</td>}
                           <td>
                             {row.employer_id ? <Link to={`/employers/${row.employer_id}`} style={linkStyle}>{row.employer_name || '-'}</Link> : (row.employer_name || '-')}
                           </td>
                           <td>{row.organization_name || '-'}</td>
-                          {canShowEmployerPhone && <td>{row.employer_mobile || '-'}</td>}
+                          {canShowEmployerPhone && <td>{formatMobile(row.employer_mobile)}</td>}
                           <td>
                             {row.job_id ? <Link to={`/jobs/${row.job_id}`} style={linkStyle}>{jobLabel}</Link> : jobLabel}
                           </td>
@@ -494,11 +504,11 @@ export default function ContactUnlocksManagement() {
                           {row.employer_id ? <Link to={`/employers/${row.employer_id}`} style={linkStyle}>{row.employer_name || '-'}</Link> : (row.employer_name || '-')}
                         </td>
                         <td>{row.organization_name || '-'}</td>
-                        {canShowEmployerPhone && <td>{row.employer_mobile || '-'}</td>}
+                        {canShowEmployerPhone && <td>{formatMobile(row.employer_mobile)}</td>}
                         <td>
                           {row.employee_id ? <Link to={`/employees/${row.employee_id}`} style={linkStyle}>{row.employee_name || '-'}</Link> : (row.employee_name || '-')}
                         </td>
-                        {canShowEmployeePhone && <td>{row.employee_mobile || '-'}</td>}
+                        {canShowEmployeePhone && <td>{formatMobile(row.employee_mobile)}</td>}
                         <td>{profiles}</td>
                         <td>{location}</td>
                         <td>{renderStatusBadge(row.verification_status)}</td>

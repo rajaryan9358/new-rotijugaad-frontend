@@ -8,7 +8,10 @@ import LogsAction from '../../components/LogsAction';
 import distancesApi from '../../api/masters/distancesApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import './MasterPage.css';
+
+const DEFAULTS = { english_title: 150, hindi_title: 150, distance_km: 110, sequence: 80, status: 80, actions: 90 };
 
 export default function Distances() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -23,6 +26,7 @@ export default function Distances() {
   const canManageMasters = hasPermission(PERMISSIONS.MASTERS_MANAGE);
   const canDeleteMasters = hasPermission(PERMISSIONS.MASTERS_DELETE);
   const navigate = useNavigate();
+  const { colWidths, rHandle } = useResizableColumns('distances-col-widths', DEFAULTS);
 
   useEffect(() => {
     setSidebarOpen(getSidebarState());
@@ -201,16 +205,16 @@ export default function Distances() {
                 </div>
 
                 <div className="table-container">
-                  <table className="data-table draggable">
+                  <table className="data-table draggable col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
                         <th className="drag-handle"></th>
-                        <th>English Title</th>
-                        <th>Hindi Title</th>
-                        <th>Distance (KM)</th>
-                        <th>Sequence</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th style={{ width: colWidths.english_title }}>English Title{rHandle('english_title')}</th>
+                        <th style={{ width: colWidths.hindi_title }}>Hindi Title{rHandle('hindi_title')}</th>
+                        <th style={{ width: colWidths.distance_km }}>Distance (KM){rHandle('distance_km')}</th>
+                        <th style={{ width: colWidths.sequence }}>Sequence{rHandle('sequence')}</th>
+                        <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>

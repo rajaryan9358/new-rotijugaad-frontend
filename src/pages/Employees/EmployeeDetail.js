@@ -12,6 +12,7 @@ import callHistoryApi from '../../api/callHistoryApi';
 import { getApiBaseUrl } from '../../api/baseUrl';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { formatMobile } from '../../utils/formatters';
 import EmployeeForm from '../../components/Forms/EmployeeForm';
 import '../Masters/MasterPage.css';
 
@@ -61,7 +62,8 @@ const getReferralDetailRoute = (entityType, entityId) => {
 // FIXED: non-hook helper (was missing returns/braces, so suffix stayed empty/undefined)
 function getEmployeeHeadingSuffix(employee, canShowPhoneAddress) {
   const name = (employee?.name || employee?.User?.name || '').toString().trim();
-  const mobile = (employee?.User?.mobile || '').toString().trim();
+  const rawMobile = (employee?.User?.mobile || '').toString().trim();
+  const mobile = formatMobile(rawMobile);
 
   if (!name && !mobile) return '';
 
@@ -2341,7 +2343,7 @@ export default function EmployeeDetail() {
                     <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.verification_status}</td>
                     <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.kyc_status}</td>
                     {perms.canShowEmployerPhoneAddress && (
-                      <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.mobile || '-'}</td>
+                      <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{formatMobile(row.mobile)}</td>
                     )}
                     <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.call_experience}</td>
                     <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.date)}</td>

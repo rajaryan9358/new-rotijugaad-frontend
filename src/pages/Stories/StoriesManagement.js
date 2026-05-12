@@ -8,8 +8,12 @@ import logsApi from '../../api/logsApi';
 import StoryForm from '../../components/Forms/StoryForm';
 import '../Masters/MasterPage.css';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+
+const DEFAULTS = { id: 60, user_type: 90, title_en: 130, title_hi: 130, image: 80, seq: 60, active: 70, expiry: 110, created_at: 110, actions: 90 };
 
 export default function StoriesManagement() {
+  const { colWidths, rHandle } = useResizableColumns('stories-col-widths', DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState([]);
@@ -413,20 +417,20 @@ export default function StoriesManagement() {
                 )}
 
                 <div className="table-container">
-                  <table className="data-table draggable">
+                  <table className="data-table draggable col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
                         <th className="drag-handle"></th> {/* NEW drag handle column */}
-                        <th onClick={() => headerClick('id')} style={{ cursor:'pointer' }}>ID{ind('id')}</th>
-                        <th onClick={() => headerClick('user_type')} style={{ cursor:'pointer' }}>User Type{ind('user_type')}</th>
-                        <th onClick={() => headerClick('title_english')} style={{ cursor:'pointer' }}>Title (EN){ind('title_english')}</th>
-                        <th onClick={() => headerClick('title_hindi')} style={{ cursor:'pointer' }}>Title (HI){ind('title_hindi')}</th>
-                        <th>Image</th>
-                        <th onClick={() => headerClick('sequence')} style={{ cursor:'pointer' }}>Seq{ind('sequence')}</th>
-                        <th onClick={() => headerClick('is_active')} style={{ cursor:'pointer' }}>Active{ind('is_active')}</th>
-                        <th onClick={() => headerClick('expiry_at')} style={{ cursor:'pointer' }}>Expiry{ind('expiry_at')}</th>
-                        <th onClick={() => headerClick('created_at')} style={{ cursor:'pointer' }}>Created At{ind('created_at')}</th>
-                        <th>Actions</th>
+                        <th onClick={() => headerClick('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{ind('id')}{rHandle('id')}</th>
+                        <th onClick={() => headerClick('user_type')} style={{ cursor:'pointer', width: colWidths.user_type }}>User Type{ind('user_type')}{rHandle('user_type')}</th>
+                        <th onClick={() => headerClick('title_english')} style={{ cursor:'pointer', width: colWidths.title_en }}>Title (EN){ind('title_english')}{rHandle('title_en')}</th>
+                        <th onClick={() => headerClick('title_hindi')} style={{ cursor:'pointer', width: colWidths.title_hi }}>Title (HI){ind('title_hindi')}{rHandle('title_hi')}</th>
+                        <th style={{ width: colWidths.image }}>Image{rHandle('image')}</th>
+                        <th onClick={() => headerClick('sequence')} style={{ cursor:'pointer', width: colWidths.seq }}>Seq{ind('sequence')}{rHandle('seq')}</th>
+                        <th onClick={() => headerClick('is_active')} style={{ cursor:'pointer', width: colWidths.active }}>Active{ind('is_active')}{rHandle('active')}</th>
+                        <th onClick={() => headerClick('expiry_at')} style={{ cursor:'pointer', width: colWidths.expiry }}>Expiry{ind('expiry_at')}{rHandle('expiry')}</th>
+                        <th onClick={() => headerClick('created_at')} style={{ cursor:'pointer', width: colWidths.created_at }}>Created At{ind('created_at')}{rHandle('created_at')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>

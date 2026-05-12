@@ -8,7 +8,10 @@ import VolunteerForm from '../../components/Forms/VolunteerForm';
 import volunteersApi from '../../api/masters/volunteersApi';
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
 import './MasterPage.css';
+
+const DEFAULTS = { name: 150, phone: 120, assistant_code: 130, address: 200, description: 200, actions: 90 };
 
 export default function Volunteers() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -23,6 +26,7 @@ export default function Volunteers() {
   const canManageMasters = hasPermission(PERMISSIONS.MASTERS_MANAGE);
   const canDeleteMasters = hasPermission(PERMISSIONS.MASTERS_DELETE);
   const navigate = useNavigate();
+  const { colWidths, rHandle } = useResizableColumns('volunteers-col-widths', DEFAULTS);
 
   useEffect(() => {
     setSidebarOpen(getSidebarState());
@@ -136,15 +140,15 @@ export default function Volunteers() {
 </div>
 
                 <div className="table-container">
-                  <table className="data-table">
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
-                        <th>Name</th>
-                        <th>Phone</th>
-                        <th>Assistant Code</th>
-                        <th>Address</th>
-                        <th>Description</th>
-                        <th>Actions</th>
+                        <th style={{ width: colWidths.name }}>Name{rHandle('name')}</th>
+                        <th style={{ width: colWidths.phone }}>Phone{rHandle('phone')}</th>
+                        <th style={{ width: colWidths.assistant_code }}>Assistant Code{rHandle('assistant_code')}</th>
+                        <th style={{ width: colWidths.address }}>Address{rHandle('address')}</th>
+                        <th style={{ width: colWidths.description }}>Description{rHandle('description')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>

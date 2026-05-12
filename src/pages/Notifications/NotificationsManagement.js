@@ -7,6 +7,9 @@ import notificationsApi from '../../api/notificationsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import '../Masters/MasterPage.css';
+import { useResizableColumns } from '../../hooks/useResizableColumns';
+
+const DEFAULTS = { title: 200, target: 120, status: 90, sent: 80, created: 120, actions: 80 };
 
 const TARGET_OPTIONS = [
   { value: 'all_users', label: 'All Users' },
@@ -48,6 +51,7 @@ const suggestionDropdownStyle = {
 
 export default function NotificationsManagement() {
   const navigate = useNavigate();
+  const { colWidths, rHandle } = useResizableColumns('notifications-col-widths', DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = useState(getSidebarState());
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -310,15 +314,15 @@ export default function NotificationsManagement() {
 
               <div className="data-card" style={{ padding: '0' }}>
                 <div className="table-container" style={{ padding: '0' }}>
-                  <table className="data-table">
+                  <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
-                        <th style={headerCellStyle}>Title</th>
-                        <th style={headerCellStyle}>Target</th>
-                        <th style={headerCellStyle}>Status</th>
-                        <th style={headerCellStyle}>Sent</th>
-                        <th style={headerCellStyle}>Created</th>
-                        <th style={headerCellStyle} />
+                        <th style={{ ...headerCellStyle, width: colWidths.title }}>Title{rHandle('title')}</th>
+                        <th style={{ ...headerCellStyle, width: colWidths.target }}>Target{rHandle('target')}</th>
+                        <th style={{ ...headerCellStyle, width: colWidths.status }}>Status{rHandle('status')}</th>
+                        <th style={{ ...headerCellStyle, width: colWidths.sent }}>Sent{rHandle('sent')}</th>
+                        <th style={{ ...headerCellStyle, width: colWidths.created }}>Created{rHandle('created')}</th>
+                        <th style={{ ...headerCellStyle, width: colWidths.actions }}>{rHandle('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>

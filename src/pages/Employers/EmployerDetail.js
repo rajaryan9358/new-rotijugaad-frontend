@@ -17,6 +17,7 @@ import statesApi from '../../api/masters/statesApi'; // add
 import citiesApi from '../../api/masters/citiesApi'; // add
 import { getApiBaseUrl } from '../../api/baseUrl';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { formatMobile } from '../../utils/formatters';
 
 const TABS = [
   'Basic details',
@@ -221,16 +222,18 @@ const getReferralDetailRoute = (entityType, entityId) => {
 // FIXED: non-hook helper for heading suffix (matches EmployeeDetail UX)
 function getEmployerHeadingSuffix(employer, canShowPhoneAddress) {
   const name = (employer?.name || employer?.User?.name || '').toString().trim();
-  const mobile = (employer?.User?.mobile || '').toString().trim();
+  const rawMobile = (employer?.User?.mobile || '').toString().trim();
+  const mobile = formatMobile(rawMobile);
 
-  if (!name && !mobile) return '';
+  if (!name && (!mobile || mobile === '-')) return '';
 
   if (!canShowPhoneAddress) {
     return name || '';
   }
 
-  if (name && mobile) return `${name} (${mobile})`;
-  return name || mobile;
+  const displayMobile = mobile !== '-' ? mobile : '';
+  if (name && displayMobile) return `${name} (${displayMobile})`;
+  return name || displayMobile;
 }
 
 
@@ -896,7 +899,7 @@ export default function EmployerDetail() {
         <Detail label="Name" value={basic.name} />
         <Detail label="User ID" value={basic.user_id} />
         {employerPerms.canShowPhoneAddress && (
-          <Detail label="Mobile" value={basic.User?.mobile || '-'} />
+          <Detail label="Mobile" value={formatMobile(basic.User?.mobile)} />
         )}
         <Detail label="Referred By" value={basic.User?.referred_by || '-'} />
         <Detail label="Preferred Language" value={basic.User?.preferred_language || '-'} />
@@ -1267,7 +1270,7 @@ export default function EmployerDetail() {
                       ) : name}
                     </td>
                     {canShowEmployeePhoneAddress && (
-                      <td style={{ padding: '6px', border: '1px solid #eee' }}>{emp.mobile || emp.User?.mobile || '-'}</td>
+                      <td style={{ padding: '6px', border: '1px solid #eee' }}>{formatMobile(emp.mobile ?? emp.User?.mobile)}</td>
                     )}
                     <td style={{ padding: '6px', border: '1px solid #eee' }}>{gender}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee' }}>
@@ -1353,7 +1356,7 @@ export default function EmployerDetail() {
                       ) : name}
                     </td>
                     {canShowEmployeePhoneAddress && (
-                      <td style={{ padding: '6px', border: '1px solid #eee' }}>{emp.mobile || '-'}</td>
+                      <td style={{ padding: '6px', border: '1px solid #eee' }}>{formatMobile(emp.mobile)}</td>
                     )}
                     <td style={{ padding: '6px', border: '1px solid #eee' }}>{emp.gender || '-'}</td>
                     <td style={{ padding: '6px', border: '1px solid #eee' }}>
@@ -1431,7 +1434,7 @@ export default function EmployerDetail() {
                   <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.verification_status}</td>
                   <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.kyc_status}</td>
                   {canShowEmployeePhoneAddress && (
-                    <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.mobile}</td>
+                    <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{formatMobile(row.mobile)}</td>
                   )}
                   <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{row.call_experience}</td>
                   <td style={{ padding:'6px', border:'1px solid #eee', textAlign: 'left' }}>{formatDateTime(row.date)}</td>
@@ -1502,7 +1505,7 @@ export default function EmployerDetail() {
                   </td>
                   {canShowEmployeePhoneAddress && (
                     <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>
-                      {row.employee_mobile || row.mobile || '-'}
+                      {formatMobile(row.employee_mobile ?? row.mobile)}
                     </td>
                   )}
                   <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>
@@ -1754,7 +1757,7 @@ export default function EmployerDetail() {
                   <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{profiles}</td>
                   <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{location}</td>
                   {canShowEmployeePhoneAddress && (
-                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{row.employee_mobile || '-'}</td>
+                    <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{formatMobile(row.employee_mobile)}</td>
                   )}
                   <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{renderStatusBadge(row.verification_status)}</td>
                   <td style={{ padding: '6px', border: '1px solid #eee', textAlign: 'left' }}>{renderStatusBadge(row.kyc_status)}</td>
