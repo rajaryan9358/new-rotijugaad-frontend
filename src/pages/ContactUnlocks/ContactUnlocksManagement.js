@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import contactUnlocksApi from '../../api/contactUnlocksApi';
+import callHistoryApi from '../../api/callHistoryApi';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { formatMobile } from '../../utils/formatters';
@@ -48,6 +49,7 @@ const DEFAULTS = {
   id: 60, unlocked_at: 130,
   employee: 130, employee_mobile: 120, employer: 130, organization: 140, employer_mobile: 120, job: 120, verification: 110, kyc: 80,
   employer2: 130, org2: 140, employer_mobile2: 120, employee2: 130, employee_mobile2: 120, job_profiles: 150, location: 120, verification2: 110, kyc2: 80,
+  actions: 120,
 };
 
 export default function ContactUnlocksManagement() {
@@ -67,6 +69,22 @@ export default function ContactUnlocksManagement() {
   const [createdToFilter, setCreatedToFilter] = useState('');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [draftFilters, setDraftFilters] = useState({ createdFromFilter: '', createdToFilter: '' });
+
+  const [callExpItem, setCallExpItem] = useState(null);
+  const [callExpLoading, setCallExpLoading] = useState(false);
+
+  const openCallExp = async (callExpId) => {
+    setCallExpLoading(true);
+    setCallExpItem(null);
+    try {
+      const res = await callHistoryApi.getCallHistoryById(callExpId);
+      setCallExpItem(res.data?.data || null);
+    } catch {
+      setCallExpItem({ _error: true });
+    } finally {
+      setCallExpLoading(false);
+    }
+  };
 
   const canView = hasPermission(PERMISSIONS.CONTACT_UNLOCKS_VIEW);
   const canExport = hasPermission(PERMISSIONS.CONTACT_UNLOCKS_EXPORT);
@@ -309,8 +327,8 @@ export default function ContactUnlocksManagement() {
   }
 
   const tableColCount = userType === 'employee'
-    ? 8 + (canShowEmployeePhone ? 1 : 0) + (canShowEmployerPhone ? 1 : 0)
-    : 9 + (canShowEmployeePhone ? 1 : 0) + (canShowEmployerPhone ? 1 : 0);
+    ? 9 + (canShowEmployeePhone ? 1 : 0) + (canShowEmployerPhone ? 1 : 0)
+    : 10 + (canShowEmployeePhone ? 1 : 0) + (canShowEmployerPhone ? 1 : 0);
 
   return (
     <div className="dashboard-container">
@@ -442,6 +460,7 @@ export default function ContactUnlocksManagement() {
                         <th style={{ width: colWidths.job }}>Job{rHandle('job')}</th>
                         <th style={{ width: colWidths.verification }}>Verification{rHandle('verification')}</th>
                         <th style={{ width: colWidths.kyc }}>KYC{rHandle('kyc')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </>
                     ) : (
                       <>
@@ -454,6 +473,7 @@ export default function ContactUnlocksManagement() {
                         <th style={{ width: colWidths.location }}>Location{rHandle('location')}</th>
                         <th style={{ width: colWidths.verification2 }}>Verification{rHandle('verification2')}</th>
                         <th style={{ width: colWidths.kyc2 }}>KYC{rHandle('kyc2')}</th>
+                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
                       </>
                     )}
                   </tr>
@@ -488,6 +508,17 @@ export default function ContactUnlocksManagement() {
                           </td>
                           <td>{renderStatusBadge(row.verification_status)}</td>
                           <td>{renderStatusBadge(row.kyc_status)}</td>
+                          <td>
+                            {row.call_experience_id && (
+                              <button
+                                className="btn-small btn-secondary"
+                                style={{ fontSize: '12px', padding: '4px 10px', whiteSpace: 'nowrap' }}
+                                onClick={(e) => { e.stopPropagation(); openCallExp(row.call_experience_id); }}
+                              >
+                                Call experience
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       );
                     }
@@ -513,6 +544,17 @@ export default function ContactUnlocksManagement() {
                         <td>{location}</td>
                         <td>{renderStatusBadge(row.verification_status)}</td>
                         <td>{renderStatusBadge(row.kyc_status)}</td>
+                        <td>
+                          {row.call_experience_id && (
+                            <button
+                              className="btn-small btn-secondary"
+                              style={{ fontSize: '12px', padding: '4px 10px', whiteSpace: 'nowrap' }}
+                              onClick={(e) => { e.stopPropagation(); openCallExp(row.call_experience_id); }}
+                            >
+                              Call experience
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -545,6 +587,63 @@ export default function ContactUnlocksManagement() {
           </div>
         </main>
       </div>
+
+      {(callExpLoading || callExpItem) && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px' }}
+          onClick={() => setCallExpItem(null)}
+        >
+          <div
+            style={{ background: '#ffffff', borderRadius: '18px', width: '520px', maxWidth: '100%', boxShadow: '0 20px 45px rgba(15,23,42,0.25)', border: '1px solid rgba(226,232,240,0.8)', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 8px 20px rgba(37,99,235,0.25)' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
+                {callExpLoading ? 'Loading…' : callExpItem?._error ? 'Error' : `Call History #${callExpItem?.id}`}
+              </h3>
+              <button
+                onClick={() => setCallExpItem(null)}
+                style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.35)', color: '#fff', cursor: 'pointer', width: '34px', height: '34px', borderRadius: '10px', fontSize: '16px' }}
+              >✕</button>
+            </div>
+            <div style={{ padding: '22px 26px', overflowY: 'auto', background: '#ffffff' }}>
+              {callExpLoading && <div style={{ textAlign: 'center', color: '#64748b', padding: '24px 0' }}>Loading call experience…</div>}
+              {!callExpLoading && callExpItem?._error && <div style={{ color: '#b91c1c' }}>Failed to load call experience details.</div>}
+              {!callExpLoading && callExpItem && !callExpItem._error && (
+                <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: '16px', columnGap: '18px', fontSize: '14px' }}>
+                  <strong style={{ textAlign: 'right', color: '#64748b' }}>User Type:</strong>
+                  <span>{callExpItem.user_type || '—'}</span>
+                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Name:</strong>
+                  <span>{callExpItem.user_name || callExpItem.entity?.name || callExpItem.user?.name || '—'}</span>
+                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Mobile:</strong>
+                  <span>{formatMobile(callExpItem.user_mobile ?? callExpItem.user?.mobile)}</span>
+                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Experience:</strong>
+                  <span>
+                    {callExpItem.experience
+                      ? (callExpItem.experience.experience_english || callExpItem.experience.experience_hindi || callExpItem.experience.id)
+                      : (callExpItem.call_experience_id || '—')}
+                  </span>
+                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Called ID:</strong>
+                  <span>{callExpItem.called_id || '—'}</span>
+                  <strong style={{ textAlign: 'right', color: '#64748b', alignSelf: 'start' }}>Review:</strong>
+                  <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', fontSize: '14px', lineHeight: 1.5, border: '1px solid rgba(148,163,184,0.4)' }}>
+                    {callExpItem.review || '—'}
+                  </div>
+                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Read At:</strong>
+                  <span>{callExpItem.read_at ? new Date(callExpItem.read_at).toLocaleString() : '—'}</span>
+                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Created:</strong>
+                  <span>{callExpItem.created_at ? new Date(callExpItem.created_at).toLocaleString() : '—'}</span>
+                </div>
+              )}
+              <div style={{ marginTop: '26px', textAlign: 'right' }}>
+                <button className="btn-small btn-secondary" onClick={() => setCallExpItem(null)} style={{ padding: '10px 20px', fontSize: '13px', borderRadius: '10px' }}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
