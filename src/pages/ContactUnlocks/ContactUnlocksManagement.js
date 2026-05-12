@@ -590,53 +590,53 @@ export default function ContactUnlocksManagement() {
 
       {(callExpLoading || callExpItem) && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px' }}
           onClick={() => setCallExpItem(null)}
         >
           <div
-            style={{ background: '#ffffff', borderRadius: '18px', width: '520px', maxWidth: '100%', boxShadow: '0 20px 45px rgba(15,23,42,0.25)', border: '1px solid rgba(226,232,240,0.8)', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}
+            style={{ background: '#fff', borderRadius: '10px', width: '480px', maxWidth: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 8px 20px rgba(37,99,235,0.25)' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
+            <div style={{ background: '#0098DB', color: '#fff', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
                 {callExpLoading ? 'Loading…' : callExpItem?._error ? 'Error' : `Call History #${callExpItem?.id}`}
               </h3>
               <button
                 onClick={() => setCallExpItem(null)}
-                style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.35)', color: '#fff', cursor: 'pointer', width: '34px', height: '34px', borderRadius: '10px', fontSize: '16px' }}
+                style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', fontSize: '14px', lineHeight: '28px', padding: 0 }}
               >✕</button>
             </div>
-            <div style={{ padding: '22px 26px', overflowY: 'auto', background: '#ffffff' }}>
-              {callExpLoading && <div style={{ textAlign: 'center', color: '#64748b', padding: '24px 0' }}>Loading call experience…</div>}
-              {!callExpLoading && callExpItem?._error && <div style={{ color: '#b91c1c' }}>Failed to load call experience details.</div>}
+            <div style={{ padding: '20px 24px', overflowY: 'auto' }}>
+              {callExpLoading && <div style={{ textAlign: 'center', color: '#555', padding: '24px 0' }}>Loading call experience…</div>}
+              {!callExpLoading && callExpItem?._error && <div style={{ color: '#c0392b', fontSize: '14px' }}>Failed to load call experience details.</div>}
               {!callExpLoading && callExpItem && !callExpItem._error && (
-                <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: '16px', columnGap: '18px', fontSize: '14px' }}>
-                  <strong style={{ textAlign: 'right', color: '#64748b' }}>User Type:</strong>
-                  <span>{callExpItem.user_type || '—'}</span>
-                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Name:</strong>
-                  <span>{callExpItem.user_name || callExpItem.entity?.name || callExpItem.user?.name || '—'}</span>
-                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Mobile:</strong>
-                  <span>{formatMobile(callExpItem.user_mobile ?? callExpItem.user?.mobile)}</span>
-                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Experience:</strong>
-                  <span>
+                <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', rowGap: '12px', columnGap: '16px', fontSize: '13px' }}>
+                  <strong style={{ textAlign: 'right', color: '#666' }}>User Type:</strong>
+                  <span style={{ color: '#333' }}>{callExpItem.user_type || '—'}</span>
+                  <strong style={{ textAlign: 'right', color: '#666' }}>Name:</strong>
+                  <span style={{ color: '#333' }}>{callExpItem.user_name || callExpItem.entity?.name || callExpItem.user?.name || '—'}</span>
+                  <strong style={{ textAlign: 'right', color: '#666' }}>Mobile:</strong>
+                  <span style={{ color: '#333' }}>{formatMobile(callExpItem.user_mobile ?? callExpItem.user?.mobile)}</span>
+                  <strong style={{ textAlign: 'right', color: '#666' }}>Experience:</strong>
+                  <span style={{ color: '#333' }}>
                     {callExpItem.experience
                       ? (callExpItem.experience.experience_english || callExpItem.experience.experience_hindi || callExpItem.experience.id)
                       : (callExpItem.call_experience_id || '—')}
                   </span>
-                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Called ID:</strong>
-                  <span>{callExpItem.called_id || '—'}</span>
-                  <strong style={{ textAlign: 'right', color: '#64748b', alignSelf: 'start' }}>Review:</strong>
-                  <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', fontSize: '14px', lineHeight: 1.5, border: '1px solid rgba(148,163,184,0.4)' }}>
+                  <strong style={{ textAlign: 'right', color: '#666' }}>Called ID:</strong>
+                  <span style={{ color: '#333' }}>{callExpItem.called_id || '—'}</span>
+                  <strong style={{ textAlign: 'right', color: '#666', alignSelf: 'start' }}>Review:</strong>
+                  <div style={{ background: '#f5f5f5', padding: '10px 12px', borderRadius: '6px', fontSize: '13px', lineHeight: 1.5, border: '1px solid #e0e0e0', color: '#333' }}>
                     {callExpItem.review || '—'}
                   </div>
-                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Read At:</strong>
-                  <span>{callExpItem.read_at ? new Date(callExpItem.read_at).toLocaleString() : '—'}</span>
-                  <strong style={{ textAlign: 'right', color: '#64748b' }}>Created:</strong>
-                  <span>{callExpItem.created_at ? new Date(callExpItem.created_at).toLocaleString() : '—'}</span>
+                  <strong style={{ textAlign: 'right', color: '#666' }}>Read At:</strong>
+                  <span style={{ color: '#333' }}>{callExpItem.read_at ? new Date(callExpItem.read_at).toLocaleString() : '—'}</span>
+                  <strong style={{ textAlign: 'right', color: '#666' }}>Created:</strong>
+                  <span style={{ color: '#333' }}>{callExpItem.created_at ? new Date(callExpItem.created_at).toLocaleString() : '—'}</span>
                 </div>
               )}
-              <div style={{ marginTop: '26px', textAlign: 'right' }}>
-                <button className="btn-small btn-secondary" onClick={() => setCallExpItem(null)} style={{ padding: '10px 20px', fontSize: '13px', borderRadius: '10px' }}>
+              <div style={{ marginTop: '20px', textAlign: 'right' }}>
+                <button className="btn-small btn-secondary" onClick={() => setCallExpItem(null)}>
                   Close
                 </button>
               </div>
