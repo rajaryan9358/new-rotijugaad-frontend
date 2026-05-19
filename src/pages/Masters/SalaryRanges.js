@@ -158,7 +158,7 @@ export default function SalaryRanges() {
                         <th style={{ width: colWidths.salary_from }}>Salary From{rHandle('salary_from')}</th>
                         <th style={{ width: colWidths.salary_to }}>Salary To{rHandle('salary_to')}</th>
                         <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>

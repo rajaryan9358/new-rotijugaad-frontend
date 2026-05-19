@@ -294,7 +294,7 @@ export default function RolesManagement() {
                         <th style={{ width: colWidths.slug }}>Slug{rHandle('slug')}</th>
                         <th style={{ width: colWidths.permissions }}>Permissions{rHandle('permissions')}</th>
                         <th style={{ width: colWidths.updated }}>Updated{rHandle('updated')}</th>
-                        {showActions && <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
+                        {showActions && <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>}
                       </tr>
                     </thead>
                     <tbody>

@@ -430,7 +430,7 @@ export default function StoriesManagement() {
                         <th onClick={() => headerClick('is_active')} style={{ cursor:'pointer', width: colWidths.active }}>Active{ind('is_active')}{rHandle('active')}</th>
                         <th onClick={() => headerClick('expiry_at')} style={{ cursor:'pointer', width: colWidths.expiry }}>Expiry{ind('expiry_at')}{rHandle('expiry')}</th>
                         <th onClick={() => headerClick('created_at')} style={{ cursor:'pointer', width: colWidths.created_at }}>Created At{ind('created_at')}{rHandle('created_at')}</th>
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>

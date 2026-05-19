@@ -216,7 +216,7 @@ export default function Experiences() {
                         <th style={{ width: colWidths.to_val }}>To{rHandle('to_val')}</th>
                         <th style={{ width: colWidths.sequence }}>Sequence{rHandle('sequence')}</th>
                         <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>

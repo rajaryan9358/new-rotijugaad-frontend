@@ -97,6 +97,14 @@
   max-width: 0;
 }
 
+.col-resizable th:last-child,
+.col-resizable td:last-child {
+  overflow: visible;
+  white-space: nowrap;
+  max-width: none;
+  width: auto;
+}
+
 .col-resizable thead th {
   white-space: nowrap;
   position: sticky;

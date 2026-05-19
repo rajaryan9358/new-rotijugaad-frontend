@@ -460,7 +460,7 @@ export default function ContactUnlocksManagement() {
                         <th style={{ width: colWidths.job }}>Job{rHandle('job')}</th>
                         <th style={{ width: colWidths.verification }}>Verification{rHandle('verification')}</th>
                         <th style={{ width: colWidths.kyc }}>KYC{rHandle('kyc')}</th>
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </>
                     ) : (
                       <>
@@ -473,7 +473,7 @@ export default function ContactUnlocksManagement() {
                         <th style={{ width: colWidths.location }}>Location{rHandle('location')}</th>
                         <th style={{ width: colWidths.verification2 }}>Verification{rHandle('verification2')}</th>
                         <th style={{ width: colWidths.kyc2 }}>KYC{rHandle('kyc2')}</th>
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </>
                     )}
                   </tr>

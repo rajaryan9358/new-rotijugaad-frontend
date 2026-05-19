@@ -255,7 +255,7 @@ export default function AdminsManagement() {
                          <th style={{ ...headerCellStyle, width: colWidths.role }}>Role{rHandle('role')}</th>
                          <th style={{ ...headerCellStyle, width: colWidths.status }}>Status{rHandle('status')}</th>
                          <th style={{ ...headerCellStyle, width: colWidths.updated }}>Updated{rHandle('updated')}</th>
-                         {showActions && <th style={{ ...headerCellStyle, width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
+                         {showActions && <th style={{ ...headerCellStyle, width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>}
                        </tr>
                      </thead>
                      <tbody>

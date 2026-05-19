@@ -322,7 +322,7 @@ export default function NotificationsManagement() {
                         <th style={{ ...headerCellStyle, width: colWidths.status }}>Status{rHandle('status')}</th>
                         <th style={{ ...headerCellStyle, width: colWidths.sent }}>Sent{rHandle('sent')}</th>
                         <th style={{ ...headerCellStyle, width: colWidths.created }}>Created{rHandle('created')}</th>
-                        <th style={{ ...headerCellStyle, width: colWidths.actions }}>{rHandle('actions')}</th>
+                        <th style={{ ...headerCellStyle, width: 'auto', whiteSpace: 'nowrap' }}></th>
                       </tr>
                     </thead>
                     <tbody>

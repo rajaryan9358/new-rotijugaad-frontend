@@ -926,7 +926,7 @@ export default function PaymentHistoryManagement() {
                     <th style={{ width: colWidths.order_id }}>Order ID{rHandle('order_id')}</th>
                     <th style={{ width: colWidths.payment_id }}>Payment ID{rHandle('payment_id')}</th>
                     <th onClick={() => handleSort('created_at')} style={{ cursor:'pointer', width: colWidths.created }}>Created{sortField === 'created_at' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('created')}</th>
-                    <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                    <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>

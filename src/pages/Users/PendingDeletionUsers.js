@@ -461,7 +461,7 @@ export default function PendingDeletionUsers() {
                       <th style={{ width: colWidths.requested_at }}>Requested at{rHandle('requested_at')}</th>
                       <th style={{ width: colWidths.last_seen }}>Last seen{rHandle('last_seen')}</th>
                       <th style={{ width: colWidths.user_life }}>User life (days){rHandle('user_life')}</th>
-                      <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                      <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>

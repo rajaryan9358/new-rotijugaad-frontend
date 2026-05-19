@@ -1196,7 +1196,7 @@ export default function JobsManagement() {
                         <th style={{ width: colWidths.status_time }}>Status Time{rHandle('status_time')}</th>
                         <th style={{ width: colWidths.created }}>Created{rHandle('created')}</th>
                         <th style={{ width: colWidths.job_life }}>Job Life (days){rHandle('job_life')}</th>
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>

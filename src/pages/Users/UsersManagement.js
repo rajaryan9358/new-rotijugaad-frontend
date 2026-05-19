@@ -1090,7 +1090,7 @@ export default function UsersManagement() {
                           Created{headerSortIndicator('created_at')}{rHandle('created')}
                         </th>
                         <th style={{ width: colWidths.user_life }}>User Life (days){rHandle('user_life')}</th>
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>

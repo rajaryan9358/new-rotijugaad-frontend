@@ -221,7 +221,7 @@ export default function EmployeeSubscriptionPlans() {
                         <th style={{ width: colWidths.contact_cr }}>Contact Cr{rHandle('contact_cr')}</th>
                         <th style={{ width: colWidths.interest_cr }}>Interest Cr{rHandle('interest_cr')}</th>
                         <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
-                        {showActions && <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
+                        {showActions && <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>}
                       </tr>
                     </thead>
                     <tbody>

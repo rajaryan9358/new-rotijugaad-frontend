@@ -221,7 +221,7 @@ export default function EmployerSubscriptionPlans() {
                         <th style={{ width: colWidths.interest_cr }}>Interest Cr{rHandle('interest_cr')}</th>
                         <th style={{ width: colWidths.ad_cr }}>Ad Cr{rHandle('ad_cr')}</th>
                         <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
-                        {showActions && <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
+                        {showActions && <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>}
                       </tr>
                     </thead>
                     <tbody>

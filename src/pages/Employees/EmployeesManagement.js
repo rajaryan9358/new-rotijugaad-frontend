@@ -1751,7 +1751,7 @@ export default function EmployeesManagement() {
                         <th onClick={() => handleHeaderClick('created_at')} style={{ cursor:'pointer', width: colWidths.created }}>Created{ind('created_at')}{rHandle('created')}</th>
                         <th style={{ width: colWidths.user_life_days }}>User Life (days){rHandle('user_life_days')}</th>
                         <th style={{ width: colWidths.credit_balances }}>Credit Balances{rHandle('credit_balances')}</th>
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>

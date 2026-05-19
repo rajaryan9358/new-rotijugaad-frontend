@@ -148,7 +148,7 @@ export default function Volunteers() {
                         <th style={{ width: colWidths.assistant_code }}>Assistant Code{rHandle('assistant_code')}</th>
                         <th style={{ width: colWidths.address }}>Address{rHandle('address')}</th>
                         <th style={{ width: colWidths.description }}>Description{rHandle('description')}</th>
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>

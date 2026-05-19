@@ -467,7 +467,7 @@ export default function ReviewsManagement() {
                     <th style={{ width: colWidths.review }}>Review{rHandle('review')}</th>
                     <th style={{ width: colWidths.status }}>Status{rHandle('status')}</th>
                     <th onClick={() => handleHeaderClick('updated_at')} style={{ cursor: 'pointer', width: colWidths.updated }}>Updated{ind('updated_at')}{rHandle('updated')}</th>
-                    {showActions && <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
+                    {showActions && <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>

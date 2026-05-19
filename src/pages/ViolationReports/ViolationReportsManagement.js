@@ -604,7 +604,7 @@ export default function ViolationReportsManagement() {
                     <th style={{ width: colWidths.reason }}>Reason{rHandle('reason')}</th>
                     <th style={{ width: colWidths.description }}>Description{rHandle('description')}</th>
                     <th onClick={() => handleSort('created_at')} style={{ cursor:'pointer', width: colWidths.created }}>Created{headerIndicator('created_at')}{rHandle('created')}</th>
-                    <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                    <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>

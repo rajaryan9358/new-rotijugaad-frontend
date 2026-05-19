@@ -446,7 +446,7 @@ export default function PlanBenefits() {
                         <th onClick={() => handleSortHeaderClick('benefit_english')} style={{ cursor: 'pointer', width: colWidths.benefit_en }}>Benefit (EN){sortIndicator('benefit_english')}{rHandle('benefit_en')}</th>
                         <th onClick={() => handleSortHeaderClick('benefit_hindi')} style={{ cursor: 'pointer', width: colWidths.benefit_hi }}>Benefit (HI){sortIndicator('benefit_hindi')}{rHandle('benefit_hi')}</th>
                         <th onClick={() => handleSortHeaderClick('is_active')} style={{ cursor: 'pointer', width: colWidths.status }}>Status{sortIndicator('is_active')}{rHandle('status')}</th>
-                        {showActions && <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>}
+                        {showActions && <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>}
                       </tr>
                     </thead>
                     <tbody>

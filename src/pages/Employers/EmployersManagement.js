@@ -1318,7 +1318,7 @@ export default function EmployersManagement() {
                         <th onClick={()=>headerClick('created_at')} style={{ cursor:'pointer', width: colWidths.created_at }}>Created At{ind('created_at')}{rHandle('created_at')}</th>
                         <th style={{ width: colWidths.user_life }}>User Life (days){rHandle('user_life')}</th>
                         <th style={{ width: colWidths.credit_balances }}>Credit Balances{rHandle('credit_balances')}</th> {/* NEW */}
-                        <th style={{ width: colWidths.actions }}>Actions{rHandle('actions')}</th>
+                        <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
