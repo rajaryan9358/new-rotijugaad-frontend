@@ -1593,7 +1593,7 @@ export default function EmployeesManagement() {
                         </select>
                       </div>
                       <div> {/* work nature filter */}
-                        <label className="filter-label" style={{ display:'block', marginBottom:'6px', fontSize:'13px', fontWeight:600 }}>Work Nature</label>
+                        <label className="filter-label" style={{ display:'block', marginBottom:'6px', fontSize:'13px', fontWeight:600 }}>Previous Job Role</label>
                         <select
                           className="state-filter-select"
                           value={draftFilters.workNatureFilter}

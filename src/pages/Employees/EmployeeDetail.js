@@ -1681,7 +1681,7 @@ export default function EmployeeDetail() {
                   <form className="master-form">
                     {/* CHANGED: order -> Work Nature */}
                     <div className="form-group">
-                      <label htmlFor="work_nature_id">Work Nature</label>
+                      <label htmlFor="work_nature_id">Previous Job Role</label>
                       <select
                         id="work_nature_id"
                         value={expForm.work_nature_id}
