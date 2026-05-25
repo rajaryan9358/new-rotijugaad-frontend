@@ -41,7 +41,7 @@ export const getApiBaseUrl = () => {
 	const raw =
 		process.env.REACT_APP_API_BASE_URL ||
 		process.env.REACT_APP_API_URL ||
-		'';
+		'https://labormint.com/api';
 
 	let baseUrl = stripTrailingSlash(raw);
 	if (!baseUrl) {
