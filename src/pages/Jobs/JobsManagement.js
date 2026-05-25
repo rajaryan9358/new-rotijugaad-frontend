@@ -532,7 +532,7 @@ export default function JobsManagement() {
     const headers = [
       'ID','Employer','Organization Name','Organization Category','Employer Phone','Interviewer Contact','Shift Timing',
       'Job Profile','Household','Gender','Experience','Qualification','Shift','Skills','Benefits',
-      'Vacancies','State','City','Salary Type','Salary','Status','Updated','Created'
+      'Vacancies','State','City','Salary Type','Salary','Status','Verification','Expiry Date','Updated','Created'
     ];
     const escapeCell = (val) => {
       if (val === null || val === undefined) return '';
@@ -545,8 +545,8 @@ export default function JobsManagement() {
       getEmployerOrganizationName(job),
       getEmployerBusinessCategory(job),
       job.employer_phone || '',
-      job.interviewer_contact || '',          // NEW
-      job.shift_timing_display || '',         // NEW
+      job.interviewer_contact || '',
+      job.shift_timing_display || '',
       job.job_profile || '',
       job.is_household ? 'Yes' : 'No',
       job.genders || '',
@@ -561,6 +561,8 @@ export default function JobsManagement() {
       job.salary_type || '',
       job.salary_min && job.salary_max ? `${job.salary_min}-${job.salary_max}` : (job.salary_min || job.salary_max || ''),
       job.status || '',
+      job.verification_status || '',
+      formatExportDateTime(job.expired_at),
       formatExportDateTime(job.updated_at),
       formatExportDateTime(job.created_at)
     ]);

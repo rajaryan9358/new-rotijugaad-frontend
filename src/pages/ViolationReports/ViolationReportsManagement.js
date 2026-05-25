@@ -11,7 +11,7 @@ import logsApi from '../../api/logsApi';
 import '../Masters/MasterPage.css';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 
-const DEFAULTS = { id: 60, report_type: 120, reporter_name: 140, reported_entity: 140, reason: 140, description: 200, created: 120, actions: 90 };
+const DEFAULTS = { id: 60, report_type: 120, reporter_name: 140, reported_entity: 140, reason: 140, description: 200, created: 120, read_at: 140, actions: 90 };
 
 export default function ViolationReportsManagement() {
   const { colWidths, rHandle } = useResizableColumns('violation-reports-col-widths', DEFAULTS);
@@ -356,7 +356,7 @@ export default function ViolationReportsManagement() {
       return;
     }
 
-    const headers = ['ID','Report Type','Reporter','Reported Entity','Reason','Status','Created At'];
+    const headers = ['ID','Report Type','Reporter','Reported Entity','Reason','Status','Read At','Created At'];
     const escape = (val) => {
       if (val === null || val === undefined) return '';
       const str = String(val);
@@ -381,6 +381,7 @@ export default function ViolationReportsManagement() {
         : (row.reported_entity?.name || row.report_id || ''),
       row.reason?.reason_english || row.reason?.reason_hindi || row.reason_id || '',
       row.read_at ? 'Read' : 'Unread',
+      formatExportDateTime(row.read_at),
       formatExportDateTime(row.created_at)
     ]);
     const csv = [headers.map(escape).join(','), ...rowsCsv.map(r => r.map(escape).join(','))].join('\n');
@@ -604,6 +605,7 @@ export default function ViolationReportsManagement() {
                     <th style={{ width: colWidths.reason }}>Reason{rHandle('reason')}</th>
                     <th style={{ width: colWidths.description }}>Description{rHandle('description')}</th>
                     <th onClick={() => handleSort('created_at')} style={{ cursor:'pointer', width: colWidths.created }}>Created{headerIndicator('created_at')}{rHandle('created')}</th>
+                    <th onClick={() => handleSort('read_at')} style={{ cursor:'pointer', width: colWidths.read_at }}>Read At{headerIndicator('read_at')}{rHandle('read_at')}</th>
                     <th style={{ width: 'auto', whiteSpace: 'nowrap' }}>Actions</th>
                   </tr>
                 </thead>
@@ -667,6 +669,7 @@ export default function ViolationReportsManagement() {
                             {r.description || '-'}
                           </td>
                           <td>{r.created_at ? new Date(r.created_at).toLocaleString() : '-'}</td>
+                          <td>{r.read_at ? new Date(r.read_at).toLocaleString() : '-'}</td>
                           <td>
                             <button className="btn-small" onClick={() => viewRow(r.id)} style={{ marginRight: 4 }}>
                               View
@@ -823,12 +826,8 @@ export default function ViolationReportsManagement() {
                         {viewItem.description || '—'}
                       </div>
                       <strong style={{ textAlign:'right', color:'#64748b' }}>Created:</strong><span>{viewItem.created_at ? new Date(viewItem.created_at).toLocaleString() : '—'}</span>
-                      {viewItem.read_at && (
-                        <>
-                          <strong style={{ textAlign:'right', color:'#64748b' }}>Read At:</strong>
-                          <span>{new Date(viewItem.read_at).toLocaleString()}</span>
-                        </>
-                      )}
+                      <strong style={{ textAlign:'right', color:'#64748b' }}>Read At:</strong>
+                      <span>{viewItem.read_at ? new Date(viewItem.read_at).toLocaleString() : '—'}</span>
                     </div>
                     <div style={{ marginTop:'26px', textAlign:'right', display:'flex', justifyContent:'flex-end', gap:'10px' }}>
                       {!viewItem.read_at && canManageViolations && (
