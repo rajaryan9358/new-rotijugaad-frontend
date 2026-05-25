@@ -168,6 +168,21 @@ export default function Dashboard() {
           color: '#A855F7',
           icon: '💳',
           link: `/payment-history?created_date_start=${encodeURIComponent(stats.recentWindow?.from || '')}&created_date_end=${encodeURIComponent(stats.recentWindow?.to || '')}`
+        },
+
+        {
+          title: 'Pending Employee KYC',
+          value: stats.newPendingEmployeeKyc ?? 0,
+          color: '#F59E0B',
+          icon: '⏳',
+          link: '/employees?kyc_status=pending'
+        },
+        {
+          title: 'Pending Employer KYC',
+          value: stats.newPendingEmployerKyc ?? 0,
+          color: '#D97706',
+          icon: '⏳',
+          link: '/employers?kyc_status=pending'
         }
       ]
     },
@@ -187,6 +202,7 @@ export default function Dashboard() {
         { title: 'Total Employees', value: stats.totalEmployees ?? 0, color: '#00D4AA', icon: '💼', link: '/employees' },
         { title: 'Verified Employees', value: stats.verifiedEmployees ?? 0, color: '#00C896', icon: '✓', link: '/employees?verification_status=verified' },
         { title: 'KYC Verified Employees', value: stats.kycVerifiedEmployees ?? 0, color: '#27AE60', icon: '📋', link: '/employees?kyc_status=verified' },
+        { title: 'Pending Employee KYC', value: stats.pendingEmployeeKyc ?? 0, color: '#F59E0B', icon: '⏳', link: '/employees?kyc_status=pending' },
         { title: 'Employee Deleted', value: stats.employeeDeleted ?? 0, color: '#C0392B', icon: '🗑️', link: '/users/deleted?user_type=employee' },
         { title: 'Employee Deletion Request', value: stats.employeeDeletionRequest ?? 0, color: '#E74C3C', icon: '🗑️', link: '/users/deletion-requests?user_type=employee' }
       ]
@@ -197,6 +213,7 @@ export default function Dashboard() {
         { title: 'Total Employers', value: stats.totalEmployers ?? 0, color: '#FF6B6B', icon: '🏢', link: '/employers' },
         { title: 'Verified Employers', value: stats.verifiedEmployers ?? 0, color: '#FF5252', icon: '✓', link: '/employers?verification_status=verified' },
         { title: 'KYC Verified Employers', value: stats.kycVerifiedEmployers ?? 0, color: '#229954', icon: '📋', link: '/employers?kyc_status=verified' },
+        { title: 'Pending Employer KYC', value: stats.pendingEmployerKyc ?? 0, color: '#D97706', icon: '⏳', link: '/employers?kyc_status=pending' },
         { title: 'Employer Deleted', value: stats.employerDeleted ?? 0, color: '#A93226', icon: '🗑️', link: '/users/deleted?user_type=employer' },
         { title: 'Employer Deletion Request', value: stats.employerDeletionRequest ?? 0, color: '#CB4335', icon: '🗑️', link: '/users/deletion-requests?user_type=employer' }
       ]
