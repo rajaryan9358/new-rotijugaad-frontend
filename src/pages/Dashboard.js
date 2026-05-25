@@ -146,20 +146,19 @@ export default function Dashboard() {
           link: `/hired-employees?created_from=${encodeURIComponent(stats.recentWindow?.from || '')}&created_to=${encodeURIComponent(stats.recentWindow?.to || '')}`
         },
 
-        // NEW: split call history
         {
-          title: 'Employee Call History',
-          value: stats.newEmployeeCallHistory ?? 0,
+          title: 'Employee Contacts Unlocked',
+          value: stats.newEmployeeContactsUnlocked ?? 0,
           color: '#0EA5E9',
-          icon: '📞',
-          link: `/call-history?user_type=employee&created_date_start=${encodeURIComponent(stats.recentWindow?.from || '')}&created_date_end=${encodeURIComponent(stats.recentWindow?.to || '')}`
+          icon: '🔓',
+          link: `/contact-unlocks?user_type=employee&created_date_start=${encodeURIComponent(stats.recentWindow?.from || '')}&created_date_end=${encodeURIComponent(stats.recentWindow?.to || '')}`
         },
         {
-          title: 'Employer Call History',
-          value: stats.newEmployerCallHistory ?? 0,
+          title: 'Employer Contacts Unlocked',
+          value: stats.newEmployerContactsUnlocked ?? 0,
           color: '#0284C7',
-          icon: '📞',
-          link: `/call-history?user_type=employer&created_date_start=${encodeURIComponent(stats.recentWindow?.from || '')}&created_date_end=${encodeURIComponent(stats.recentWindow?.to || '')}`
+          icon: '🔓',
+          link: `/contact-unlocks?user_type=employer&created_date_start=${encodeURIComponent(stats.recentWindow?.from || '')}&created_date_end=${encodeURIComponent(stats.recentWindow?.to || '')}`
         },
 
         // NEW: Payment History (last 48h) -> opens Payment History with created date filter

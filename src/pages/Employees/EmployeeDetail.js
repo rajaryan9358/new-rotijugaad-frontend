@@ -9,7 +9,7 @@ import jobProfilesApi from '../../api/masters/jobProfilesApi';
 import employeeSubscriptionPlansApi from '../../api/subscriptions/employeeSubscriptionPlansApi';
 import reportsApi from '../../api/reportsApi';
 import callHistoryApi from '../../api/callHistoryApi';
-import { getApiBaseUrl } from '../../api/baseUrl';
+import { getApiBaseUrl, getAppBaseUrl } from '../../api/baseUrl';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { formatMobile } from '../../utils/formatters';
@@ -912,9 +912,11 @@ export default function EmployeeDetail() {
     saveSidebarState(newState);
   };
 
-  const handleShareEmployee = async () => { // add
+  const handleShareEmployee = async () => {
     setActionMenuOpen(false);
-    const link = 'https://google.com';
+    const slug = employee?.slug;
+    if (!slug) return;
+    const link = `${getAppBaseUrl()}/app/candidates/${slug}`;
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(link);

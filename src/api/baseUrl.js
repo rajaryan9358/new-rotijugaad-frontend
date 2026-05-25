@@ -1,6 +1,29 @@
 const stripTrailingSlash = (s) => (s || '').toString().replace(/\/+$/, '');
 
 /**
+ * Returns the base URL of the public-facing app (not the admin panel).
+ * Used for building candidate/job share links.
+ * Override with REACT_APP_APP_BASE_URL env var if admin and app are on different domains.
+ */
+export const getAppBaseUrl = () => {
+  const override = (process.env.REACT_APP_APP_BASE_URL || '').trim();
+  if (override) return stripTrailingSlash(override);
+
+  // Derive from REACT_APP_API_BASE_URL by stripping the /api suffix
+  const apiRaw = (process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || '').trim();
+  if (apiRaw) {
+    try {
+      const url = new URL(apiRaw);
+      return url.origin;
+    } catch (_) { /* fall through */ }
+  }
+
+  // Same origin as admin panel
+  if (typeof window !== 'undefined') return window.location.origin;
+  return '';
+};
+
+/**
  * Returns the API base URL for the admin panel.
  *
  * Priority:

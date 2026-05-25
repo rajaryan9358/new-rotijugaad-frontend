@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { getAppBaseUrl } from '../../api/baseUrl';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
@@ -1089,9 +1090,10 @@ export default function EmployeesManagement() {
     );
   }, []);
 
-  // NEW: share employee link (copy to clipboard)
-  const handleShareEmployee = React.useCallback(async (employeeId) => {
-    const link = `${window.location.origin}/employees/${employeeId}`;
+  // share employee link (copy to clipboard)
+  const handleShareEmployee = React.useCallback(async (employeeSlug) => {
+    if (!employeeSlug) return;
+    const link = `${getAppBaseUrl()}/app/candidates/${employeeSlug}`;
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(link);
@@ -1930,7 +1932,7 @@ export default function EmployeesManagement() {
                                       type="button"
                                       onClick={(ev) => {
                                         ev.stopPropagation();
-                                        handleShareEmployee(e.id);
+                                        handleShareEmployee(e.slug);
                                       }}
                                       title="Copy share link"
                                     >

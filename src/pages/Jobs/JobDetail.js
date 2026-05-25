@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import jobApi from '../../api/jobApi';
 import reportsApi from '../../api/reportsApi';
+import { getAppBaseUrl } from '../../api/baseUrl';
 import '../Masters/MasterPage.css';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/Header';
@@ -277,16 +278,14 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
     }
   };
 
-  // CHANGED: share job should work same as EmployeeDetail (copy-to-clipboard + fallback)
-  const buildJobShareUrl = (id) => `${window.location.origin}/jobs/${id}`;
   const handleShareJob = async () => {
-    const id = job?.id || jobId;
-    if (!id) {
+    const slug = job?.slug;
+    if (!slug) {
       setOptionsOpen(false);
       return;
     }
 
-    const link = buildJobShareUrl(id);
+    const link = `${getAppBaseUrl()}/app/jobs/${slug}`;
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(link);

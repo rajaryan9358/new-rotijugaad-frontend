@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { getAppBaseUrl } from '../../api/baseUrl';
 import experiencesApi from '../../api/masters/experiencesApi';
 import qualificationsApi from '../../api/masters/qualificationsApi';
 import shiftsApi from '../../api/masters/shiftsApi';
@@ -833,13 +834,11 @@ export default function JobsManagement() {
     }
   };
 
-  // CHANGED: share job should work same as Employees (copy-to-clipboard + fallback)
-  const buildJobShareUrl = (id) => `${window.location.origin}/jobs/${id}`;
   const handleShareJob = async (job) => {
-    const id = job?.id;
-    if (!id) return;
+    const slug = job?.slug;
+    if (!slug) return;
 
-    const link = buildJobShareUrl(id);
+    const link = `${getAppBaseUrl()}/app/jobs/${slug}`;
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(link);
