@@ -16,6 +16,7 @@ import shiftsApi from '../../api/masters/shiftsApi';
 import employeeSubscriptionPlansApi from '../../api/subscriptions/employeeSubscriptionPlansApi';
 import jobProfilesApi from '../../api/masters/jobProfilesApi';
 import volunteersApi from '../../api/masters/volunteersApi'; // NEW
+import skillsApi from '../../api/masters/skillsApi';
 import VolunteerForm from '../../components/Forms/VolunteerForm'; // NEW
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -77,6 +78,8 @@ export default function EmployeesManagement() {
   const [shifts, setShifts] = useState([]);
   const [plans, setPlans] = useState([]);
   const [volunteers, setVolunteers] = useState([]); // NEW: for assistant_code filter + display
+  const [skills, setSkills] = useState([]);
+  const [skillFilter, setSkillFilter] = useState('');
   const [showVolunteerForm, setShowVolunteerForm] = useState(false); // NEW
   const [editingVolunteerId, setEditingVolunteerId] = useState(null); // NEW
   // new filters data
@@ -160,7 +163,8 @@ export default function EmployeesManagement() {
     createdFromFilter: '', // NEW
     createdToFilter: '',   // NEW
     kycVerifiedFromFilter: '', // NEW
-    kycVerifiedToFilter: ''    // NEW
+    kycVerifiedToFilter: '',   // NEW
+    skillFilter: ''
   });
   const PAGE_SCROLL_KEY = 'employees-scroll';
 
@@ -202,7 +206,8 @@ export default function EmployeesManagement() {
     createdFromFilter, // NEW
     createdToFilter,   // NEW
     kycVerifiedFromFilter, // NEW
-    kycVerifiedToFilter    // NEW
+    kycVerifiedToFilter,   // NEW
+    skillFilter
   }), [
     stateFilter,
     cityFilter,
@@ -227,7 +232,8 @@ export default function EmployeesManagement() {
     createdFromFilter, // NEW
     createdToFilter,   // NEW
     kycVerifiedFromFilter, // NEW
-    kycVerifiedToFilter    // NEW
+    kycVerifiedToFilter,   // NEW
+    skillFilter
   ]);
 
   const buildQueryParams = React.useCallback((overrides = {}) => {
@@ -269,6 +275,8 @@ export default function EmployeesManagement() {
     // NEW: KYC verification date range (for Dashboard deep-link)
     push('kyc_verified_from', filterValues.kycVerifiedFromFilter);
     push('kyc_verified_to', filterValues.kycVerifiedToFilter);
+
+    push('skillFilter', filterValues.skillFilter);
 
     return params;
   }, [currentPage, pageSize, sortField, sortDir, filterValues]);
@@ -327,6 +335,13 @@ export default function EmployeesManagement() {
     } catch {}
   }, []);
 
+  const fetchSkills = React.useCallback(async () => {
+    try {
+      const res = await skillsApi.getAll();
+      setSkills(res.data?.data || []);
+    } catch {}
+  }, []);
+
   const fetchEmployees = React.useCallback(async () => {
     if (!canViewEmployees) return;
     setLoading(true);
@@ -378,6 +393,7 @@ export default function EmployeesManagement() {
     fetchJobProfiles();
     fetchWorkNatures();
     fetchVolunteers(); // NEW
+    fetchSkills();
   }, [
     canViewEmployees,
     fetchStates,
@@ -387,7 +403,8 @@ export default function EmployeesManagement() {
     fetchPlans,
     fetchJobProfiles,
     fetchWorkNatures,
-    fetchVolunteers // NEW
+    fetchVolunteers, // NEW
+    fetchSkills
   ]);
 
   useEffect(() => {
@@ -784,7 +801,8 @@ export default function EmployeesManagement() {
       createdToFilter,
       // FIX: keep current values instead of clearing
       kycVerifiedFromFilter,
-      kycVerifiedToFilter
+      kycVerifiedToFilter,
+      skillFilter
     });
     setShowFilterPanel(true);
   };
@@ -815,6 +833,8 @@ export default function EmployeesManagement() {
     // NEW
     setKycVerifiedFromFilter(draftFilters.kycVerifiedFromFilter);
     setKycVerifiedToFilter(draftFilters.kycVerifiedToFilter);
+
+    setSkillFilter(draftFilters.skillFilter);
 
     // NEW: keep URL in sync (delete params when cleared)
     updateUrlParams({
@@ -854,6 +874,7 @@ export default function EmployeesManagement() {
     setCreatedToFilter('');
     setKycVerifiedFromFilter('');
     setKycVerifiedToFilter('');
+    setSkillFilter('');
 
     // NEW: remove from URL as well
     updateUrlParams({ kyc_verified_from: '', kyc_verified_to: '' });
@@ -894,7 +915,8 @@ export default function EmployeesManagement() {
       kyc_verified_to: () => {
         setKycVerifiedToFilter('');
         updateUrlParams({ kyc_verified_to: '' });
-      }
+      },
+      skill: setSkillFilter
     };
     filterMap[key]?.('');
   };
@@ -906,7 +928,8 @@ export default function EmployeesManagement() {
     statusFilter, subscriptionStatusFilter, newEmployeeFilter,
     jobProfileFilter, workNatureFilter, workDurationFilter, workDurationFreqFilter, assistantCodeFilter,
     createdFromFilter, createdToFilter, // NEW
-    kycVerifiedFromFilter, kycVerifiedToFilter // NEW
+    kycVerifiedFromFilter, kycVerifiedToFilter, // NEW
+    skillFilter
   ].filter(Boolean).length;
 
   const hasEmployees = employees.length > 0;
@@ -1169,6 +1192,7 @@ export default function EmployeesManagement() {
     fetchJobProfiles();
     fetchWorkNatures();
     fetchVolunteers(); // NEW
+    fetchSkills();
   }, [
     canViewEmployees,
     fetchStates,
@@ -1178,7 +1202,8 @@ export default function EmployeesManagement() {
     fetchPlans,
     fetchJobProfiles,
     fetchWorkNatures,
-    fetchVolunteers // NEW
+    fetchVolunteers, // NEW
+    fetchSkills
   ]);
 
   useEffect(() => {
@@ -1427,6 +1452,12 @@ export default function EmployeesManagement() {
                     <span className="badge chip" style={chipBaseStyle}>
                       KYC Verified To: {formatDateOnly(kycVerifiedToFilter)}
                       <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('kyc_verified_to')}>×</button>
+                    </span>
+                  )}
+                  {skillFilter && (
+                    <span className="badge chip" style={chipBaseStyle}>
+                      Skill: {skills.find(s => s.id === parseInt(skillFilter))?.skill_english || skillFilter}
+                      <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip('skill')}>×</button>
                     </span>
                   )}
                   {activeFilterCount === 0 && (
@@ -1700,6 +1731,23 @@ export default function EmployeesManagement() {
                               <option key={v.id} value={v.assistant_code}>
                                 {v.assistant_code} — {v.name || 'Unnamed'}
                               </option>
+                            ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="filter-label" style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>Skill</label>
+                        <select
+                          className="state-filter-select"
+                          value={draftFilters.skillFilter}
+                          onChange={(e) => setDraftFilters((f) => ({ ...f, skillFilter: e.target.value }))}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="">All</option>
+                          {skills
+                            .slice()
+                            .sort((a, b) => String(a.skill_english || '').localeCompare(String(b.skill_english || '')))
+                            .map((s) => (
+                              <option key={s.id} value={s.id}>{s.skill_english}</option>
                             ))}
                         </select>
                       </div>
