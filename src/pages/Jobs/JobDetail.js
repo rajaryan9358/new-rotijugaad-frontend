@@ -964,7 +964,7 @@ function ApplicantTable({ applicants, type, navigate }) {
   let timeLabel = 'Time';
   let timeField = 'applied_at';
   if (type === 'sent') {
-    timeLabel = 'Interest Sent Time';
+    timeLabel = 'Sent Time';
     timeField = 'applied_at';
   } else if (type === 'received') {
     timeLabel = 'Applied Time';
