@@ -58,7 +58,7 @@ const EMPLOYEE_COL_DEFAULTS = {
   location: 140, pref_state: 100, pref_city: 100, qualification: 120,
   salary: 90, freq: 70, shift: 80, verification: 110, kyc: 90,
   subscription: 130, status: 80, deactivation_reason: 160,
-  status_changed_by: 130, job_profiles: 150, last_seen: 150,
+  status_changed_by: 130, job_profiles: 150, skills: 180, last_seen: 150,
   created: 110, user_life_days: 100, credit_balances: 130, actions: 100,
 };
 
@@ -1797,6 +1797,7 @@ export default function EmployeesManagement() {
                         <th style={{ width: colWidths.deactivation_reason }}>Deactivation Reason{rHandle('deactivation_reason')}</th>
                         <th style={{ width: colWidths.status_changed_by }}>Status Changed By{rHandle('status_changed_by')}</th>
                         <th style={{ width: colWidths.job_profiles }}>Job Profiles{rHandle('job_profiles')}</th>
+                        <th style={{ width: colWidths.skills }}>Skills{rHandle('skills')}</th>
                         <th onClick={() => handleHeaderClick('last_active_at')} style={{ cursor:'pointer', width: colWidths.last_seen }}>Last Seen{ind('last_active_at')}{rHandle('last_seen')}</th>
                         <th onClick={() => handleHeaderClick('created_at')} style={{ cursor:'pointer', width: colWidths.created }}>Created{ind('created_at')}{rHandle('created')}</th>
                         <th style={{ width: colWidths.user_life_days }}>User Life (days){rHandle('user_life_days')}</th>
@@ -1922,6 +1923,7 @@ export default function EmployeesManagement() {
                               <td>{e.User?.deactivation_reason || '-'}</td>
                               <td>{e.User?.StatusChangedBy?.name || '-'}</td> {/* NEW */}
                               <td>{e.job_profiles_display || '-'}</td> {/* added */}
+                              <td>{e.skills_display || '-'}</td>
                               <td>{lastSeenLabel}</td>
 
 
@@ -1994,7 +1996,7 @@ export default function EmployeesManagement() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan="28" className="no-data">
+                          <td colSpan="29" className="no-data">
                             {loading ? 'Loading...' : meta.total ? 'No records on this page' : 'No employees found'}
                           </td>
                         </tr>

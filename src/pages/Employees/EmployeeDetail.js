@@ -1128,6 +1128,7 @@ export default function EmployeeDetail() {
         <Detail label="Expected Salary" value={basic.expected_salary} />
         <Detail label="Expected Salary Frequency" value={basic.expected_salary_frequency} />
         <Detail label="Job Profiles" value={basic.job_profiles_display} /> {/* added */}
+        <Detail label="Skills" value={basic.skills_display} />
         <Detail label="Verification" value={renderStatusBadge(basic.verification_status)} />
         <Detail label="Verification At" value={formatDateTime(basic.verification_at)} /> {/* NEW */}
         <Detail label="KYC" value={renderStatusBadge(basic.kyc_status)} />

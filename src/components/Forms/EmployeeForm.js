@@ -7,6 +7,7 @@ import { getCities } from '../../api/citiesApi';
 import { getApiBaseUrl } from '../../api/baseUrl';
 import qualificationsApi from '../../api/masters/qualificationsApi';
 import shiftsApi from '../../api/masters/shiftsApi';
+import skillsApi from '../../api/masters/skillsApi';
 import './MasterForm.css';
 
 const toBackendAssetUrl = (rawPath) => {
@@ -69,6 +70,8 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
   const [prefCities, setPrefCities] = useState([]);
   const [qualifications, setQualifications] = useState([]);
   const [shifts, setShifts] = useState([]);
+  const [allSkills, setAllSkills] = useState([]);
+  const [selectedSkillIds, setSelectedSkillIds] = useState([]);
   const [error, setError] = useState(null);
   const topRef = useRef(null);
   const [selfiePreview, setSelfiePreview] = useState(null);
@@ -93,7 +96,8 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
     fetchAllCities();
     fetchQualifications();
     fetchShifts();
-    
+    fetchAllSkills();
+
     if (isEdit) {
       employeesApi.getEmployeeById(employeeId)
         .then(res => {
@@ -146,6 +150,13 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
               setLegacyDataUrl(true); // added
             }
           }
+          // Load existing skills for this employee
+          employeesApi.getEmployeeSkills(employeeId)
+            .then(skillRes => {
+              const skillRows = skillRes.data?.data || [];
+              setSelectedSkillIds(skillRows.map(r => r.skill_id).filter(Boolean));
+            })
+            .catch(() => {});
         })
         .catch(() => setError('Failed to load employee'))
         .finally(() => setLoading(false));
@@ -194,6 +205,21 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
       const res = await shiftsApi.getAll();
       setShifts(res.data?.data || []);
     } catch {}
+  };
+
+  const fetchAllSkills = async () => {
+    try {
+      const res = await skillsApi.getAll();
+      const rows = (res.data?.data || []).filter(s => s.is_active !== false);
+      rows.sort((a, b) => String(a.skill_english || '').localeCompare(String(b.skill_english || '')));
+      setAllSkills(rows);
+    } catch {}
+  };
+
+  const toggleSkill = (skillId) => {
+    setSelectedSkillIds(prev =>
+      prev.includes(skillId) ? prev.filter(id => id !== skillId) : [...prev, skillId]
+    );
   };
 
   const setField = (k, v) => {
@@ -280,6 +306,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
           delete payload.selfie_link;
         }
         await employeesApi.updateEmployee(employeeId, payload);
+        await employeesApi.saveEmployeeSkills(employeeId, selectedSkillIds).catch(() => {});
         onSuccess && onSuccess({ type: 'success', text: 'Employee updated' });
         onClose();
       } else {
@@ -352,13 +379,18 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
         if (legacyDataUrl && form.selfie_link.startsWith('data:image')) {
           delete empPayload.selfie_link;
         }
+        let createdId = null;
         try {
-          await employeesApi.createEmployee(empPayload);
+          const createRes = await employeesApi.createEmployee(empPayload);
+          createdId = createRes.data?.data?.id || null;
         } catch (err) {
           const msg = err?.response?.data?.message || err.message || 'Failed to create employee';
           setError(msg);
           setSaving(false);
           return;
+        }
+        if (createdId && selectedSkillIds.length) {
+          await employeesApi.saveEmployeeSkills(createdId, selectedSkillIds).catch(() => {});
         }
         onSuccess && onSuccess({ type: 'success', text: 'Employee created' });
         onClose();
@@ -606,6 +638,32 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             <option value="">-- Select --</option>
             {shifts.map(s => <option key={s.id} value={s.id}>{s.shift_english}</option>)}
           </select>
+        </div>
+
+        <div className="form-group">
+          <label>Skills</label>
+          {allSkills.length === 0 ? (
+            <div style={{ fontSize: '12px', color: '#666' }}>Loading skills...</div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}>
+              {allSkills.map(skill => (
+                <label key={skill.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', background: selectedSkillIds.includes(skill.id) ? '#e0edff' : '#f5f5f5', border: selectedSkillIds.includes(skill.id) ? '1px solid #bfdbfe' : '1px solid #e0e0e0' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedSkillIds.includes(skill.id)}
+                    onChange={() => toggleSkill(skill.id)}
+                    style={{ margin: 0 }}
+                  />
+                  {skill.skill_english}
+                </label>
+              ))}
+            </div>
+          )}
+          {selectedSkillIds.length > 0 && (
+            <small style={{ color: '#555', marginTop: '4px', display: 'block' }}>
+              {selectedSkillIds.length} skill{selectedSkillIds.length > 1 ? 's' : ''} selected
+            </small>
+          )}
         </div>
 
         <div className="form-group">

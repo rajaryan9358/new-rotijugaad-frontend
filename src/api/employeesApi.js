@@ -112,6 +112,10 @@ const employeesApi = {
 	// job profiles (alias used by EmployeeDetail)
 	saveEmployeeJobProfiles: (id, job_profile_ids) => api.post(`/employees/${id}/job-profiles`, { job_profile_ids }),
 
+	// skills
+	getEmployeeSkills: (id) => api.get(`/employees/${id}/skills`),
+	saveEmployeeSkills: (id, skill_ids) => api.post(`/employees/${id}/skills`, { skill_ids }),
+
 	// violations reported (method referenced by EmployeeDetail; endpoint name may vary)
 	getEmployeeVoilationsReported: async (id) => {
 		try {
