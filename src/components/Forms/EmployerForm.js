@@ -168,6 +168,13 @@ export default function EmployerForm({ employerId, onClose, onSuccess, presetUse
         return;
       }
 
+      const addressValue = (form.address || '').trim();
+      if (!addressValue) {
+        setError('address is required');
+        setSaving(false);
+        return;
+      }
+
       const creditError = validateCreditFields();
       if (creditError) {
         setError(creditError);
