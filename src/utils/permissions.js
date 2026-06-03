@@ -70,6 +70,7 @@ export const PERMISSIONS = {
   JOBS_STATUS_TOGGLE: 'jobs.status_toggle',
   JOBS_REPOST: 'jobs.repost',
   JOBS_EXPORT: 'jobs.export',
+  JOBS_SHOW_ORGANIZATION: 'jobs.show_organization',
 
   HIRED_EMPLOYEES_VIEW: 'hired_employees.view',
   HIRED_EMPLOYEES_EXPORT: 'hired_employees.export',
@@ -233,6 +234,7 @@ export const PERMISSION_GROUPS = [
       { code: PERMISSIONS.JOBS_STATUS_TOGGLE, label: 'Activate/Deactivate jobs' },
       { code: PERMISSIONS.JOBS_REPOST, label: 'Repost jobs' },
       { code: PERMISSIONS.JOBS_EXPORT, label: 'Export jobs' },
+      { code: PERMISSIONS.JOBS_SHOW_ORGANIZATION, label: 'Show/hide organization name' },
     ],
   },
   {

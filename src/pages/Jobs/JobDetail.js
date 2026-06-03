@@ -137,6 +137,7 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
     canManage: hasPermission(PERMISSIONS.JOBS_MANAGE),
     canStatusToggle: hasPermission(PERMISSIONS.JOBS_STATUS_TOGGLE),
     canRepost: hasPermission(PERMISSIONS.JOBS_REPOST),
+    canShowOrganization: hasPermission(PERMISSIONS.JOBS_SHOW_ORGANIZATION),
   }), []);
 
   useEffect(() => {
@@ -268,11 +269,13 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
         setOptionsOpen(false);
         return;
       }
-      // Show the approve dialog to choose show_organization
-      setApproveShowOrg(true);
-      setShowApproveDialog(true);
-      setOptionsOpen(false);
-      return;
+      // Only show the org-visibility dialog if the user has that permission
+      if (jobPerms.canShowOrganization) {
+        setApproveShowOrg(true);
+        setShowApproveDialog(true);
+        setOptionsOpen(false);
+        return;
+      }
     }
     try {
       await jobApi.setVerificationStatus(job.id, next);
@@ -481,8 +484,8 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
                             )}
                           </>
                         )}
-                        {/* Show / Hide Organization (approved jobs, canManage) */}
-                        {jobPerms.canManage && isApprovedJob(job) && (
+                        {/* Show / Hide Organization (approved jobs, canShowOrganization) */}
+                        {jobPerms.canShowOrganization && isApprovedJob(job) && (
                           <>
                             <div style={{ height: 1, background: '#e2e8f0', margin: '6px 0' }} />
                             <button

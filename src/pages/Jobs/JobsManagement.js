@@ -172,6 +172,8 @@ export default function JobsManagement() {
   const [viewJobId, setViewJobId] = useState(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
   const [unverifiedEmployerJob, setUnverifiedEmployerJob] = useState(null);
+  const [pendingApproveJob, setPendingApproveJob] = useState(null);
+  const [approveShowOrg, setApproveShowOrg] = useState(true);
   const [cloneJobId, setCloneJobId] = useState(null);
   const activeFilterCount = React.useMemo(
     () => Object.entries(filters).reduce((sum, [key, val]) => {
@@ -196,7 +198,8 @@ export default function JobsManagement() {
     canDelete: hasPermission(PERMISSIONS.JOBS_DELETE),
     canStatusToggle: hasPermission(PERMISSIONS.JOBS_STATUS_TOGGLE),
     canRepost: hasPermission(PERMISSIONS.JOBS_REPOST),
-    canExport: hasPermission(PERMISSIONS.JOBS_EXPORT)
+    canExport: hasPermission(PERMISSIONS.JOBS_EXPORT),
+    canShowOrganization: hasPermission(PERMISSIONS.JOBS_SHOW_ORGANIZATION),
   }), []);
 
   const { colWidths, rHandle } = useResizableColumns('jobs-col-widths', DEFAULTS);
@@ -749,6 +752,11 @@ export default function JobsManagement() {
         setUnverifiedEmployerJob(job);
         return;
       }
+      if (jobPerms.canShowOrganization) {
+        setApproveShowOrg(true);
+        setPendingApproveJob(job);
+        return;
+      }
     }
     setStatusUpdatingId(job.id);
     try {
@@ -758,6 +766,22 @@ export default function JobsManagement() {
       fetchRows();
     } catch (e) {
       setMessage({ type: 'error', text: e.response?.data?.message || 'Failed to update verification status' });
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
+  const confirmApproveJob = async () => {
+    if (!pendingApproveJob) return;
+    const job = pendingApproveJob;
+    setPendingApproveJob(null);
+    setStatusUpdatingId(job.id);
+    try {
+      await jobApi.approveJob(job.id, { show_organization: approveShowOrg ? 1 : 0 });
+      setMessage({ type: 'success', text: 'Job approved' });
+      fetchRows();
+    } catch (e) {
+      setMessage({ type: 'error', text: e.response?.data?.message || 'Failed to approve job' });
     } finally {
       setStatusUpdatingId(null);
     }
@@ -916,6 +940,42 @@ export default function JobsManagement() {
                       onClick={() => { navigate(`/employers/${unverifiedEmployerJob.employer_id}`); setUnverifiedEmployerJob(null); }}
                     >
                       View Profile
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {pendingApproveJob && (
+              <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <div style={{ background:'#fff', borderRadius:12, padding:'28px 24px', maxWidth:400, width:'90%', boxShadow:'0 8px 32px rgba(0,0,0,0.18)' }}>
+                  <h3 style={{ margin:'0 0 8px', fontSize:17, fontWeight:700, color:'#1e293b' }}>Approve Job</h3>
+                  <p style={{ margin:'0 0 16px', fontSize:14, color:'#475569', lineHeight:1.5 }}>
+                    Choose how the organization name appears to candidates in the app.
+                  </p>
+                  <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:24 }}>
+                    <input
+                      type="checkbox"
+                      checked={approveShowOrg}
+                      onChange={e => setApproveShowOrg(e.target.checked)}
+                      style={{ width:16, height:16, cursor:'pointer' }}
+                    />
+                    <span style={{ fontSize:13, color:'#0f172a', fontWeight:500 }}>
+                      Show organization name to candidates
+                    </span>
+                  </label>
+                  <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+                    <button
+                      className="btn-secondary small"
+                      onClick={() => setPendingApproveJob(null)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn-primary small"
+                      onClick={confirmApproveJob}
+                    >
+                      Approve
                     </button>
                   </div>
                 </div>
