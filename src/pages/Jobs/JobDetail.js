@@ -130,6 +130,8 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [notice, setNotice] = useState(null); // add
   const [showUnverifiedDialog, setShowUnverifiedDialog] = useState(false);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [approveShowOrg, setApproveShowOrg] = useState(true);
   const jobPerms = useMemo(() => ({
     canView: hasPermission(PERMISSIONS.JOBS_VIEW),
     canManage: hasPermission(PERMISSIONS.JOBS_MANAGE),
@@ -266,6 +268,11 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
         setOptionsOpen(false);
         return;
       }
+      // Show the approve dialog to choose show_organization
+      setApproveShowOrg(true);
+      setShowApproveDialog(true);
+      setOptionsOpen(false);
+      return;
     }
     try {
       await jobApi.setVerificationStatus(job.id, next);
@@ -275,6 +282,29 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
       alert(e?.response?.data?.message || 'Failed to update verification status');
     } finally {
       setOptionsOpen(false);
+    }
+  };
+
+  const confirmApproveJob = async () => {
+    setShowApproveDialog(false);
+    try {
+      await jobApi.setVerificationStatus(job.id, 'approved', { show_organization: approveShowOrg ? 1 : 0 });
+      const res = await jobApi.getById(jobId);
+      setJob(res.data?.data || null);
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Failed to approve job');
+    }
+  };
+
+  const toggleShowOrganization = async () => {
+    if (!job || !jobPerms.canManage) return;
+    const next = Number(job.show_organization) === 0 ? 1 : 0;
+    setOptionsOpen(false);
+    try {
+      await jobApi.setShowOrganization(job.id, next);
+      setJob((prev) => prev ? { ...prev, show_organization: next } : prev);
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Failed to update organization visibility');
     }
   };
 
@@ -451,7 +481,18 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
                             )}
                           </>
                         )}
-                        {/* (no changes needed; jobs search fix is backend-only) */}
+                        {/* Show / Hide Organization (approved jobs, canManage) */}
+                        {jobPerms.canManage && isApprovedJob(job) && (
+                          <>
+                            <div style={{ height: 1, background: '#e2e8f0', margin: '6px 0' }} />
+                            <button
+                              style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
+                              onClick={toggleShowOrganization}
+                            >
+                              {Number(job.show_organization) === 0 ? 'Show organization' : 'Hide organization'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -537,6 +578,42 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
                 style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', background: '#2563eb', color: '#fff', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
               >
                 View Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showApproveDialog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: '10px', padding: '28px 24px', maxWidth: '380px', width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Approve Job</h3>
+            <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#475569' }}>
+              Choose how the organization name appears to candidates in the app.
+            </p>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '24px' }}>
+              <input
+                type="checkbox"
+                checked={approveShowOrg}
+                onChange={(e) => setApproveShowOrg(e.target.checked)}
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '13px', color: '#0f172a', fontWeight: 500 }}>
+                Show organization name to candidates
+              </span>
+            </label>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowApproveDialog(false)}
+                style={{ padding: '8px 18px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmApproveJob}
+                style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', background: '#16a34a', color: '#fff', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Approve
               </button>
             </div>
           </div>

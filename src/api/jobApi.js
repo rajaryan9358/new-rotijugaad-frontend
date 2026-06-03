@@ -41,10 +41,12 @@ const jobApi = {
   toggleStatus: async (id, status) => client.patch(`/jobs/${id}/status`, { status }),
 
   // NEW
-  setVerificationStatus: async (id, verification_status) =>
-    client.patch(`/jobs/${id}/verification-status`, { verification_status }),
-  approveJob: async (id) => client.patch(`/jobs/${id}/verification-status`, { verification_status: 'approved' }),
+  setVerificationStatus: async (id, verification_status, extra = {}) =>
+    client.patch(`/jobs/${id}/verification-status`, { verification_status, ...extra }),
+  approveJob: async (id, extra = {}) => client.patch(`/jobs/${id}/verification-status`, { verification_status: 'approved', ...extra }),
   rejectJob: async (id) => client.patch(`/jobs/${id}/verification-status`, { verification_status: 'rejected' }),
+  setShowOrganization: async (id, show_organization) =>
+    client.patch(`/jobs/${id}/show-organization`, { show_organization }),
 
   searchEmployers: async (params = {}) => client.get('/employers', { params })
 };
