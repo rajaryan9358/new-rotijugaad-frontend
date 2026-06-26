@@ -1497,6 +1497,25 @@ export default function EmployersManagement() {
                         ))}
                       </select>
                     </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                      <button
+                        className="btn-secondary btn-small"
+                        disabled={currentPage <= 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      >
+                        Prev
+                      </button>
+                      <span style={{ fontSize:'12px', color:'#475569' }}>
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        className="btn-secondary btn-small"
+                        disabled={!totalCount || currentPage >= totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
