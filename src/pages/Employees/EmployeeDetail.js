@@ -1605,12 +1605,34 @@ export default function EmployeeDetail() {
                 exp.work_duration
                   ? `${exp.work_duration}${exp.work_duration_frequency ? ` ${exp.work_duration_frequency}` : ''}`
                   : '-';
+              const hasDocPending = !exp.document_type_id && !exp.experience_certificate;
 
               return (
                 <tr key={exp.id}>
                   {/* CHANGED: column order + combined duration */}
                   <td style={{ padding:'6px', border:'1px solid #eee' }}>
-                    {workNatures.find(w => w.id === exp.work_nature_id)?.nature_english || '-'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {hasDocPending && (
+                        <span
+                          title="Document type and certificate not uploaded — update pending"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            background: '#f59e0b',
+                            color: '#fff',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            flexShrink: 0,
+                            cursor: 'default',
+                          }}
+                        >!</span>
+                      )}
+                      {workNatures.find(w => w.id === exp.work_nature_id)?.nature_english || '-'}
+                    </div>
                   </td>
                   <td style={{ padding:'6px', border:'1px solid #eee' }}>{exp.previous_firm || '-'}</td>
                   <td style={{ padding:'6px', border:'1px solid #eee' }}>{durationLabel}</td>

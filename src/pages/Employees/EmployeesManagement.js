@@ -1829,7 +1829,30 @@ export default function EmployeesManagement() {
                                 color: isInactive ? '#94a3b8' : '#0f172a'
                               }}
                             >
-                              <td>{e.id}</td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  {!e.dob && (
+                                    <span
+                                      title="DOB not set — update pending"
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: 16,
+                                        height: 16,
+                                        borderRadius: '50%',
+                                        background: '#f59e0b',
+                                        color: '#fff',
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        flexShrink: 0,
+                                        cursor: 'default',
+                                      }}
+                                    >!</span>
+                                  )}
+                                  {e.id}
+                                </div>
+                              </td>
                               <td>
                                                                {e.name || '-'}
                                 {isNewUser && (
