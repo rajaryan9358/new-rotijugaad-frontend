@@ -244,7 +244,8 @@ export default function JobForm({
   const formatEmployerLabel = React.useCallback((employerId) => {
     if (!employerId) return '';
     const match = employers?.find?.(e => e.id === employerId);
-    return match ? `${match.name}${match.mobile ? ` (${match.mobile})` : ''}` : String(employerId);
+    const mobile = match?.User?.mobile || match?.mobile;
+    return match ? `${match.name}${mobile ? ` (${mobile})` : ''}` : String(employerId);
   }, [employers]);
 
   const hydrateJob = React.useCallback((job) => {
@@ -315,11 +316,14 @@ export default function JobForm({
     const list = Array.isArray(employerResults) ? employerResults : [];
     if (!employerSearch.trim()) return list;
     const search = employerSearch.toLowerCase();
-    return list.filter(e =>
-      (e.name || '').toLowerCase().includes(search) ||
-      (e.mobile || '').toLowerCase().includes(search) ||
-      String(e.id).includes(search)
-    );
+    return list.filter(e => {
+      const mobile = (e.User?.mobile || e.mobile || '').toLowerCase();
+      return (
+        (e.name || '').toLowerCase().includes(search) ||
+        mobile.includes(search) ||
+        String(e.id).includes(search)
+      );
+    });
   }, [employerSearch, employerResults]);
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -529,8 +533,9 @@ export default function JobForm({
                       <div
                         key={e.id}
                         onClick={() => {
+                          const mobile = e.User?.mobile || e.mobile;
                           setField('employer_id', e.id);
-                          setEmployerSearch(`${e.name}${e.mobile ? ` (${e.mobile})` : ''}`);
+                          setEmployerSearch(`${e.name}${mobile ? ` (${mobile})` : ''}`);
                           setShowEmployerDropdown(false);
                         }}
                         style={{
@@ -544,7 +549,9 @@ export default function JobForm({
                         onMouseLeave={ev => ev.currentTarget.style.backgroundColor = 'white'}
                       >
                         <strong>{e.name}</strong>
-                        {e.mobile && <span style={{ marginLeft: '8px', color: '#666' }}>({e.mobile})</span>}
+                        {(e.User?.mobile || e.mobile) && (
+                          <span style={{ marginLeft: '8px', color: '#666' }}>({e.User?.mobile || e.mobile})</span>
+                        )}
                         <span style={{ marginLeft: '8px', color: '#999', fontSize: '12px' }}>ID: {e.id}</span>
                       </div>
                     ))}
