@@ -604,12 +604,14 @@ export default function JobForm({
           />
         </div>
         <div className="form-group">
-          <label>Job Designation Hindi</label>
+          <label>Job Designation Hindi <span style={{ fontSize: '11px', color: '#888', fontWeight: 400 }}>(double-click to auto-translate)</span></label>
           <input
             type="text"
             value={form.job_designation_hindi}
             onChange={e => setField('job_designation_hindi', e.target.value)}
+            onDoubleClick={() => handleHindiDoubleTap(form.job_designation_english, 'job_designation_hindi')}
             placeholder="Enter job designation in Hindi"
+            title="Double-click to auto-translate from English"
           />
         </div>
 

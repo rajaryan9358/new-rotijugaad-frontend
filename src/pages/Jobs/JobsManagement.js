@@ -197,6 +197,7 @@ export default function JobsManagement() {
     canManage: hasPermission(PERMISSIONS.JOBS_MANAGE),
     canDelete: hasPermission(PERMISSIONS.JOBS_DELETE),
     canStatusToggle: hasPermission(PERMISSIONS.JOBS_STATUS_TOGGLE),
+    canApproveReject: hasPermission(PERMISSIONS.JOBS_APPROVE_REJECT),
     canRepost: hasPermission(PERMISSIONS.JOBS_REPOST),
     canExport: hasPermission(PERMISSIONS.JOBS_EXPORT),
     canShowOrganization: hasPermission(PERMISSIONS.JOBS_SHOW_ORGANIZATION),
@@ -745,7 +746,7 @@ export default function JobsManagement() {
   };
 
   const handleVerifyJob = async (job, next) => {
-    if (!jobPerms.canManage || statusUpdatingId) return;
+    if (!jobPerms.canApproveReject || statusUpdatingId) return;
     if (next === 'approved') {
       const evs = String(job.employer_verification_status || 'pending').toLowerCase();
       if (evs !== 'verified' && evs !== 'approved') {
@@ -1354,7 +1355,7 @@ export default function JobsManagement() {
                               <td>
                                 <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
                                   {/* CHANGED: Approve/Reject only when pending */}
-                                  {jobPerms.canManage && isPending && (
+                                  {jobPerms.canApproveReject && isPending && (
                                     <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
                                       <button
                                         className="btn-small"

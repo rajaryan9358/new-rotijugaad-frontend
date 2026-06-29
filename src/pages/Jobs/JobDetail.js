@@ -135,7 +135,9 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
   const jobPerms = useMemo(() => ({
     canView: hasPermission(PERMISSIONS.JOBS_VIEW),
     canManage: hasPermission(PERMISSIONS.JOBS_MANAGE),
+    canDelete: hasPermission(PERMISSIONS.JOBS_DELETE),
     canStatusToggle: hasPermission(PERMISSIONS.JOBS_STATUS_TOGGLE),
+    canApproveReject: hasPermission(PERMISSIONS.JOBS_APPROVE_REJECT),
     canRepost: hasPermission(PERMISSIONS.JOBS_REPOST),
     canShowOrganization: hasPermission(PERMISSIONS.JOBS_SHOW_ORGANIZATION),
   }), []);
@@ -257,9 +259,9 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
   );
 
   const setJobVerificationStatus = async (next) => {
-    if (!job || !jobPerms.canManage) {
+    if (!job || !jobPerms.canApproveReject) {
       setOptionsOpen(false);
-      if (!jobPerms.canManage) alert('You do not have permission to verify jobs.');
+      if (!jobPerms.canApproveReject) alert('You do not have permission to approve/reject jobs.');
       return;
     }
     if (next === 'approved') {
@@ -370,7 +372,7 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
                     Edit
                   </button>
                 )}
-                {(jobPerms.canStatusToggle || jobPerms.canRepost || jobPerms.canManage) && (
+                {(jobPerms.canStatusToggle || jobPerms.canRepost || jobPerms.canManage || jobPerms.canApproveReject) && (
                   <div ref={optionsRef} style={{ position:'relative' }}>
                     <button
                       className="btn-secondary small"
@@ -406,7 +408,7 @@ export default function JobDetail({ jobId: propJobId, onClose, onEdit }) {
                         <div style={{ height: 1, background: '#e2e8f0', margin: '6px 0' }} />
 
                         {/* CHANGED: Approve/Reject only when pending */}
-                        {jobPerms.canManage && isPendingJob(job) && (
+                        {jobPerms.canApproveReject && isPendingJob(job) && (
                           <>
                             <button
                               style={{ width:'100%', textAlign:'left', padding:'8px 14px', background:'transparent', border:'none', fontSize:'13px', cursor:'pointer' }}
