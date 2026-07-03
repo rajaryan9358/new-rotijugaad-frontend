@@ -1998,7 +1998,7 @@ export default function EmployeesManagement() {
                                   )}
                                   <div style={{ display: 'flex', gap: '6px' }}>
                                     <a
-                                      className="btn-small"
+                                      className="btn-small btn-edit"
                                       href={`/employees/${e.id}`}
                                       style={{ flex: 1, textDecoration: 'none' }}
                                       onClick={(ev) => { ev.stopPropagation(); ev.preventDefault(); navigate(`/employees/${e.id}`); }}

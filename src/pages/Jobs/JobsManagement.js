@@ -1550,7 +1550,7 @@ export default function JobsManagement() {
                                   )}
                                   <div style={{ display:'flex', gap:'6px', flexWrap:'nowrap' }}>
                                     <a
-                                      className="btn-small"
+                                      className="btn-small btn-edit"
                                       href={`/jobs/${job.id}`}
                                       style={{ minWidth:80, textDecoration:'none' }}
                                       onClick={(event) => { event.stopPropagation(); event.preventDefault(); navigate(`/jobs/${job.id}`); }}
