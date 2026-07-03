@@ -1986,13 +1986,14 @@ export default function EmployeesManagement() {
                                     </div>
                                   )}
                                   <div style={{ display: 'flex', gap: '6px' }}>
-                                    <button
+                                    <a
                                       className="btn-small"
-                                      style={{ flex: 1 }}
-                                      onClick={(ev) => { ev.stopPropagation(); navigate(`/employees/${e.id}`); }}
+                                      href={`/employees/${e.id}`}
+                                      style={{ flex: 1, textDecoration: 'none' }}
+                                      onClick={(ev) => { ev.stopPropagation(); ev.preventDefault(); navigate(`/employees/${e.id}`); }}
                                     >
                                       View
-                                    </button>
+                                    </a>
                                     {employeePerms.canManage && (
                                       <button
                                         className="btn-small btn-edit"

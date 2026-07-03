@@ -1456,11 +1456,12 @@ export default function EmployersManagement() {
                                     </div>
                                   )}
                                   <div style={{ display:'flex', gap:'6px' }}>
-                                    <button
+                                    <a
                                       className="btn-small"
-                                      onClick={(ev)=>{ev.stopPropagation();navigate(`/employers/${e.id}`);}}
-                                      style={{ flex:1 }}
-                                    >View</button>
+                                      href={`/employers/${e.id}`}
+                                      style={{ flex:1, textDecoration:'none' }}
+                                      onClick={(ev)=>{ev.stopPropagation();ev.preventDefault();navigate(`/employers/${e.id}`);}}
+                                    >View</a>
                                     {employerPerms.canEdit && (
                                       <button
                                         className="btn-small btn-edit"

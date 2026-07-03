@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { getAppBaseUrl } from '../../api/baseUrl';
 import experiencesApi from '../../api/masters/experiencesApi';
 import qualificationsApi from '../../api/masters/qualificationsApi';
@@ -199,6 +199,24 @@ export default function JobsManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const getDurationMins = React.useCallback((job) => {
+    const s = String(job.work_start_time || '').split(':').map(Number);
+    const e = String(job.work_end_time || '').split(':').map(Number);
+    if (s.length < 2 || e.length < 2 || !Number.isFinite(s[0]) || !Number.isFinite(e[0])) return -1;
+    let mins = (e[0] * 60 + (e[1] || 0)) - (s[0] * 60 + (s[1] || 0));
+    if (mins <= 0) mins += 24 * 60;
+    return mins;
+  }, []);
+
+  const displayRows = React.useMemo(() => {
+    if (sortField !== 'work_duration') return rows;
+    return [...rows].sort((a, b) => {
+      const da = getDurationMins(a);
+      const db = getDurationMins(b);
+      return sortDir === 'asc' ? da - db : db - da;
+    });
+  }, [rows, sortField, sortDir, getDurationMins]);
   // Filters
   const [filters, setFilters] = useState({
     gender: '',
@@ -308,7 +326,7 @@ export default function JobsManagement() {
     const params = {
       page: overrides.page ?? currentPage,
       limit: overrides.limit ?? pageSize,
-      sortField,
+      sortField: sortField === 'work_duration' ? 'id' : sortField,
       sortDir,
       search: searchTerm.trim() || undefined
     };
@@ -1286,7 +1304,7 @@ export default function JobsManagement() {
                         <th style={{ width: colWidths.interviewer_contact }}>Interviewer Contact{rHandle('interviewer_contact')}</th> {/* NEW */}
                         <th style={{ width: colWidths.shift_timing }}>Shift Timing{rHandle('shift_timing')}</th>
                         <th style={{ width: colWidths.working_hours }}>Working Hours{rHandle('working_hours')}</th>
-                        <th style={{ width: colWidths.work_duration }}>Duration{rHandle('work_duration')}</th>
+                        <th onClick={() => handleSort('work_duration')} style={{ cursor: 'pointer', width: colWidths.work_duration }}>Duration{headerIndicator('work_duration')}{rHandle('work_duration')}</th>
                         <th onClick={() => handleSort('job_profile_id')} style={{ cursor:'pointer', width: colWidths.job_profile }}>Job Profile{headerIndicator('job_profile_id')}{rHandle('job_profile')}</th>
                         <th style={{ width: colWidths.job_designation }}>Job Designation{rHandle('job_designation')}</th>
                         <th style={{ width: colWidths.household }}>Household{rHandle('household')}</th>
@@ -1316,8 +1334,8 @@ export default function JobsManagement() {
                         <tr>
                           <td colSpan={33}>Loading...</td>
                         </tr>
-                      ) : rows.length ? (
-                        rows.map(job => {
+                      ) : displayRows.length ? (
+                        displayRows.map(job => {
                           const expired = isExpiredJob(job);
                           const verification = String(job.verification_status || 'pending').toLowerCase();
                           const isApproved = verification === 'approved';
@@ -1349,17 +1367,25 @@ export default function JobsManagement() {
                                   })}
                                 />
                               </td>
-                              <td>{job.id}</td>
+                              <td>
+                                <Link
+                                  to={`/jobs/${job.id}`}
+                                  onClick={e => e.stopPropagation()}
+                                  style={{ color: 'inherit', textDecoration: 'none' }}
+                                >
+                                  {job.id}
+                                </Link>
+                              </td>
 
                               <td>
                                 {job.employer_id ? (
-                                  <button
-                                    type="button"
+                                  <a
+                                    href={`/employers/${job.employer_id}`}
                                     style={linkButtonStyle}
-                                    onClick={() => navigate(`/employers/${job.employer_id}`)}
+                                    onClick={e => { e.preventDefault(); e.stopPropagation(); navigate(`/employers/${job.employer_id}`); }}
                                   >
                                     {(job.employer_name || `Employer #${job.employer_id}`)}
-                                  </button>
+                                  </a>
                                 ) : (job.employer_name || '-')}
                               </td>
                               <td>{getEmployerOrganizationName(job)}</td>
@@ -1516,11 +1542,12 @@ export default function JobsManagement() {
                                     </div>
                                   )}
                                   <div style={{ display:'flex', gap:'6px', flexWrap:'nowrap' }}>
-                                    <button
+                                    <a
                                       className="btn-small"
-                                      style={{ minWidth:80 }}
-                                      onClick={(event) => { event.stopPropagation(); navigate(`/jobs/${job.id}`); }}
-                                    >View</button>
+                                      href={`/jobs/${job.id}`}
+                                      style={{ minWidth:80, textDecoration:'none' }}
+                                      onClick={(event) => { event.stopPropagation(); event.preventDefault(); navigate(`/jobs/${job.id}`); }}
+                                    >View</a>
                                     {jobPerms.canManage && (
                                       <button
                                         className="btn-small btn-edit"

@@ -791,9 +791,13 @@ export default function CallHistoryManagement() {
 
                           <td>
                             {r.user_id && r.user_type ? (
-                              <button type="button" style={linkButtonStyle} onClick={() => openProfile(r)}>
+                              <a
+                                href={r.user_type === 'employee' ? `/employees/${r.user_id}` : r.user_type === 'employer' ? `/employers/${r.user_id}` : undefined}
+                                style={linkButtonStyle}
+                                onClick={ev => { ev.preventDefault(); openProfile(r); }}
+                              >
                                 {r.user_name || r.entity?.name || r.user?.name || '-'}
-                              </button>
+                              </a>
                             ) : (
                               r.user_name || r.entity?.name || r.user?.name || '-'
                             )}
@@ -805,9 +809,9 @@ export default function CallHistoryManagement() {
                             <>
                               <td>
                                 {r.called_id ? (
-                                  <button type="button" style={linkButtonStyle} onClick={() => openJob(r)}>
+                                  <a href={`/jobs/${r.called_id}`} style={linkButtonStyle} onClick={ev => { ev.preventDefault(); openJob(r); }}>
                                     {getJobProfileLabel(r.called_job_profile)}
-                                  </button>
+                                  </a>
                                 ) : (
                                   getJobProfileLabel(r.called_job_profile)
                                 )}
@@ -820,9 +824,9 @@ export default function CallHistoryManagement() {
                             <>
                               <td>
                                 {r.called_id ? (
-                                  <button type="button" style={linkButtonStyle} onClick={() => openCalledEmployee(r)}>
+                                  <a href={`/employees/${r.called_id}`} style={linkButtonStyle} onClick={ev => { ev.preventDefault(); openCalledEmployee(r); }}>
                                     {r.called_employee?.name || r.called_employee_user?.name || '-'}
-                                  </button>
+                                  </a>
                                 ) : (
                                   r.called_employee?.name || r.called_employee_user?.name || '-'
                                 )}

@@ -812,7 +812,6 @@ function JobDetailTab({ job }) {
           <Detail label="Status Time" value={job.updated_at ? new Date(job.updated_at).toLocaleString() : '-'} />
           <Detail label="Created" value={job.created_at ? new Date(job.created_at).toLocaleString() : '-'} />
           <Detail label="Interviewer Contact" value={job.interviewer_contact || '-'} />
-          <Detail label="Shift Timing" value={shiftTiming} />
           {(start12 || end12) && <Detail label="Working Hours" value={timeRange || '-'} />}
           {workDuration && <Detail label="Working Hours Duration" value={workDuration} />}
           <Detail label="Verification Status" value={verificationChip} /> {/* CHANGED */}

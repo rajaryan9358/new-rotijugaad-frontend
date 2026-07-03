@@ -1139,21 +1139,21 @@ export default function UsersManagement() {
                               })()}</td>
                               <td>
                                 {isEmployeeType && hasEmployeeProfile ? (
-                                  <button
-                                    type="button"
+                                  <a
+                                    href={`/employees/${employeeProfileId}`}
                                     style={linkButtonStyle}
-                                    onClick={() => employeeProfileId && handleEmployeeNameClick(employeeProfileId)}
+                                    onClick={ev => { ev.preventDefault(); employeeProfileId && handleEmployeeNameClick(employeeProfileId); }}
                                   >
                                     {u.name || `Employee #${employeeProfileId}`}
-                                  </button>
+                                  </a>
                                 ) : isEmployerType && hasEmployerProfile ? (
-                                  <button
-                                    type="button"
+                                  <a
+                                    href={`/employers/${employerProfileId}`}
                                     style={linkButtonStyle}
-                                    onClick={() => employerProfileId && handleEmployerNameClick(employerProfileId)}
+                                    onClick={ev => { ev.preventDefault(); employerProfileId && handleEmployerNameClick(employerProfileId); }}
                                   >
                                     {u.name || `Employer #${employerProfileId}`}
-                                  </button>
+                                  </a>
                                 ) : (
                                   u.name || '-'
                                 )}

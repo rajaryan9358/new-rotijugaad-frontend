@@ -687,16 +687,18 @@ export default function ViolationReportsManagement() {
                           <td>{r.report_type}</td>
                           <td>
                             {(() => {
-                              const canLink = (reportType === 'job' && (r.reporter_entity?.id || r.user_id)) ||
-                                              (reportType === 'employee' && (r.reporter_entity?.id || r.user_id));
-                              return canLink ? (
-                                <button
-                                  type="button"
+                              const reporterId = r.reporter_entity?.id || r.user_id;
+                              const reporterPath = reporterId
+                                ? (reportType === 'job' ? `/employees/${reporterId}` : reportType === 'employee' ? `/employers/${reporterId}` : null)
+                                : null;
+                              return reporterPath ? (
+                                <a
+                                  href={reporterPath}
                                   style={linkButtonStyle}
-                                  onClick={() => openReporterProfile(r)}
+                                  onClick={ev => { ev.preventDefault(); openReporterProfile(r); }}
                                 >
                                   {reporterName}
-                                </button>
+                                </a>
                               ) : reporterName;
                             })()}
                           </td>
@@ -704,14 +706,19 @@ export default function ViolationReportsManagement() {
                             {(() => {
                               const shouldLinkJob = reportType === 'job' && r.report_id;
                               const shouldLinkEmployee = reportType === 'employee' && (r.reported_entity?.id || r.report_id);
-                              return (shouldLinkJob || shouldLinkEmployee) ? (
-                                <button
-                                  type="button"
+                              const reportedPath = shouldLinkJob
+                                ? `/jobs/${r.report_id}`
+                                : shouldLinkEmployee
+                                  ? `/employees/${r.reported_entity?.id || r.report_id}`
+                                  : null;
+                              return reportedPath ? (
+                                <a
+                                  href={reportedPath}
                                   style={linkButtonStyle}
-                                  onClick={() => openReportedProfile(r)}
+                                  onClick={ev => { ev.preventDefault(); openReportedProfile(r); }}
                                 >
                                   {reportedName}
-                                </button>
+                                </a>
                               ) : reportedName;
                             })()}
                           </td>
