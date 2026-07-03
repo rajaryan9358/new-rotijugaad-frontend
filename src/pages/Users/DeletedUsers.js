@@ -34,6 +34,11 @@ export default function DeletedUsers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(50);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [userTypeFilter, setUserTypeFilter] = useState(normalizedUserTypeFromQuery);
   const [newUserFilter, setNewUserFilter] = useState('');
   const [createdFromFilter, setCreatedFromFilter] = useState('');
@@ -90,14 +95,14 @@ export default function DeletedUsers() {
 
 
   const buildQueryParams = React.useCallback(() => {
-    const params = {};
+    const params = { page: currentPage, limit: pageSize };
     if (userTypeFilter) params.user_type = userTypeFilter;
     if (searchTerm.trim()) params.search = searchTerm.trim();
     if (newUserFilter) params.newFilter = newUserFilter;
     if (createdFromFilter) params.created_from = createdFromFilter;
     if (createdToFilter) params.created_to = createdToFilter;
     return params;
-  }, [userTypeFilter, searchTerm, newUserFilter, createdFromFilter, createdToFilter]);
+  }, [currentPage, pageSize, userTypeFilter, searchTerm, newUserFilter, createdFromFilter, createdToFilter]);
 
   const fetchRows = React.useCallback(async () => {
     if (!canView) { setLoading(false); return; }
@@ -106,6 +111,9 @@ export default function DeletedUsers() {
     try {
       const res = await usersApi.getDeletedUsers(buildQueryParams());
       setRows(res.data?.data || []);
+      const meta = res.data?.meta || {};
+      if (typeof meta.total === 'number') setTotalCount(meta.total);
+      if (typeof meta.totalPages === 'number') setTotalPages(meta.totalPages);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load deleted users');
     } finally {
@@ -133,6 +141,8 @@ export default function DeletedUsers() {
     setNewUserFilter(draftFilters.newUserFilter);
     setCreatedFromFilter(draftFilters.createdFromFilter);
     setCreatedToFilter(draftFilters.createdToFilter);
+    setCurrentPage(1);
+    setSelectedIds(new Set());
     setShowFilterPanel(false);
   };
   const clearFilters = () => {
@@ -141,6 +151,8 @@ export default function DeletedUsers() {
     setNewUserFilter('');
     setCreatedFromFilter('');
     setCreatedToFilter('');
+    setCurrentPage(1);
+    setSelectedIds(new Set());
     setDraftFilters({ searchTerm: '', userTypeFilter: '', newUserFilter: '', createdFromFilter: '', createdToFilter: '' });
     setShowFilterPanel(false);
   };
@@ -150,6 +162,8 @@ export default function DeletedUsers() {
     if (key === 'new_user') setNewUserFilter('');
     if (key === 'created_from') setCreatedFromFilter('');
     if (key === 'created_to') setCreatedToFilter('');
+    setCurrentPage(1);
+    setSelectedIds(new Set());
   };
 
   const buildExportFilename = () => {
@@ -286,7 +300,7 @@ export default function DeletedUsers() {
                   type="text"
                   className="state-filter-select"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); setSelectedIds(new Set()); }}
                   placeholder="id, name, mobile..."
                   style={{ maxWidth: '260px' }}
                 />
@@ -421,6 +435,16 @@ export default function DeletedUsers() {
                 <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                   <thead>
                     <tr>
+                      <th style={{ width: 36, padding: '0 8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={rows.length > 0 && rows.every(r => selectedIds.has(r.id))}
+                          onChange={e => {
+                            if (e.target.checked) setSelectedIds(new Set(rows.map(r => r.id)));
+                            else setSelectedIds(new Set());
+                          }}
+                        />
+                      </th>
                       <th style={{ width: colWidths.id }}>ID{rHandle('id')}</th>
                       <th style={{ width: colWidths.name }}>Name{rHandle('name')}</th>
                       <th style={{ width: colWidths.mobile }}>Mobile{rHandle('mobile')}</th>
@@ -441,6 +465,20 @@ export default function DeletedUsers() {
                     {rows.length ? (
                       rows.map(row => (
                         <tr key={row.id}>
+                          <td style={{ padding: '0 8px' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(row.id)}
+                              onChange={e => {
+                                setSelectedIds(prev => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(row.id); else next.delete(row.id);
+                                  return next;
+                                });
+                              }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </td>
                           <td>{row.id}</td>
                           <td>
                             <span style={{ display:'inline-flex', alignItems:'center', gap:'6px' }}>
@@ -468,11 +506,44 @@ export default function DeletedUsers() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="14" className="no-data">No deleted users</td>
+                        <td colSpan="15" className="no-data">No deleted users</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {!loading && canView && totalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', padding: '10px 4px' }}>
+                <span style={{ fontSize: '13px', color: '#64748b' }}>
+                  Showing {rows.length ? ((currentPage - 1) * pageSize + 1) : 0}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                </span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    className="btn-secondary btn-small"
+                    disabled={currentPage <= 1}
+                    onClick={() => { setCurrentPage(1); setSelectedIds(new Set()); }}
+                  >«</button>
+                  <button
+                    className="btn-secondary btn-small"
+                    disabled={currentPage <= 1}
+                    onClick={() => { setCurrentPage(p => p - 1); setSelectedIds(new Set()); }}
+                  >‹ Prev</button>
+                  <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '80px', textAlign: 'center' }}>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    className="btn-secondary btn-small"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => { setCurrentPage(p => p + 1); setSelectedIds(new Set()); }}
+                  >Next ›</button>
+                  <button
+                    className="btn-secondary btn-small"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => { setCurrentPage(totalPages); setSelectedIds(new Set()); }}
+                  >»</button>
+                </div>
               </div>
             )}
           </div>

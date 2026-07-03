@@ -799,6 +799,7 @@ function JobDetailTab({ job }) {
           <Detail label="Created" value={job.created_at ? new Date(job.created_at).toLocaleString() : '-'} />
           <Detail label="Interviewer Contact" value={job.interviewer_contact || '-'} />
           <Detail label="Shift Timing" value={shiftTiming} />
+          {(start12 || end12) && <Detail label="Working Hours" value={timeRange || '-'} />}
           <Detail label="Verification Status" value={verificationChip} /> {/* CHANGED */}
         </div>
         <div style={{ marginTop: 16 }}>

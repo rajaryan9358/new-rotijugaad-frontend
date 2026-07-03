@@ -9,6 +9,7 @@ import shiftsApi from '../../api/masters/shiftsApi';
 import skillsApi from '../../api/masters/skillsApi';
 import jobProfilesApi from '../../api/masters/jobProfilesApi';
 import jobBenefitsApi from '../../api/masters/jobBenefitsApi';
+import businessCategoriesApi from '../../api/masters/businessCategoriesApi';
 import '../Masters/MasterPage.css';
 import JobForm from '../../components/Forms/JobForm';
 import jobApi from '../../api/jobApi';
@@ -117,9 +118,63 @@ const buildExportFilename = () => {
   return `jobs_${pad(now.getDate())}-${pad(now.getMonth()+1)}-${now.getFullYear()}_${pad(hours)}_${pad(now.getMinutes())}_${pad(now.getSeconds())}_${suffix}_.csv`;
 };
 
+const formatTime12h = (t) => {
+  if (!t) return '';
+  const [hStr, mStr] = String(t).split(':');
+  let h = parseInt(hStr, 10);
+  const m = mStr ? mStr.padStart(2, '0') : '00';
+  if (!Number.isFinite(h)) return '';
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${suffix}`;
+};
+
+function MultiCheckSelect({ label, options, value = [], onChange, optionLabel = 'label', optionValue = 'value', placeholder = 'Any' }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  const toggle = (v) => {
+    const str = String(v);
+    onChange(value.includes(str) ? value.filter(x => x !== str) : [...value, str]);
+  };
+  const selected = value.length === 0 ? placeholder : options.filter(o => value.includes(String(o[optionValue]))).map(o => o[optionLabel]).join(', ');
+  return (
+    <div style={{ minWidth: 200, position: 'relative' }} ref={ref}>
+      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: 4 }}>{label}</label>
+      <div
+        className="state-filter-select"
+        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', userSelect: 'none', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, color: value.length ? '#0f172a' : '#94a3b8' }}>{selected}</span>
+        <span style={{ marginLeft: 6, fontSize: 10, flexShrink: 0 }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, background: '#fff', border: '1px solid #ddd', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto', marginTop: 2 }}>
+          {options.map(opt => {
+            const v = String(opt[optionValue]);
+            const checked = value.includes(v);
+            return (
+              <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', cursor: 'pointer', background: checked ? '#f0f9ff' : 'transparent', fontSize: 13 }} onMouseDown={e => e.preventDefault()} onClick={() => toggle(v)}>
+                <input type="checkbox" checked={checked} readOnly style={{ width: 14, minWidth: 14, flex: '0 0 auto' }} />
+                {opt[optionLabel]}
+              </label>
+            );
+          })}
+          {options.length === 0 && <div style={{ padding: '8px 12px', fontSize: 13, color: '#94a3b8' }}>No options</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const DEFAULTS = {
-  id: 60, employer: 120, org_name: 140, org_category: 130, employer_phone: 120,
-  interviewer_contact: 140, shift_timing: 110, job_profile: 130, job_designation: 130,
+  cb: 36, id: 60, employer: 120, org_name: 140, org_category: 130, employer_phone: 120,
+  interviewer_contact: 140, shift_timing: 110, working_hours: 120, job_profile: 130, job_designation: 130,
   household: 90, gender: 80, experience: 130, qualification: 120, shift: 110,
   skills: 130, benefits: 130, verification: 110, vacancies: 90, state: 90, city: 90,
   location: 120, salary_type: 100, salary: 100, status: 90, expiry_date: 110,
@@ -139,12 +194,11 @@ export default function JobsManagement() {
     qualification: '',
     shift: '',
     skill: '',
-    job_profile: '',
+    job_profile: [],
+    org_category: [],
     job_benefit: '',
     status: '',
     job_recency: 'all',
-
-    // NEW
     verification_status: '',
     job_state_id: '',
     job_city_id: '',
@@ -153,6 +207,7 @@ export default function JobsManagement() {
   });
 
   const [draftFilters, setDraftFilters] = useState({ ...filters });
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [options, setOptions] = useState({
     experiences: [],
@@ -161,6 +216,7 @@ export default function JobsManagement() {
     skills: [],
     job_profiles: [],
     job_benefits: [],
+    business_categories: [],
     employers: [],
     states: [],
     cities: [],
@@ -177,6 +233,7 @@ export default function JobsManagement() {
   const [cloneJobId, setCloneJobId] = useState(null);
   const activeFilterCount = React.useMemo(
     () => Object.entries(filters).reduce((sum, [key, val]) => {
+      if (Array.isArray(val)) return sum + (val.length > 0 ? 1 : 0);
       if (!val) return sum;
       if (key === 'job_recency' && val === 'all') return sum;
       return sum + 1;
@@ -205,33 +262,35 @@ export default function JobsManagement() {
 
   const { colWidths, rHandle } = useResizableColumns('jobs-col-widths', DEFAULTS);
 
-  const normalizedStatusFromQuery = React.useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const status = (params.get('status') || '').trim().toLowerCase();
-    return ['active', 'inactive', 'expired'].includes(status) ? status : '';
-  }, [location.search]);
-
-  const normalizedRecencyFromQuery = React.useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const recency = (params.get('recency') || '').trim().toLowerCase();
-    return recency === 'new' ? 'new' : 'all';
-  }, [location.search]);
-
-  // NEW: verification_status from query
-  const normalizedVerificationFromQuery = React.useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const vs = (params.get('verification_status') || '').trim().toLowerCase();
-    return ['pending', 'approved', 'rejected'].includes(vs) ? vs : '';
-  }, [location.search]);
-
-  const querySignature = React.useMemo(
-    () => JSON.stringify({
-      status: normalizedStatusFromQuery,
-      job_recency: normalizedRecencyFromQuery,
-      verification_status: normalizedVerificationFromQuery // NEW
-    }),
-    [normalizedStatusFromQuery, normalizedRecencyFromQuery, normalizedVerificationFromQuery]
-  );
+  // Parse all filters from URL once on mount
+  const initialUrlParams = React.useMemo(() => {
+    const p = new URLSearchParams(location.search);
+    const toArr = (v) => v ? v.split(',').filter(Boolean) : [];
+    return {
+      search: p.get('search') || '',
+      page: Math.max(parseInt(p.get('page') || '1', 10), 1),
+      sortField: p.get('sortField') || 'id',
+      sortDir: p.get('sortDir') || 'desc',
+      filters: {
+        gender: p.get('gender') || '',
+        experience: p.get('experience') || '',
+        qualification: p.get('qualification') || '',
+        shift: p.get('shift') || '',
+        skill: p.get('skill') || '',
+        job_profile: toArr(p.get('job_profile')),
+        org_category: toArr(p.get('org_category')),
+        job_benefit: p.get('job_benefit') || '',
+        status: (['active','inactive','expired'].includes(p.get('status') || '') ? p.get('status') : '') || '',
+        job_recency: p.get('job_recency') || p.get('recency') === 'new' ? 'new' : 'all',
+        verification_status: (['pending','approved','rejected'].includes(p.get('verification_status') || '') ? p.get('verification_status') : '') || '',
+        job_state_id: p.get('job_state_id') || '',
+        job_city_id: p.get('job_city_id') || '',
+        created_from: p.get('created_from') || '',
+        created_to: p.get('created_to') || '',
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount only
 
   const buildQueryParams = React.useCallback((overrides = {}) => {
     const params = {
@@ -242,10 +301,28 @@ export default function JobsManagement() {
       search: searchTerm.trim() || undefined
     };
     Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') params[key] = value;
+      if (Array.isArray(value)) {
+        if (value.length) params[key] = value.join(',');
+      } else if (value !== undefined && value !== null && value !== '') {
+        params[key] = value;
+      }
     });
     return params;
   }, [currentPage, pageSize, sortField, sortDir, searchTerm, filters]);
+
+  // Bidirectional URL sync — write all active filters + search to URL
+  const syncToUrl = React.useCallback((nextFilters, nextSearch, nextPage, nextSortField, nextSortDir) => {
+    const p = new URLSearchParams();
+    if (nextSearch && nextSearch.trim()) p.set('search', nextSearch.trim());
+    if (nextPage && nextPage > 1) p.set('page', String(nextPage));
+    if (nextSortField && nextSortField !== 'id') p.set('sortField', nextSortField);
+    if (nextSortDir && nextSortDir !== 'desc') p.set('sortDir', nextSortDir);
+    Object.entries(nextFilters || {}).forEach(([key, value]) => {
+      if (Array.isArray(value)) { if (value.length) p.set(key, value.join(',')); }
+      else if (value && !(key === 'job_recency' && value === 'all')) p.set(key, String(value));
+    });
+    navigate({ pathname: location.pathname, search: p.toString() ? `?${p}` : '' }, { replace: true });
+  }, [navigate, location.pathname]);
 
   const fetchRows = React.useCallback(async (overrides = {}) => {
     setLoading(true);
@@ -273,54 +350,18 @@ export default function JobsManagement() {
     }
   }, [buildQueryParams, currentPage]);
 
+  // Hydrate all state from URL once on mount
   useEffect(() => {
-    if (appliedQuerySignature === querySignature) {
-      if (!queryHydrated) setQueryHydrated(true);
-      return;
-    }
-
-    let shouldResetPage = false;
-    setFilters(prev => {
-      const next = { ...prev };
-      let changed = false;
-
-      if (prev.status !== normalizedStatusFromQuery) {
-        next.status = normalizedStatusFromQuery;
-        changed = true;
-      }
-      if (prev.job_recency !== normalizedRecencyFromQuery) {
-        next.job_recency = normalizedRecencyFromQuery;
-        changed = true;
-      }
-
-      // NEW
-      if (prev.verification_status !== normalizedVerificationFromQuery) {
-        next.verification_status = normalizedVerificationFromQuery;
-        changed = true;
-      }
-
-      if (changed) shouldResetPage = true;
-      return changed ? next : prev;
-    });
-
-    setDraftFilters(prev => ({
-      ...prev,
-      status: normalizedStatusFromQuery,
-      job_recency: normalizedRecencyFromQuery,
-      verification_status: normalizedVerificationFromQuery // NEW
-    }));
-
-    if (shouldResetPage) setCurrentPage(1);
-    setAppliedQuerySignature(querySignature);
+    const { search, page, sortField: sf, sortDir: sd, filters: urlFilters } = initialUrlParams;
+    if (search) setSearchTerm(search);
+    if (page > 1) setCurrentPage(page);
+    if (sf !== 'id') setSortField(sf);
+    if (sd !== 'desc') setSortDir(sd);
+    setFilters(urlFilters);
+    setDraftFilters(urlFilters);
     setQueryHydrated(true);
-  }, [
-    querySignature,
-    normalizedStatusFromQuery,
-    normalizedRecencyFromQuery,
-    normalizedVerificationFromQuery, // NEW
-    appliedQuerySignature,
-    queryHydrated
-  ]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { fetchOptions(); }, []);
   useEffect(() => {
@@ -357,25 +398,12 @@ export default function JobsManagement() {
   const fetchOptions = async () => {
     try {
       const [
-        experiencesRes,
-        qualificationsRes,
-        shiftsRes,
-        skillsRes,
-        jobProfilesRes,
-        jobBenefitsRes,
-        employersRes,
-        statesRes,
-        citiesRes
+        experiencesRes, qualificationsRes, shiftsRes, skillsRes,
+        jobProfilesRes, jobBenefitsRes, businessCatsRes, employersRes, statesRes, citiesRes
       ] = await Promise.all([
-        experiencesApi.getAll(),
-        qualificationsApi.getAll(),
-        shiftsApi.getAll(),
-        skillsApi.getAll(),
-        jobProfilesApi.getAll(),
-        jobBenefitsApi.getAll(),
-        jobApi.getEmployers({ limit: 100 }),
-        jobApi.getStates(),
-        jobApi.getCities(),
+        experiencesApi.getAll(), qualificationsApi.getAll(), shiftsApi.getAll(), skillsApi.getAll(),
+        jobProfilesApi.getAll(), jobBenefitsApi.getAll(), businessCategoriesApi.getAll(),
+        jobApi.getEmployers({ limit: 100 }), jobApi.getStates(), jobApi.getCities(),
       ]);
       setOptions({
         experiences: experiencesRes.data?.data || [],
@@ -384,6 +412,7 @@ export default function JobsManagement() {
         skills: skillsRes.data?.data || [],
         job_profiles: jobProfilesRes.data?.data || [],
         job_benefits: jobBenefitsRes.data?.data || [],
+        business_categories: businessCatsRes.data?.data || [],
         employers: employersRes.data?.data || [],
         states: statesRes.data?.data || [],
         cities: citiesRes.data?.data || [],
@@ -400,94 +429,67 @@ export default function JobsManagement() {
   };
 
   const applyDraftFilters = () => {
-    setFilters({ ...draftFilters });
+    const next = { ...draftFilters };
+    setFilters(next);
     setCurrentPage(1);
     setShowFilterPanel(false);
+    syncToUrl(next, searchTerm, 1, sortField, sortDir);
 
     try {
-      const active = Object.entries(draftFilters || {})
-        .filter(([k, v]) => Boolean(v) && !(k === 'job_recency' && v === 'all'))
-        .map(([k, v]) => {
-          if (k === 'job_profile') {
-            const match = (options.job_profiles || []).find(p => String(p.id) === String(v));
-            const name = match ? (match.profile_english || match.profile_hindi || match.name) : null;
-            return `${k}=${name || v}`;
-          }
-          return `${k}=${v}`;
-        })
+      const active = Object.entries(next)
+        .filter(([k, v]) => (Array.isArray(v) ? v.length : Boolean(v)) && !(k === 'job_recency' && v === 'all'))
+        .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(',') : v}`)
         .join(', ') || 'none';
-      logsApi.create({
-        category: 'jobs',
-        type: 'update',
-        redirect_to: '/jobs',
-        log_text: `Applied job filters: ${active}`,
-      });
-    } catch (e) {
-      // ignore logging failures
-    }
+      logsApi.create({ category: 'jobs', type: 'update', redirect_to: '/jobs', log_text: `Applied job filters: ${active}` });
+    } catch (e) { /* ignore */ }
+  };
+
+  const EMPTY_FILTERS = {
+    gender: '', experience: '', qualification: '', shift: '', skill: '',
+    job_profile: [], org_category: [], job_benefit: '', status: '', job_recency: 'all',
+    verification_status: '', job_state_id: '', job_city_id: '', created_from: '', created_to: '',
   };
 
   const clearFilters = () => {
-    const empty = {
-      gender: '',
-      experience: '',
-      qualification: '',
-      shift: '',
-      skill: '',
-      job_profile: '',
-      job_benefit: '',
-      status: '',
-      job_recency: 'all',
-
-      // NEW
-      verification_status: '',
-      job_state_id: '',
-      job_city_id: '',
-      created_from: '',
-      created_to: '',
-    };
-    setFilters(empty);
-    setDraftFilters(empty);
+    setFilters(EMPTY_FILTERS);
+    setDraftFilters(EMPTY_FILTERS);
     setSortField('id');
     setSortDir('desc');
     setCurrentPage(1);
+    setSearchTerm('');
     setShowFilterPanel(false);
-
-    try {
-      logsApi.create({
-        category: 'jobs',
-        type: 'update',
-        redirect_to: '/jobs',
-        log_text: 'Cleared job filters',
-      });
-    } catch (e) {
-      // ignore logging failures
-    }
+    syncToUrl(EMPTY_FILTERS, '', 1, 'id', 'desc');
+    try { logsApi.create({ category: 'jobs', type: 'update', redirect_to: '/jobs', log_text: 'Cleared job filters' }); } catch (e) { /* ignore */ }
   };
 
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
+    const val = e.target.value;
+    setSearchTerm(val);
     setCurrentPage(1);
+    syncToUrl(filters, val, 1, sortField, sortDir);
   };
 
   const handleSort = (field) => {
-    if (sortField === field) setSortDir(dir => (dir === 'asc' ? 'desc' : 'asc'));
-    else {
-      setSortField(field);
-      setSortDir('asc');
-    }
+    const nextDir = sortField === field ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+    const nextField = field;
+    setSortField(nextField);
+    setSortDir(nextDir);
     setCurrentPage(1);
+    syncToUrl(filters, searchTerm, 1, nextField, nextDir);
   };
 
   const headerIndicator = (field) => sortField === field ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
   const handlePageChange = (delta) => {
-    setCurrentPage(p => Math.min(Math.max(1, p + delta), totalPages));
+    const next = Math.min(Math.max(1, currentPage + delta), totalPages);
+    setCurrentPage(next);
+    syncToUrl(filters, searchTerm, next, sortField, sortDir);
   };
 
   const handlePageSizeChange = (value) => {
     setPageSize(value);
     setCurrentPage(1);
+    syncToUrl(filters, searchTerm, 1, sortField, sortDir);
   };
 
   const exportToCSV = async () => {
@@ -813,12 +815,23 @@ export default function JobsManagement() {
     }
   };
 
-  const handleRowClick = (jobId) => navigate(`/jobs/${jobId}`);
+  const handleRowClick = (jobId, e) => {
+    if (e && (e.ctrlKey || e.metaKey || e.button === 1)) {
+      window.open(`/jobs/${jobId}`, '_blank', 'noopener,noreferrer');
+    } else {
+      navigate(`/jobs/${jobId}`);
+    }
+  };
 
   const removeFilterChip = React.useCallback((key) => {
-    setFilters(prev => ({ ...prev, [key]: key === 'job_recency' ? 'all' : '' }));
+    const emptyVal = (key === 'job_recency') ? 'all' : (key === 'job_profile' || key === 'org_category') ? [] : '';
+    setFilters(prev => {
+      const next = { ...prev, [key]: emptyVal };
+      syncToUrl(next, searchTerm, 1, sortField, sortDir);
+      return next;
+    });
     setCurrentPage(1);
-  }, []);
+  }, [syncToUrl, searchTerm, sortField, sortDir]);
 
   const getJobLifeDays = (value) => {
     if (!value) return '-';
@@ -1054,24 +1067,29 @@ export default function JobsManagement() {
                   }}
                 >
                   {Object.entries(filters).map(([key, value]) => {
+                    if (Array.isArray(value)) {
+                      if (!value.length) return null;
+                      let names;
+                      if (key === 'job_profile') names = value.map(id => options.job_profiles.find(p => String(p.id) === id)?.profile_english || id).join(', ');
+                      else if (key === 'org_category') names = value.map(id => options.business_categories.find(c => String(c.id) === id)?.category_english || id).join(', ');
+                      else names = value.join(', ');
+                      return (
+                        <span key={key} className="badge chip" style={chipBaseStyle}>
+                          {key.replace(/_/g, ' ')}: {names}
+                          <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip(key)}>×</button>
+                        </span>
+                      );
+                    }
                     if (!value) return null;
                     if (key === 'job_recency' && value === 'all') return null;
-
                     let label = value;
-
-                    // ...existing code...
                     if (key === 'job_recency') label = value === 'new' ? 'New (Last 48h)' : 'All Jobs';
-
-                    // NEW: chip labels
                     if (key === 'verification_status') label = VERIFICATION_OPTIONS.find(o => o.value === value)?.label || value;
                     if (key === 'job_state_id') label = options.states.find(s => String(s.id) === String(value))?.state_english || value;
                     if (key === 'job_city_id') label = options.cities.find(c => String(c.id) === String(value))?.city_english || value;
-                    if (key === 'created_from') label = value;
-                    if (key === 'created_to') label = value;
-
                     return (
                       <span key={`${key}-${value}`} className="badge chip" style={chipBaseStyle}>
-                        {key.replace('_', ' ')}: {label}
+                        {key.replace(/_/g, ' ')}: {label}
                         <button className="chip-close" style={chipCloseStyle} onClick={() => removeFilterChip(key)}>×</button>
                       </span>
                     );
@@ -1128,7 +1146,7 @@ export default function JobsManagement() {
                         optionValue="id"
                         placeholder="Any skill"
                       />
-                      <SingleSelect
+                      <MultiCheckSelect
                         label="Job Profile"
                         options={options.job_profiles}
                         value={draftFilters.job_profile}
@@ -1136,6 +1154,15 @@ export default function JobsManagement() {
                         optionLabel="profile_english"
                         optionValue="id"
                         placeholder="Any job profile"
+                      />
+                      <MultiCheckSelect
+                        label="Organization Category"
+                        options={options.business_categories}
+                        value={draftFilters.org_category}
+                        onChange={val => setDraftFilters(f => ({ ...f, org_category: val }))}
+                        optionLabel="category_english"
+                        optionValue="id"
+                        placeholder="Any category"
                       />
                       <SingleSelect
                         label="Job Benefits"
@@ -1230,13 +1257,22 @@ export default function JobsManagement() {
                   <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
+                        <th style={{ width: colWidths.cb, textAlign: 'center', padding: '4px' }}>
+                          <input
+                            type="checkbox"
+                            style={{ width: 14, cursor: 'pointer' }}
+                            checked={rows.length > 0 && rows.every(r => selectedIds.has(r.id))}
+                            onChange={e => setSelectedIds(e.target.checked ? new Set(rows.map(r => r.id)) : new Set())}
+                          />
+                        </th>
                         <th onClick={() => handleSort('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{headerIndicator('id')}{rHandle('id')}</th>
                         <th onClick={() => handleSort('employer_id')} style={{ cursor:'pointer', width: colWidths.employer }}>Employer{headerIndicator('employer_id')}{rHandle('employer')}</th>
                         <th style={{ width: colWidths.org_name }}>Organization Name{rHandle('org_name')}</th>
                         <th style={{ width: colWidths.org_category }}>Organization Category{rHandle('org_category')}</th>
                         <th style={{ width: colWidths.employer_phone }}>Employer Phone{rHandle('employer_phone')}</th>
                         <th style={{ width: colWidths.interviewer_contact }}>Interviewer Contact{rHandle('interviewer_contact')}</th> {/* NEW */}
-                        <th style={{ width: colWidths.shift_timing }}>Shift Timing{rHandle('shift_timing')}</th>        {/* NEW */}
+                        <th style={{ width: colWidths.shift_timing }}>Shift Timing{rHandle('shift_timing')}</th>
+                        <th style={{ width: colWidths.working_hours }}>Working Hours{rHandle('working_hours')}</th>
                         <th onClick={() => handleSort('job_profile_id')} style={{ cursor:'pointer', width: colWidths.job_profile }}>Job Profile{headerIndicator('job_profile_id')}{rHandle('job_profile')}</th>
                         <th style={{ width: colWidths.job_designation }}>Job Designation{rHandle('job_designation')}</th>
                         <th style={{ width: colWidths.household }}>Household{rHandle('household')}</th>
@@ -1264,7 +1300,7 @@ export default function JobsManagement() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={30}>Loading...{/* CHANGED */}</td>
+                          <td colSpan={32}>Loading...</td>
                         </tr>
                       ) : rows.length ? (
                         rows.map(job => {
@@ -1279,14 +1315,26 @@ export default function JobsManagement() {
                           return (
                             <tr
                               key={job.id}
-                              onClick={() => handleRowClick(job.id)}
-                              // CHANGED: remove expired yellow/orange highlighting
+                              onClick={(e) => handleRowClick(job.id, e)}
+                              onAuxClick={(e) => { if (e.button === 1) handleRowClick(job.id, e); }}
                               style={{
                                 background: isInactiveRow ? '#f3f4f6' : '#ffffff',
                                 color: isInactiveRow ? '#94a3b8' : '#0f172a',
                                 cursor: 'pointer'
                               }}
                             >
+                              <td style={{ textAlign: 'center', padding: '4px' }} onClick={e => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  style={{ width: 14, cursor: 'pointer' }}
+                                  checked={selectedIds.has(job.id)}
+                                  onChange={e => setSelectedIds(prev => {
+                                    const next = new Set(prev);
+                                    e.target.checked ? next.add(job.id) : next.delete(job.id);
+                                    return next;
+                                  })}
+                                />
+                              </td>
                               <td>{job.id}</td>
 
                               <td>
@@ -1305,7 +1353,8 @@ export default function JobsManagement() {
 
                               <td>{job.employer_phone || '-'}</td>
                               <td>{job.interviewer_contact || '-'}</td>      {/* NEW */}
-                              <td>{job.shift_timing_display || '-'}</td>     {/* NEW */}
+                              <td>{job.shift_timing_display || '-'}</td>
+                              <td>{(() => { const s = formatTime12h(job.work_start_time); const e2 = formatTime12h(job.work_end_time); return s && e2 ? `${s} - ${e2}` : s || e2 || '-'; })()}</td>
 
                               <td>
                                 {job.job_profile || '-'}
