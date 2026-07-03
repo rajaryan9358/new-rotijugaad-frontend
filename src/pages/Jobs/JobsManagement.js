@@ -209,14 +209,6 @@ export default function JobsManagement() {
     return mins;
   }, []);
 
-  const displayRows = React.useMemo(() => {
-    if (sortField !== 'work_duration') return rows;
-    return [...rows].sort((a, b) => {
-      const da = getDurationMins(a);
-      const db = getDurationMins(b);
-      return sortDir === 'asc' ? da - db : db - da;
-    });
-  }, [rows, sortField, sortDir, getDurationMins]);
   // Filters
   const [filters, setFilters] = useState({
     gender: '',
@@ -272,6 +264,14 @@ export default function JobsManagement() {
   );
   const [sortField, setSortField] = useState('id');
   const [sortDir, setSortDir] = useState('desc');
+  const displayRows = React.useMemo(() => {
+    if (sortField !== 'work_duration') return rows;
+    return [...rows].sort((a, b) => {
+      const da = getDurationMins(a);
+      const db = getDurationMins(b);
+      return sortDir === 'asc' ? da - db : db - da;
+    });
+  }, [rows, sortField, sortDir, getDurationMins]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [totalCount, setTotalCount] = useState(0);
