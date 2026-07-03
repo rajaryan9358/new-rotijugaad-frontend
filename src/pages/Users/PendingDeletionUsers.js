@@ -39,6 +39,7 @@ export default function PendingDeletionUsers() {
   const [newUserFilter, setNewUserFilter] = useState('');
   const [draftFilters, setDraftFilters] = useState({ searchTerm: '', userTypeFilter, newUserFilter: '' });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const querySignature = useMemo(
     () => JSON.stringify({ user_type: normalizedUserTypeFromQuery }),
     [normalizedUserTypeFromQuery]
@@ -219,6 +220,14 @@ export default function PendingDeletionUsers() {
     setAppliedQuerySignature(querySignature);
   }, [querySignature, normalizedUserTypeFromQuery, appliedQuerySignature]);
 
+  const syncToUrl = React.useCallback((params) => {
+    const p = new URLSearchParams();
+    if (params.search?.trim()) p.set('search', params.search.trim());
+    if (params.userType) p.set('user_type', params.userType);
+    if (params.newUser) p.set('new_user', params.newUser);
+    navigate({ pathname: location.pathname, search: p.toString() ? `?${p}` : '' }, { replace: true });
+  }, [navigate, location.pathname]);
+
   const toggleFilterPanel = () => {
     if (showFilterPanel) return setShowFilterPanel(false);
     setDraftFilters({ searchTerm, userTypeFilter, newUserFilter });
@@ -228,19 +237,26 @@ export default function PendingDeletionUsers() {
     setSearchTerm(draftFilters.searchTerm);
     setUserTypeFilter(draftFilters.userTypeFilter);
     setNewUserFilter(draftFilters.newUserFilter);
+    setSelectedIds(new Set());
     setShowFilterPanel(false);
+    syncToUrl({ search: draftFilters.searchTerm, userType: draftFilters.userTypeFilter, newUser: draftFilters.newUserFilter });
   };
   const clearFilters = () => {
     setSearchTerm('');
     setUserTypeFilter('');
     setNewUserFilter('');
     setDraftFilters({ searchTerm: '', userTypeFilter: '', newUserFilter: '' });
+    setSelectedIds(new Set());
     setShowFilterPanel(false);
+    syncToUrl({ search: '', userType: '', newUser: '' });
   };
   const removeChip = (key) => {
-    if (key === 'search') setSearchTerm('');
-    if (key === 'user_type') setUserTypeFilter('');
-    if (key === 'new_user') setNewUserFilter('');
+    const next = { search: searchTerm, userType: userTypeFilter, newUser: newUserFilter };
+    if (key === 'search') { setSearchTerm(''); next.search = ''; }
+    if (key === 'user_type') { setUserTypeFilter(''); next.userType = ''; }
+    if (key === 'new_user') { setNewUserFilter(''); next.newUser = ''; }
+    setSelectedIds(new Set());
+    syncToUrl(next);
   };
 
   const buildExportFilename = () => {
@@ -454,6 +470,12 @@ export default function PendingDeletionUsers() {
                 <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                   <thead>
                     <tr>
+                      <th style={{ width: 36, padding: '0 8px' }}>
+                        <input type="checkbox"
+                          checked={rows.length > 0 && rows.every(r => selectedIds.has(r.id))}
+                          onChange={e => { if (e.target.checked) setSelectedIds(new Set(rows.map(r => r.id))); else setSelectedIds(new Set()); }}
+                        />
+                      </th>
                       <th style={{ width: colWidths.user }}>User{rHandle('user')}</th>
                       <th style={{ width: colWidths.mobile }}>Mobile{rHandle('mobile')}</th>
                       <th style={{ width: colWidths.type }}>Type{rHandle('type')}</th>
@@ -468,6 +490,13 @@ export default function PendingDeletionUsers() {
                     {rows.length ? (
                       rows.map(row => (
                         <tr key={row.id}>
+                          <td style={{ padding: '0 8px' }}>
+                            <input type="checkbox"
+                              checked={selectedIds.has(row.id)}
+                              onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(row.id); else next.delete(row.id); return next; }); }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </td>
                           <td>{renderNameCell(row)}</td>
                           <td>{formatMobile(row.mobile)}</td>
                           <td style={{ textTransform: 'capitalize' }}>{row.user_type || '-'}</td>
@@ -499,7 +528,7 @@ export default function PendingDeletionUsers() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="6" className="no-data">
+                        <td colSpan="9" className="no-data">
                           No pending requests
                         </td>
                       </tr>

@@ -5,7 +5,7 @@ import LogsAction from '../../components/LogsAction';
 import usersApi from '../../api/usersApi';
 import logsApi from '../../api/logsApi';
 import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { formatMobile } from '../../utils/formatters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -24,6 +24,7 @@ const DEFAULTS = {
 export default function DeletedUsers() {
   const { colWidths, rHandle } = useResizableColumns('deleted-users-col-widths', DEFAULTS);
   const location = useLocation();
+  const navigate = useNavigate();
   const normalizedUserTypeFromQuery = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return normalizeUserTypeParam(params.get('user_type'));
@@ -124,11 +125,37 @@ export default function DeletedUsers() {
   useEffect(() => { fetchRows(); }, [fetchRows]);
 
   useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    const search = p.get('search') || '';
+    const page = parseInt(p.get('page') || '1', 10);
+    const newUser = p.get('new_user') || '';
+    const createdFrom = p.get('created_from') || '';
+    const createdTo = p.get('created_to') || '';
+    if (search) setSearchTerm(search);
+    if (page > 1) setCurrentPage(page);
+    if (newUser) setNewUserFilter(newUser);
+    if (createdFrom) setCreatedFromFilter(createdFrom);
+    if (createdTo) setCreatedToFilter(createdTo);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (appliedQuerySignature === querySignature) return;
     setUserTypeFilter(normalizedUserTypeFromQuery);
     setDraftFilters((prev) => ({ ...prev, userTypeFilter: normalizedUserTypeFromQuery }));
     setAppliedQuerySignature(querySignature);
   }, [querySignature, normalizedUserTypeFromQuery, appliedQuerySignature]);
+
+  const syncToUrl = React.useCallback((params) => {
+    const p = new URLSearchParams();
+    if (params.search?.trim()) p.set('search', params.search.trim());
+    if (params.page && params.page > 1) p.set('page', String(params.page));
+    if (params.userType) p.set('user_type', params.userType);
+    if (params.newUser) p.set('new_user', params.newUser);
+    if (params.createdFrom) p.set('created_from', params.createdFrom);
+    if (params.createdTo) p.set('created_to', params.createdTo);
+    navigate({ pathname: location.pathname, search: p.toString() ? `?${p}` : '' }, { replace: true });
+  }, [navigate, location.pathname]);
 
   const toggleFilterPanel = () => {
     if (showFilterPanel) return setShowFilterPanel(false);
@@ -144,6 +171,7 @@ export default function DeletedUsers() {
     setCurrentPage(1);
     setSelectedIds(new Set());
     setShowFilterPanel(false);
+    syncToUrl({ search: draftFilters.searchTerm, page: 1, userType: draftFilters.userTypeFilter, newUser: draftFilters.newUserFilter, createdFrom: draftFilters.createdFromFilter, createdTo: draftFilters.createdToFilter });
   };
   const clearFilters = () => {
     setSearchTerm('');
@@ -155,15 +183,18 @@ export default function DeletedUsers() {
     setSelectedIds(new Set());
     setDraftFilters({ searchTerm: '', userTypeFilter: '', newUserFilter: '', createdFromFilter: '', createdToFilter: '' });
     setShowFilterPanel(false);
+    syncToUrl({ search: '', page: 1, userType: '', newUser: '', createdFrom: '', createdTo: '' });
   };
   const removeChip = (key) => {
-    if (key === 'search') setSearchTerm('');
-    if (key === 'user_type') setUserTypeFilter('');
-    if (key === 'new_user') setNewUserFilter('');
-    if (key === 'created_from') setCreatedFromFilter('');
-    if (key === 'created_to') setCreatedToFilter('');
+    const next = { search: searchTerm, page: 1, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter };
+    if (key === 'search') { setSearchTerm(''); next.search = ''; }
+    if (key === 'user_type') { setUserTypeFilter(''); next.userType = ''; }
+    if (key === 'new_user') { setNewUserFilter(''); next.newUser = ''; }
+    if (key === 'created_from') { setCreatedFromFilter(''); next.createdFrom = ''; }
+    if (key === 'created_to') { setCreatedToFilter(''); next.createdTo = ''; }
     setCurrentPage(1);
     setSelectedIds(new Set());
+    syncToUrl(next);
   };
 
   const buildExportFilename = () => {
@@ -300,7 +331,7 @@ export default function DeletedUsers() {
                   type="text"
                   className="state-filter-select"
                   value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); setSelectedIds(new Set()); }}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); setSelectedIds(new Set()); syncToUrl({ search: e.target.value, page: 1, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
                   placeholder="id, name, mobile..."
                   style={{ maxWidth: '260px' }}
                 />
@@ -523,12 +554,12 @@ export default function DeletedUsers() {
                   <button
                     className="btn-secondary btn-small"
                     disabled={currentPage <= 1}
-                    onClick={() => { setCurrentPage(1); setSelectedIds(new Set()); }}
+                    onClick={() => { setCurrentPage(1); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: 1, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
                   >«</button>
                   <button
                     className="btn-secondary btn-small"
                     disabled={currentPage <= 1}
-                    onClick={() => { setCurrentPage(p => p - 1); setSelectedIds(new Set()); }}
+                    onClick={() => { const p = currentPage - 1; setCurrentPage(p); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: p, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
                   >‹ Prev</button>
                   <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '80px', textAlign: 'center' }}>
                     Page {currentPage} of {totalPages}
@@ -536,12 +567,12 @@ export default function DeletedUsers() {
                   <button
                     className="btn-secondary btn-small"
                     disabled={currentPage >= totalPages}
-                    onClick={() => { setCurrentPage(p => p + 1); setSelectedIds(new Set()); }}
+                    onClick={() => { const p = currentPage + 1; setCurrentPage(p); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: p, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
                   >Next ›</button>
                   <button
                     className="btn-secondary btn-small"
                     disabled={currentPage >= totalPages}
-                    onClick={() => { setCurrentPage(totalPages); setSelectedIds(new Set()); }}
+                    onClick={() => { setCurrentPage(totalPages); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: totalPages, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
                   >»</button>
                 </div>
               </div>

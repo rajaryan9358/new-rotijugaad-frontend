@@ -86,6 +86,7 @@ export default function UsersManagement() {
   const [employerModalUser, setEmployerModalUser] = useState(null);
   const [activeForm, setActiveForm] = useState(null);
   const [filterColumns, setFilterColumns] = useState(3);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const navigate = useNavigate();
   const PAGE_SCROLL_KEY = 'users-scroll';
 
@@ -1045,6 +1046,12 @@ export default function UsersManagement() {
                   <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
+                        <th style={{ width: 36, padding: '0 8px' }}>
+                          <input type="checkbox"
+                            checked={users.length > 0 && users.every(u => selectedIds.has(u.id))}
+                            onChange={e => { if (e.target.checked) setSelectedIds(new Set(users.map(u => u.id))); else setSelectedIds(new Set()); }}
+                          />
+                        </th>
                         <th onClick={() => handleHeaderClick('id')} style={{ cursor:'pointer', width: colWidths.id }}>
                           ID{headerSortIndicator('id')}{rHandle('id')}
                         </th>
@@ -1096,8 +1103,7 @@ export default function UsersManagement() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          {/* CHANGED: colSpan +1 */}
-                          <td colSpan="16" className="no-data">Loading...</td>
+                          <td colSpan="17" className="no-data">Loading...</td>
                         </tr>
                       ) : users.length ? (
                         users.map(u => {
@@ -1110,13 +1116,20 @@ export default function UsersManagement() {
                           const hasEmployerProfile = Boolean(u.has_employer_profile && employerProfileId);
                           const isNewUser = u.created_at ? (Date.now() - new Date(u.created_at).getTime()) <= (48 * 60 * 60 * 1000) : false;
                           const lastSeenLabel = formatDisplayDateTime(u.last_active_at);
-                          const profileCompletedValue = u.profile_completed_at; // NEW
+                          const profileCompletedValue = u.profile_completed_at;
                           const userLifeDays = getUserLifeDays(u.created_at);
                           return (
                             <tr key={u.id} style={{
                               background: isInactive ? '#f3f4f6' : '#ffffff',
                               color: isInactive ? '#94a3b8' : '#0f172a'
                             }}>
+                              <td style={{ padding: '0 8px' }}>
+                                <input type="checkbox"
+                                  checked={selectedIds.has(u.id)}
+                                  onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(u.id); else next.delete(u.id); return next; }); }}
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              </td>
                               <td>{u.id}</td>
                               <td>{(() => {
                                 const type = (u.user_type || '').toLowerCase();
@@ -1238,8 +1251,7 @@ export default function UsersManagement() {
                         })
                       ) : (
                         <tr>
-                          {/* CHANGED: colSpan +1 */}
-                          <td colSpan="16" className="no-data">No users found</td>
+                          <td colSpan="17" className="no-data">No users found</td>
                         </tr>
                       )}
                     </tbody>

@@ -30,6 +30,7 @@ export default function AdminsManagement() {
   const [message, setMessage] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', password: '', role_id: '' });
   const [editingId, setEditingId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const { colWidths, rHandle } = useResizableColumns('admins-col-widths', DEFAULTS);
   const canView = hasPermission(PERMISSIONS.ADMINS_VIEW);
@@ -249,6 +250,12 @@ export default function AdminsManagement() {
                    <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                      <thead>
                        <tr>
+                         <th style={{ width: 36, padding: '0 8px' }}>
+                           <input type="checkbox"
+                             checked={admins.length > 0 && admins.every(a => selectedIds.has(a.id))}
+                             onChange={e => { if (e.target.checked) setSelectedIds(new Set(admins.map(a => a.id))); else setSelectedIds(new Set()); }}
+                           />
+                         </th>
                          <th style={{ ...headerCellStyle, width: colWidths.id }}>ID{rHandle('id')}</th>
                          <th style={{ ...headerCellStyle, width: colWidths.name }}>Name{rHandle('name')}</th>
                          <th style={{ ...headerCellStyle, width: colWidths.email }}>Email{rHandle('email')}</th>
@@ -260,10 +267,17 @@ export default function AdminsManagement() {
                      </thead>
                      <tbody>
                        {loading ? (
-                         <tr><td colSpan={showActions ? 7 : 6}>Loading...</td></tr>
+                         <tr><td colSpan={showActions ? 8 : 7}>Loading...</td></tr>
                        ) : admins.length ? (
                          admins.map((admin) => (
                            <tr key={admin.id}>
+                             <td style={{ padding: '0 8px' }}>
+                               <input type="checkbox"
+                                 checked={selectedIds.has(admin.id)}
+                                 onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(admin.id); else next.delete(admin.id); return next; }); }}
+                                 onClick={e => e.stopPropagation()}
+                               />
+                             </td>
                              <td>{admin.id}</td>
                              <td>{admin.name}</td>
                              <td>{admin.email}</td>
@@ -294,7 +308,7 @@ export default function AdminsManagement() {
                            </tr>
                          ))
                        ) : (
-                         <tr><td colSpan={showActions ? 7 : 6}>No admins found</td></tr>
+                         <tr><td colSpan={showActions ? 8 : 7}>No admins found</td></tr>
                        )}
                      </tbody>
                    </table>

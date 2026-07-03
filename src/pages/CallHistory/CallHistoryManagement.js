@@ -39,6 +39,7 @@ export default function CallHistoryManagement() {
   const [createdToFilter, setCreatedToFilter] = useState(''); // YYYY-MM-DD
 
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [draftFilters, setDraftFilters] = useState({
     callExperienceFilter: '',
     readStatusFilter: '',
@@ -563,7 +564,7 @@ export default function CallHistoryManagement() {
     return <div style={{ padding:40 }}>You do not have permission to view this page.</div>;
   }
 
-  const tableColCount = 10 + (globalUserType === 'employee' ? 4 : 5);
+  const tableColCount = 11 + (globalUserType === 'employee' ? 4 : 5);
 
   return (
     <div className="dashboard-container">
@@ -727,6 +728,12 @@ export default function CallHistoryManagement() {
               <table className="data-table" style={{ minWidth: '1200px' }}>
                 <thead>
                   <tr>
+                    <th style={{ width: 36, padding: '0 8px' }}>
+                      <input type="checkbox"
+                        checked={rows.length > 0 && rows.every(r => selectedIds.has(r.id))}
+                        onChange={e => { if (e.target.checked) setSelectedIds(new Set(rows.map(r => r.id))); else setSelectedIds(new Set()); }}
+                      />
+                    </th>
                     <th onClick={() => handleSort('id')} style={{ cursor: 'pointer' }}>ID{headerIndicator('id')}</th>
                     <th onClick={() => handleSort('user_type')} style={{ cursor: 'pointer' }}>User Type{headerIndicator('user_type')}</th>
                     <th>Name</th>
@@ -772,6 +779,13 @@ export default function CallHistoryManagement() {
                             color: isRead ? '#94a3b8' : '#0f172a'
                           }}
                         >
+                          <td style={{ padding: '0 8px' }}>
+                            <input type="checkbox"
+                              checked={selectedIds.has(r.id)}
+                              onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(r.id); else next.delete(r.id); return next; }); }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </td>
                           <td>{r.id}</td>
                           <td>{r.user_type}</td>
 

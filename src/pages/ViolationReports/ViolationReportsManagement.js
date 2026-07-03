@@ -54,6 +54,19 @@ export default function ViolationReportsManagement() {
   const [queryHydrated, setQueryHydrated] = useState(false);
   const [appliedQuerySignature, setAppliedQuerySignature] = useState('');
   const [reasonOptions, setReasonOptions] = useState({});
+  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  const syncToUrl = React.useCallback((params) => {
+    const p = new URLSearchParams();
+    if (params.search) p.set('search', params.search);
+    if (params.page && params.page > 1) p.set('page', String(params.page));
+    if (params.sortField && params.sortField !== 'id') p.set('sortField', params.sortField);
+    if (params.sortDir && params.sortDir !== 'desc') p.set('sortDir', params.sortDir);
+    if (params.reportType) p.set('report_type', params.reportType);
+    if (params.reason) p.set('reason', params.reason);
+    if (params.readStatus) p.set('read_status', params.readStatus);
+    navigate({ pathname: location.pathname, search: p.toString() ? `?${p}` : '' }, { replace: true });
+  }, [navigate, location.pathname]);
 
   const canViewViolations = hasPermission(PERMISSIONS.VIOLATIONS_VIEW);
   const canManageViolations = hasPermission(PERMISSIONS.VIOLATIONS_MANAGE);
@@ -175,7 +188,9 @@ export default function ViolationReportsManagement() {
     setReasonFilter(draftFilters.reasonFilter);
     setReadStatusFilter(draftFilters.readStatusFilter);
     setCurrentPage(1);
+    setSelectedIds(new Set());
     setShowFilterPanel(false);
+    syncToUrl({ search: searchTerm, page: 1, sortField, sortDir, reportType: draftFilters.reportTypeFilter, reason: draftFilters.reasonFilter, readStatus: draftFilters.readStatusFilter });
   };
 
   const clearFilters = () => {
@@ -186,38 +201,49 @@ export default function ViolationReportsManagement() {
     setSortField('id');
     setSortDir('desc');
     setCurrentPage(1);
+    setSelectedIds(new Set());
     setShowFilterPanel(false);
+    syncToUrl({});
   };
 
   const removeChip = (key) => {
-    if (key === 'search') setSearchTerm('');
-    if (key === 'report_type') setReportTypeFilter('');
-    if (key === 'reason') setReasonFilter('');
-    if (key === 'read_status') setReadStatusFilter('');
+    const next = { reportType: reportTypeFilter, reason: reasonFilter, readStatus: readStatusFilter, search: searchTerm };
+    if (key === 'search') { setSearchTerm(''); next.search = ''; }
+    if (key === 'report_type') { setReportTypeFilter(''); next.reportType = ''; }
+    if (key === 'reason') { setReasonFilter(''); next.reason = ''; }
+    if (key === 'read_status') { setReadStatusFilter(''); next.readStatus = ''; }
     setCurrentPage(1);
+    setSelectedIds(new Set());
+    syncToUrl({ ...next, page: 1, sortField, sortDir });
   };
 
   const handleSort = (field) => {
-    if (sortField === field) setSortDir(dir => (dir === 'asc' ? 'desc' : 'asc'));
-    else {
-      setSortField(field);
-      setSortDir('asc');
-    }
+    const nextDir = sortField === field ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+    setSortField(field);
+    setSortDir(nextDir);
     setCurrentPage(1);
+    syncToUrl({ search: searchTerm, page: 1, sortField: field, sortDir: nextDir, reportType: reportTypeFilter, reason: reasonFilter, readStatus: readStatusFilter });
   };
 
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
+    const val = e.target.value;
+    setSearchTerm(val);
     setCurrentPage(1);
+    syncToUrl({ search: val, page: 1, sortField, sortDir, reportType: reportTypeFilter, reason: reasonFilter, readStatus: readStatusFilter });
   };
 
   const handlePageChange = (delta) => {
-    setCurrentPage(p => Math.min(Math.max(1, p + delta), totalPages));
+    const next = Math.min(Math.max(1, currentPage + delta), totalPages);
+    setCurrentPage(next);
+    setSelectedIds(new Set());
+    syncToUrl({ search: searchTerm, page: next, sortField, sortDir, reportType: reportTypeFilter, reason: reasonFilter, readStatus: readStatusFilter });
   };
 
   const handlePageSizeChange = (value) => {
     setPageSize(value);
     setCurrentPage(1);
+    setSelectedIds(new Set());
+    syncToUrl({ search: searchTerm, page: 1, sortField, sortDir, reportType: reportTypeFilter, reason: reasonFilter, readStatus: readStatusFilter });
   };
 
   const headerIndicator = (field) => sortField === field ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
@@ -420,16 +446,28 @@ export default function ViolationReportsManagement() {
       if (!queryHydrated) setQueryHydrated(true);
       return;
     }
+    const p = new URLSearchParams(location.search);
+    const search = p.get('search') || '';
+    const page = Math.max(parseInt(p.get('page') || '1', 10), 1);
+    const sf = p.get('sortField') || 'id';
+    const sd = p.get('sortDir') || 'desc';
+    const reason = p.get('reason') || '';
+    const readStatus = p.get('read_status') || '';
     setReportTypeFilter(normalizedReportTypeFromQuery);
-    setReasonFilter('');
-    setDraftFilters(prev => ({
-      ...prev,
+    setReasonFilter(reason);
+    setReadStatusFilter(readStatus);
+    if (search) setSearchTerm(search);
+    if (page > 1) setCurrentPage(page);
+    if (sf !== 'id') setSortField(sf);
+    if (sd !== 'desc') setSortDir(sd);
+    setDraftFilters({
       reportTypeFilter: normalizedReportTypeFromQuery,
-      reasonFilter: ''
-    }));
+      reasonFilter: reason,
+      readStatusFilter: readStatus
+    });
     setAppliedQuerySignature(querySignature);
     setQueryHydrated(true);
-  }, [appliedQuerySignature, querySignature, normalizedReportTypeFromQuery, queryHydrated]);
+  }, [appliedQuerySignature, querySignature, normalizedReportTypeFromQuery, queryHydrated, location.search]);
 
   if (!canViewViolations) {
     return (
@@ -598,6 +636,12 @@ export default function ViolationReportsManagement() {
               <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
+                    <th style={{ width: 36, padding: '0 8px' }}>
+                      <input type="checkbox"
+                        checked={rows.length > 0 && rows.every(r => selectedIds.has(r.id))}
+                        onChange={e => { if (e.target.checked) setSelectedIds(new Set(rows.map(r => r.id))); else setSelectedIds(new Set()); }}
+                      />
+                    </th>
                     <th onClick={() => handleSort('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{headerIndicator('id')}{rHandle('id')}</th>
                     <th onClick={() => handleSort('report_type')} style={{ cursor:'pointer', width: colWidths.report_type }}>Report Type{headerIndicator('report_type')}{rHandle('report_type')}</th>
                     <th style={{ width: colWidths.reporter_name }}>Reporter Name{rHandle('reporter_name')}</th>
@@ -611,7 +655,7 @@ export default function ViolationReportsManagement() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="10">Loading...</td></tr>
+                    <tr><td colSpan="11">Loading...</td></tr>
                   ) : rows.length ? (
                     rows.map(r => {
                       const reasonText = r.reason
@@ -631,6 +675,13 @@ export default function ViolationReportsManagement() {
                             color: isRead ? '#94a3b8' : '#0f172a'
                           }}
                         >
+                          <td style={{ padding: '0 8px' }}>
+                            <input type="checkbox"
+                              checked={selectedIds.has(r.id)}
+                              onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(r.id); else next.delete(r.id); return next; }); }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </td>
                           {/* ID, type, reporter, reported, reason, description */}
                           <td>{r.id}</td>
                           <td>{r.report_type}</td>
@@ -700,7 +751,7 @@ export default function ViolationReportsManagement() {
                       );
                     })
                   ) : (
-                    <tr><td colSpan="10">No data</td></tr>
+                    <tr><td colSpan="11">No data</td></tr>
                   )}
                 </tbody>
               </table>

@@ -78,6 +78,7 @@ export default function PaymentHistoryManagement() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [draftFilters, setDraftFilters] = useState({
     userType: '',
     plan: '',
@@ -916,6 +917,12 @@ export default function PaymentHistoryManagement() {
               <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
+                    <th style={{ width: 36, padding: '0 8px' }}>
+                      <input type="checkbox"
+                        checked={rows.length > 0 && rows.every(r => selectedIds.has(r.id))}
+                        onChange={e => { if (e.target.checked) setSelectedIds(new Set(rows.map(r => r.id))); else setSelectedIds(new Set()); }}
+                      />
+                    </th>
                     <th onClick={() => handleSort('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{sortField === 'id' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('id')}</th>
                     <th onClick={() => handleSort('invoice_number')} style={{ cursor:'pointer', width: colWidths.invoice }}>Invoice #{sortField === 'invoice_number' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('invoice')}</th>
                     <th onClick={() => handleSort('user_type')} style={{ cursor:'pointer', width: colWidths.user_type }}>User Type{sortField === 'user_type' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}{rHandle('user_type')}</th>
@@ -931,7 +938,7 @@ export default function PaymentHistoryManagement() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="11">Loading...</td></tr>
+                    <tr><td colSpan="12">Loading...</td></tr>
                   ) : rows.length ? (
                     rows.map(r => {
                       const entityName = r.user?.name || r.entity?.name || '—';
@@ -943,6 +950,13 @@ export default function PaymentHistoryManagement() {
 
                       return (
                         <tr key={r.id}>
+                          <td style={{ padding: '0 8px' }}>
+                            <input type="checkbox"
+                              checked={selectedIds.has(r.id)}
+                              onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(r.id); else next.delete(r.id); return next; }); }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </td>
                           <td>{r.id}</td>
                           <td>{(r.invoice_number || `INV-${r.id}`) || '-'}</td>
                           <td>{r.user_type || '-'}</td>
@@ -992,7 +1006,7 @@ export default function PaymentHistoryManagement() {
                       );
                     })
                   ) : (
-                    <tr><td colSpan="11">No data</td></tr>
+                    <tr><td colSpan="12">No data</td></tr>
                   )}
                 </tbody>
               </table>

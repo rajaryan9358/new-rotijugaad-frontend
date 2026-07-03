@@ -123,6 +123,7 @@ export default function EmployeesManagement() {
   const [confirm, setConfirm] = useState({ open: false, id: null, title: '', message: '' });
   const [message, setMessage] = useState(null);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const locationButtonStyle = useMemo(() => ({
     background: 'none',
     border: 'none',
@@ -1764,10 +1765,15 @@ export default function EmployeesManagement() {
                   <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
+                        <th style={{ width: 36, padding: '0 8px' }}>
+                          <input type="checkbox"
+                            checked={employees.length > 0 && employees.every(e => selectedIds.has(e.id))}
+                            onChange={ev => { if (ev.target.checked) setSelectedIds(new Set(employees.map(e => e.id))); else setSelectedIds(new Set()); }}
+                          />
+                        </th>
                         <th onClick={() => handleHeaderClick('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{ind('id')}{rHandle('id')}</th>
                         <th onClick={() => handleHeaderClick('name')} style={{ cursor:'pointer', width: colWidths.name }}>Name{ind('name')}{rHandle('name')}</th>
 
-                        {/* NEW */}
                         {employeePerms.canShowPhoneAddress && <th style={{ width: colWidths.phone }}>Phone{rHandle('phone')}</th>}
 
                         <th onClick={() => handleHeaderClick('email')} style={{ cursor:'pointer', width: colWidths.email }}>Email{ind('email')}{rHandle('email')}</th>
@@ -1829,6 +1835,12 @@ export default function EmployeesManagement() {
                                 color: isInactive ? '#94a3b8' : '#0f172a'
                               }}
                             >
+                              <td style={{ padding: '0 8px' }} onClick={ev => ev.stopPropagation()}>
+                                <input type="checkbox"
+                                  checked={selectedIds.has(e.id)}
+                                  onChange={ev => { setSelectedIds(prev => { const next = new Set(prev); if (ev.target.checked) next.add(e.id); else next.delete(e.id); return next; }); }}
+                                />
+                              </td>
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                   {!e.dob && (
@@ -2019,7 +2031,7 @@ export default function EmployeesManagement() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan="29" className="no-data">
+                          <td colSpan="30" className="no-data">
                             {loading ? 'Loading...' : meta.total ? 'No records on this page' : 'No employees found'}
                           </td>
                         </tr>

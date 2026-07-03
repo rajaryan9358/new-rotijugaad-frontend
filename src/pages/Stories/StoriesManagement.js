@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import LogsAction from '../../components/LogsAction';
@@ -13,6 +14,8 @@ import { useResizableColumns } from '../../hooks/useResizableColumns';
 const DEFAULTS = { id: 60, user_type: 90, title_en: 130, title_hi: 130, image: 80, seq: 60, active: 70, expiry: 110, created_at: 110, actions: 90 };
 
 export default function StoriesManagement() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { colWidths, rHandle } = useResizableColumns('stories-col-widths', DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -30,7 +33,8 @@ export default function StoriesManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [draftFilters, setDraftFilters] = useState({ userTypeFilter: '' });
-  const [draggedItem, setDraggedItem] = useState(null); // NEW: track dragged row index
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const canViewStories = hasPermission(PERMISSIONS.STORIES_VIEW);
   const canManageStories = hasPermission(PERMISSIONS.STORIES_MANAGE);
@@ -81,6 +85,34 @@ export default function StoriesManagement() {
   }, [canViewStories, buildQueryParams]);
 
   useEffect(() => { setSidebarOpen(getSidebarState()); }, []);
+
+  const syncToUrl = React.useCallback((params) => {
+    const p = new URLSearchParams();
+    if (params.search?.trim()) p.set('search', params.search.trim());
+    if (params.page && params.page > 1) p.set('page', String(params.page));
+    if (params.sortField && params.sortField !== 'id') p.set('sortField', params.sortField);
+    if (params.sortDir && params.sortDir !== 'asc') p.set('sortDir', params.sortDir);
+    if (params.userType) p.set('user_type', params.userType);
+    navigate({ pathname: location.pathname, search: p.toString() ? `?${p}` : '' }, { replace: true });
+  }, [navigate, location.pathname]);
+
+  useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    const search = p.get('search') || '';
+    const page = parseInt(p.get('page') || '1', 10);
+    const sf = p.get('sortField') || 'id';
+    const sd = p.get('sortDir') || 'asc';
+    const userType = p.get('user_type') || '';
+    if (search || userType || sf !== 'id' || sd !== 'asc' || page > 1) {
+      if (search) setSearchTerm(search);
+      if (userType) setUserTypeFilter(userType);
+      if (sf !== 'id') setSortField(sf);
+      if (sd !== 'asc') setSortDir(sd);
+      if (page > 1) setCurrentPage(page);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => { load(); }, [load]);
 
   const handleMenuClick = () => {
@@ -97,20 +129,28 @@ export default function StoriesManagement() {
   const applyFilters = () => {
     setUserTypeFilter(draftFilters.userTypeFilter);
     setCurrentPage(1);
+    setSelectedIds(new Set());
     setShowFilterPanel(false);
+    syncToUrl({ search: searchTerm, page: 1, sortField, sortDir, userType: draftFilters.userTypeFilter });
   };
   const clearFilters = () => {
     setUserTypeFilter('');
+    setSearchTerm('');
     setDraftFilters({ userTypeFilter: '' });
     setSortField('id');
     setSortDir('asc');
     setCurrentPage(1);
+    setSelectedIds(new Set());
     setShowFilterPanel(false);
+    syncToUrl({ search: '', page: 1, sortField: 'id', sortDir: 'asc', userType: '' });
   };
   const removeChip = (key) => {
-    if (key === 'search') setSearchTerm('');
-    if (key === 'user_type') setUserTypeFilter('');
+    const next = { search: searchTerm, page: 1, sortField, sortDir, userType: userTypeFilter };
+    if (key === 'search') { setSearchTerm(''); next.search = ''; }
+    if (key === 'user_type') { setUserTypeFilter(''); next.userType = ''; }
     setCurrentPage(1);
+    setSelectedIds(new Set());
+    syncToUrl(next);
   };
 
   const buildExportFilename = () => {
@@ -223,9 +263,13 @@ export default function StoriesManagement() {
   };
 
   const headerClick = (f) => {
-    if (sortField === f) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortField(f); setSortDir('asc'); }
+    const nextDir = sortField === f ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+    const nextField = f;
+    setSortField(nextField);
+    setSortDir(nextDir);
     setCurrentPage(1);
+    setSelectedIds(new Set());
+    syncToUrl({ search: searchTerm, page: 1, sortField: nextField, sortDir: nextDir, userType: userTypeFilter });
   };
   const ind = (f) => sortField === f ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
@@ -420,7 +464,13 @@ export default function StoriesManagement() {
                   <table className="data-table draggable col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
-                        <th className="drag-handle"></th> {/* NEW drag handle column */}
+                        <th style={{ width: 36, padding: '0 8px' }}>
+                          <input type="checkbox"
+                            checked={stories.length > 0 && stories.every(s => selectedIds.has(s.id))}
+                            onChange={e => { if (e.target.checked) setSelectedIds(new Set(stories.map(s => s.id))); else setSelectedIds(new Set()); }}
+                          />
+                        </th>
+                        <th className="drag-handle"></th>
                         <th onClick={() => headerClick('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{ind('id')}{rHandle('id')}</th>
                         <th onClick={() => headerClick('user_type')} style={{ cursor:'pointer', width: colWidths.user_type }}>User Type{ind('user_type')}{rHandle('user_type')}</th>
                         <th onClick={() => headerClick('title_english')} style={{ cursor:'pointer', width: colWidths.title_en }}>Title (EN){ind('title_english')}{rHandle('title_en')}</th>
@@ -435,7 +485,7 @@ export default function StoriesManagement() {
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr><td colSpan="11">Loading...</td></tr>
+                        <tr><td colSpan="13">Loading...</td></tr>
                       ) : stories.length ? (
                         stories.map((s, index) => (
                           <tr
@@ -447,6 +497,13 @@ export default function StoriesManagement() {
                             onDragEnd={handleDragEnd}
                             className={`draggable-row ${draggedItem === index ? 'dragging' : ''}`}
                           >
+                            <td style={{ padding: '0 8px' }}>
+                              <input type="checkbox"
+                                checked={selectedIds.has(s.id)}
+                                onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(s.id); else next.delete(s.id); return next; }); }}
+                                onClick={e => e.stopPropagation()}
+                              />
+                            </td>
                             <td className="drag-handle">
                               <span className="drag-icon">⋮⋮</span>
                             </td>
@@ -470,7 +527,7 @@ export default function StoriesManagement() {
                           </tr>
                         ))
                       ) : (
-                        <tr><td colSpan="11">No stories found</td></tr>
+                        <tr><td colSpan="13">No stories found</td></tr>
                       )}
                     </tbody>
                   </table>

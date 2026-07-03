@@ -129,6 +129,18 @@ const formatTime12h = (t) => {
   return `${h}:${m} ${suffix}`;
 };
 
+const formatWorkDuration = (startTime, endTime) => {
+  if (!startTime || !endTime) return '';
+  const [sh, sm] = String(startTime).split(':').map(Number);
+  const [eh, em] = String(endTime).split(':').map(Number);
+  if ([sh, sm, eh, em].some((n) => !Number.isFinite(n))) return '';
+  let totalMins = (eh * 60 + em) - (sh * 60 + sm);
+  if (totalMins <= 0) totalMins += 24 * 60;
+  const h = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  return mins > 0 ? `${h}h ${mins}m` : `${h}h`;
+};
+
 function MultiCheckSelect({ label, options, value = [], onChange, optionLabel = 'label', optionValue = 'value', placeholder = 'Any' }) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef(null);
@@ -174,7 +186,7 @@ function MultiCheckSelect({ label, options, value = [], onChange, optionLabel = 
 
 const DEFAULTS = {
   cb: 36, id: 60, employer: 120, org_name: 140, org_category: 130, employer_phone: 120,
-  interviewer_contact: 140, shift_timing: 110, working_hours: 120, job_profile: 130, job_designation: 130,
+  interviewer_contact: 140, shift_timing: 110, working_hours: 120, work_duration: 90, job_profile: 130, job_designation: 130,
   household: 90, gender: 80, experience: 130, qualification: 120, shift: 110,
   skills: 130, benefits: 130, verification: 110, vacancies: 90, state: 90, city: 90,
   location: 120, salary_type: 100, salary: 100, status: 90, expiry_date: 110,
@@ -195,7 +207,7 @@ export default function JobsManagement() {
     shift: '',
     skill: '',
     job_profile: [],
-    org_category: [],
+    org_category: '',
     job_benefit: '',
     status: '',
     job_recency: 'all',
@@ -278,7 +290,7 @@ export default function JobsManagement() {
         shift: p.get('shift') || '',
         skill: p.get('skill') || '',
         job_profile: toArr(p.get('job_profile')),
-        org_category: toArr(p.get('org_category')),
+        org_category: p.get('org_category') || '',
         job_benefit: p.get('job_benefit') || '',
         status: (['active','inactive','expired'].includes(p.get('status') || '') ? p.get('status') : '') || '',
         job_recency: p.get('job_recency') || p.get('recency') === 'new' ? 'new' : 'all',
@@ -446,7 +458,7 @@ export default function JobsManagement() {
 
   const EMPTY_FILTERS = {
     gender: '', experience: '', qualification: '', shift: '', skill: '',
-    job_profile: [], org_category: [], job_benefit: '', status: '', job_recency: 'all',
+    job_profile: [], org_category: '', job_benefit: '', status: '', job_recency: 'all',
     verification_status: '', job_state_id: '', job_city_id: '', created_from: '', created_to: '',
   };
 
@@ -824,7 +836,7 @@ export default function JobsManagement() {
   };
 
   const removeFilterChip = React.useCallback((key) => {
-    const emptyVal = (key === 'job_recency') ? 'all' : (key === 'job_profile' || key === 'org_category') ? [] : '';
+    const emptyVal = (key === 'job_recency') ? 'all' : key === 'job_profile' ? [] : '';
     setFilters(prev => {
       const next = { ...prev, [key]: emptyVal };
       syncToUrl(next, searchTerm, 1, sortField, sortDir);
@@ -1087,6 +1099,7 @@ export default function JobsManagement() {
                     if (key === 'verification_status') label = VERIFICATION_OPTIONS.find(o => o.value === value)?.label || value;
                     if (key === 'job_state_id') label = options.states.find(s => String(s.id) === String(value))?.state_english || value;
                     if (key === 'job_city_id') label = options.cities.find(c => String(c.id) === String(value))?.city_english || value;
+                    if (key === 'org_category') label = options.business_categories.find(c => String(c.id) === String(value))?.category_english || value;
                     return (
                       <span key={`${key}-${value}`} className="badge chip" style={chipBaseStyle}>
                         {key.replace(/_/g, ' ')}: {label}
@@ -1155,7 +1168,7 @@ export default function JobsManagement() {
                         optionValue="id"
                         placeholder="Any job profile"
                       />
-                      <MultiCheckSelect
+                      <SingleSelect
                         label="Organization Category"
                         options={options.business_categories}
                         value={draftFilters.org_category}
@@ -1273,6 +1286,7 @@ export default function JobsManagement() {
                         <th style={{ width: colWidths.interviewer_contact }}>Interviewer Contact{rHandle('interviewer_contact')}</th> {/* NEW */}
                         <th style={{ width: colWidths.shift_timing }}>Shift Timing{rHandle('shift_timing')}</th>
                         <th style={{ width: colWidths.working_hours }}>Working Hours{rHandle('working_hours')}</th>
+                        <th style={{ width: colWidths.work_duration }}>Duration{rHandle('work_duration')}</th>
                         <th onClick={() => handleSort('job_profile_id')} style={{ cursor:'pointer', width: colWidths.job_profile }}>Job Profile{headerIndicator('job_profile_id')}{rHandle('job_profile')}</th>
                         <th style={{ width: colWidths.job_designation }}>Job Designation{rHandle('job_designation')}</th>
                         <th style={{ width: colWidths.household }}>Household{rHandle('household')}</th>
@@ -1300,7 +1314,7 @@ export default function JobsManagement() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={32}>Loading...</td>
+                          <td colSpan={33}>Loading...</td>
                         </tr>
                       ) : rows.length ? (
                         rows.map(job => {
@@ -1355,6 +1369,7 @@ export default function JobsManagement() {
                               <td>{job.interviewer_contact || '-'}</td>      {/* NEW */}
                               <td>{job.shift_timing_display || '-'}</td>
                               <td>{(() => { const s = formatTime12h(job.work_start_time); const e2 = formatTime12h(job.work_end_time); return s && e2 ? `${s} - ${e2}` : s || e2 || '-'; })()}</td>
+                              <td>{formatWorkDuration(job.work_start_time, job.work_end_time) || '-'}</td>
 
                               <td>
                                 {job.job_profile || '-'}

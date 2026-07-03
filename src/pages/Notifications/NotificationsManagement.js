@@ -65,6 +65,7 @@ export default function NotificationsManagement() {
   const [deletingId, setDeletingId] = useState(null);
   const [suggestionState, setSuggestionState] = useState(null);
   const [viewNotification, setViewNotification] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const canView = hasPermission(PERMISSIONS.NOTIFICATIONS_VIEW);
   const canManage = hasPermission(PERMISSIONS.NOTIFICATIONS_MANAGE);
@@ -317,6 +318,12 @@ export default function NotificationsManagement() {
                   <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
+                        <th style={{ width: 36, padding: '0 8px' }}>
+                          <input type="checkbox"
+                            checked={notifications.length > 0 && notifications.every(n => selectedIds.has(n.id))}
+                            onChange={e => { if (e.target.checked) setSelectedIds(new Set(notifications.map(n => n.id))); else setSelectedIds(new Set()); }}
+                          />
+                        </th>
                         <th style={{ ...headerCellStyle, width: colWidths.title }}>Title{rHandle('title')}</th>
                         <th style={{ ...headerCellStyle, width: colWidths.target }}>Target{rHandle('target')}</th>
                         <th style={{ ...headerCellStyle, width: colWidths.status }}>Status{rHandle('status')}</th>
@@ -327,10 +334,17 @@ export default function NotificationsManagement() {
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr><td colSpan="6" className="no-data">Loading...</td></tr>
+                        <tr><td colSpan="7" className="no-data">Loading...</td></tr>
                       ) : notifications.length ? (
                         notifications.map((n) => (
                           <tr key={n.id}>
+                            <td style={{ padding: '0 8px' }}>
+                              <input type="checkbox"
+                                checked={selectedIds.has(n.id)}
+                                onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(n.id); else next.delete(n.id); return next; }); }}
+                                onClick={e => e.stopPropagation()}
+                              />
+                            </td>
                             <td>{n.title}</td>
                             <td>{n.target}</td>
                             <td>{n.status || '-'}</td>
@@ -370,7 +384,7 @@ export default function NotificationsManagement() {
                           </tr>
                         ))
                       ) : (
-                        <tr><td colSpan="6" className="no-data">No notifications yet</td></tr>
+                        <tr><td colSpan="7" className="no-data">No notifications yet</td></tr>
                       )}
                     </tbody>
                   </table>

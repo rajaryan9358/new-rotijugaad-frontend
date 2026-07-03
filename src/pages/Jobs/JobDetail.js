@@ -749,6 +749,20 @@ function JobDetailTab({ job }) {
       ? `${start12} - ${end12}`
       : (start12 || end12 || '');
 
+  const workDuration = (() => {
+    const s = job.work_start_time;
+    const e = job.work_end_time;
+    if (!s || !e) return '';
+    const [sh, sm] = String(s).split(':').map(Number);
+    const [eh, em] = String(e).split(':').map(Number);
+    if ([sh, sm, eh, em].some((n) => !Number.isFinite(n))) return '';
+    let totalMins = (eh * 60 + em) - (sh * 60 + sm);
+    if (totalMins <= 0) totalMins += 24 * 60;
+    const h = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    return mins > 0 ? `${h}h ${mins}m` : `${h}h`;
+  })();
+
   const shiftTiming = [jobDaysShort || null, timeRange || null].filter(Boolean).join(' • ') || '-';
 
   // State and City
@@ -800,6 +814,7 @@ function JobDetailTab({ job }) {
           <Detail label="Interviewer Contact" value={job.interviewer_contact || '-'} />
           <Detail label="Shift Timing" value={shiftTiming} />
           {(start12 || end12) && <Detail label="Working Hours" value={timeRange || '-'} />}
+          {workDuration && <Detail label="Working Hours Duration" value={workDuration} />}
           <Detail label="Verification Status" value={verificationChip} /> {/* CHANGED */}
         </div>
         <div style={{ marginTop: 16 }}>

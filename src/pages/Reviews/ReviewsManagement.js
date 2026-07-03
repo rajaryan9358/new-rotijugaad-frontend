@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom'; // CHANGED
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import LogsAction from '../../components/LogsAction';
@@ -35,6 +35,7 @@ const INITIAL_PANEL_FILTERS = Object.freeze({
 
 export default function ReviewsManagement() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { colWidths, rHandle } = useResizableColumns('reviews-col-widths', DEFAULTS);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reviews, setReviews] = useState([]);
@@ -46,6 +47,7 @@ export default function ReviewsManagement() {
   const [sortField, setSortField] = useState('updated_at');
   const [sortDir, setSortDir] = useState('desc');
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const canViewReviews = hasPermission(PERMISSIONS.REVIEWS_VIEW);
   const canManageReviews = hasPermission(PERMISSIONS.REVIEWS_MANAGE);
   const canExportReviews = hasPermission(PERMISSIONS.REVIEWS_EXPORT);
@@ -54,6 +56,36 @@ export default function ReviewsManagement() {
     if (!canViewReviews) return;
     setSidebarOpen(getSidebarState());
   }, [canViewReviews]);
+
+  const syncToUrl = React.useCallback((params) => {
+    const p = new URLSearchParams();
+    if (params.search?.trim()) p.set('search', params.search.trim());
+    if (params.page && params.page > 1) p.set('page', String(params.page));
+    if (params.sortField && params.sortField !== 'updated_at') p.set('sortField', params.sortField);
+    if (params.sortDir && params.sortDir !== 'desc') p.set('sortDir', params.sortDir);
+    if (params.user_type) p.set('user_type', params.user_type);
+    if (params.rating) p.set('rating', String(params.rating));
+    if (params.read && params.read !== 'all') p.set('read', params.read);
+    navigate({ pathname: location.pathname, search: p.toString() ? `?${p}` : '' }, { replace: true });
+  }, [navigate, location.pathname]);
+
+  useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    const search = p.get('search') || '';
+    const page = parseInt(p.get('page') || '1', 10);
+    const sf = p.get('sortField') || 'updated_at';
+    const sd = (p.get('sortDir') || 'desc');
+    const user_type = p.get('user_type') || '';
+    const rating = p.get('rating') || '';
+    const read = p.get('read') || 'all';
+    if (search || user_type || rating || read !== 'all' || sf !== 'updated_at' || sd !== 'desc') {
+      setFilters(prev => ({ ...prev, search, user_type, rating, read }));
+      setSortField(sf);
+      setSortDir(sd);
+    }
+    if (page > 1) setPagination(prev => ({ ...prev, page }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const queryFilters = useMemo(() => {
     const params = {
@@ -72,8 +104,15 @@ export default function ReviewsManagement() {
   const updateFilters = (updater) => {
     setFilters((prev) => (typeof updater === 'function' ? updater(prev) : updater));
     resetPage();
+    setSelectedIds(new Set());
   };
-  const applyFilterChange = (key, value) => updateFilters((prev) => ({ ...prev, [key]: value }));
+  const applyFilterChange = (key, value) => {
+    const newFilters = { ...filters, [key]: value };
+    setFilters(newFilters);
+    resetPage();
+    setSelectedIds(new Set());
+    syncToUrl({ ...newFilters, page: 1, sortField, sortDir });
+  };
   const openFilters = () => {
     if (showFilterPanel) {
       setShowFilterPanel(false);
@@ -87,24 +126,33 @@ export default function ReviewsManagement() {
     setShowFilterPanel(true);
   };
   const applyDraftFilters = () => {
-    updateFilters((prev) => ({ ...prev, ...draftFilters }));
+    const newFilters = { ...filters, ...draftFilters };
+    setFilters(newFilters);
+    resetPage();
+    setSelectedIds(new Set());
     setShowFilterPanel(false);
+    syncToUrl({ ...newFilters, page: 1, sortField, sortDir });
   };
   const clearFilters = () => {
     setDraftFilters({ ...INITIAL_PANEL_FILTERS });
-    updateFilters({ ...INITIAL_FILTERS });
+    setFilters({ ...INITIAL_FILTERS });
     setSortField('updated_at');
     setSortDir('desc');
+    resetPage();
+    setSelectedIds(new Set());
     setShowFilterPanel(false);
+    syncToUrl({ search: '', page: 1, sortField: 'updated_at', sortDir: 'desc', user_type: '', rating: '', read: 'all' });
   };
   const removeFilterChip = (key) => {
-    const map = {
-      search: () => applyFilterChange('search', ''),
-      user_type: () => updateFilters((prev) => ({ ...prev, user_type: '' })),
-      rating: () => updateFilters((prev) => ({ ...prev, rating: '' })),
-      read: () => updateFilters((prev) => ({ ...prev, read: 'all' })),
-    };
-    map[key]?.();
+    const newFilters = { ...filters };
+    if (key === 'search') newFilters.search = '';
+    if (key === 'user_type') newFilters.user_type = '';
+    if (key === 'rating') newFilters.rating = '';
+    if (key === 'read') newFilters.read = 'all';
+    setFilters(newFilters);
+    resetPage();
+    setSelectedIds(new Set());
+    syncToUrl({ ...newFilters, page: 1, sortField, sortDir });
   };
   const handleHeaderClick = (field) => {
     if (!['id', 'rating', 'updated_at'].includes(field)) return;
@@ -112,6 +160,8 @@ export default function ReviewsManagement() {
     setSortField(field);
     setSortDir(nextDir);
     resetPage();
+    setSelectedIds(new Set());
+    syncToUrl({ ...filters, page: 1, sortField: field, sortDir: nextDir });
   };
   const ind = (field) => (sortField === field ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
   const chipBaseStyle = {
@@ -205,17 +255,22 @@ export default function ReviewsManagement() {
     setPagination((prev) => {
       const next = prev.page + direction;
       if (next < 1 || next > Math.max(1, prev.totalPages)) return prev;
+      setSelectedIds(new Set());
+      syncToUrl({ ...filters, page: next, sortField, sortDir });
       return { ...prev, page: next };
     });
   };
 
   const handleLimitChange = (value) => {
     setPagination((prev) => ({ ...prev, limit: Number(value), page: 1 }));
+    setSelectedIds(new Set());
   };
 
   const handleResetFilters = () => {
     setFilters({ user_type: '', rating: '', read: 'all', search: '' });
     setPagination((prev) => ({ ...prev, page: 1 }));
+    setSelectedIds(new Set());
+    syncToUrl({ search: '', page: 1, sortField, sortDir, user_type: '', rating: '', read: 'all' });
   };
 
   const handleExportCsv = async () => {
@@ -279,7 +334,7 @@ export default function ReviewsManagement() {
     ? { from: ((safePage - 1) * perPage) + 1, to: ((safePage - 1) * perPage) + reviews.length, total: pagination.total }
     : { from: 0, to: 0, total: pagination.total || 0 };
   const showActions = canManageReviews;
-  const columnsCount = showActions ? 8 : 7;
+  const columnsCount = showActions ? 9 : 8;
 
   const stats = useMemo(() => {
     const total = pagination.total;
@@ -460,6 +515,12 @@ export default function ReviewsManagement() {
               <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
+                    <th style={{ width: 36, padding: '0 8px' }}>
+                      <input type="checkbox"
+                        checked={reviews.length > 0 && reviews.every(r => selectedIds.has(r.id))}
+                        onChange={e => { if (e.target.checked) setSelectedIds(new Set(reviews.map(r => r.id))); else setSelectedIds(new Set()); }}
+                      />
+                    </th>
                     <th onClick={() => handleHeaderClick('id')} style={{ cursor: 'pointer', width: colWidths.id }}>ID{ind('id')}{rHandle('id')}</th>
                     <th style={{ width: colWidths.user_type }}>User Type{rHandle('user_type')}</th>
                     <th style={{ width: colWidths.reviewer }}>Reviewer{rHandle('reviewer')}</th>
@@ -487,6 +548,13 @@ export default function ReviewsManagement() {
 
                       return (
                         <tr key={review.id}>
+                          <td style={{ padding: '0 8px' }}>
+                            <input type="checkbox"
+                              checked={selectedIds.has(review.id)}
+                              onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(review.id); else next.delete(review.id); return next; }); }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </td>
                           <td>{review.id}</td>
                           <td style={{ textTransform: 'capitalize' }}>{review.user_type}</td>
                           <td>

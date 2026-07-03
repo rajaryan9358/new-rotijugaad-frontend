@@ -53,6 +53,7 @@ export default function EmployersManagement() {
   const [subscriptionStatusFilter, setSubscriptionStatusFilter] = useState('');
   const [newEmployerFilter, setNewEmployerFilter] = useState(recencyIsNew ? 'new' : '');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [draftFilters, setDraftFilters] = useState({
     stateFilter: '',
     cityFilter: '',
@@ -1294,10 +1295,15 @@ export default function EmployersManagement() {
                   <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                     <thead>
                       <tr>
+                        <th style={{ width: 36, padding: '0 8px' }}>
+                          <input type="checkbox"
+                            checked={employers.length > 0 && employers.every(emp => selectedIds.has(emp.id))}
+                            onChange={ev => { if (ev.target.checked) setSelectedIds(new Set(employers.map(emp => emp.id))); else setSelectedIds(new Set()); }}
+                          />
+                        </th>
                         <th onClick={()=>headerClick('id')} style={{ cursor:'pointer', width: colWidths.id }}>ID{ind('id')}{rHandle('id')}</th>
                         <th onClick={()=>headerClick('name')} style={{ cursor:'pointer', width: colWidths.name }}>Name{ind('name')}{rHandle('name')}</th>
 
-                        {/* NEW */}
                         {employerPerms.canShowPhoneAddress && <th style={{ width: colWidths.phone }}>Phone{rHandle('phone')}</th>}
 
                         <th onClick={()=>headerClick('organization_type')} style={{ cursor:'pointer', width: colWidths.org_type }}>Org Type{ind('organization_type')}{rHandle('org_type')}</th>
@@ -1323,7 +1329,7 @@ export default function EmployersManagement() {
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 22 : 18}>Loading...</td></tr>
+                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 23 : 19}>Loading...</td></tr>
                       ) : totalCount > 0 ? (
                         employers.map(e => {
                           const isActive = isEmployerActive(e);
@@ -1346,6 +1352,12 @@ export default function EmployersManagement() {
                                 color: isActive ? 'inherit' : '#9ca3af'
                               }}
                             >
+                              <td style={{ padding: '0 8px' }} onClick={ev => ev.stopPropagation()}>
+                                <input type="checkbox"
+                                  checked={selectedIds.has(e.id)}
+                                  onChange={ev => { setSelectedIds(prev => { const next = new Set(prev); if (ev.target.checked) next.add(e.id); else next.delete(e.id); return next; }); }}
+                                />
+                              </td>
                               <td>{e.id}</td>
                               <td>
                                 {e.name || '-'}
@@ -1470,7 +1482,7 @@ export default function EmployersManagement() {
                           );
                         })
                       ) : (
-                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 22 : 18}>No employers found</td></tr>
+                        <tr><td colSpan={employerPerms.canShowPhoneAddress ? 23 : 19}>No employers found</td></tr>
                       )}
                     </tbody>
                   </table>

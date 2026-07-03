@@ -159,6 +159,7 @@ export default function HiredEmployees() {
   const [pageSize, setPageSize] = useState(25);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const { colWidths, rHandle } = useResizableColumns('hired-col-widths', DEFAULTS);
   const canView = hasPermission(PERMISSIONS.HIRED_EMPLOYEES_VIEW);
@@ -705,6 +706,12 @@ export default function HiredEmployees() {
               <table className="data-table col-resizable" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                 <thead>
                   <tr>
+                    <th style={{ width: 36, padding: '0 8px' }}>
+                      <input type="checkbox"
+                        checked={records.length > 0 && records.every(r => selectedIds.has(r.id))}
+                        onChange={e => { if (e.target.checked) setSelectedIds(new Set(records.map(r => r.id))); else setSelectedIds(new Set()); }}
+                      />
+                    </th>
                     <th onClick={() => handleSort('employee_name')} style={{ cursor:'pointer', width: colWidths.employee }}>Employee{headerIndicator('employee_name')}{rHandle('employee')}</th>
                     <th onClick={() => handleSort('employer_name')} style={{ cursor:'pointer', width: colWidths.employer }}>Employer{headerIndicator('employer_name')}{rHandle('employer')}</th>
                     <th style={{ width: colWidths.organization }}>Organization{rHandle('organization')}</th>
@@ -719,10 +726,17 @@ export default function HiredEmployees() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="10">Loading...</td></tr>
+                    <tr><td colSpan="11">Loading...</td></tr>
                   ) : records.length ? (
                     records.map((row) => (
                       <tr key={row.id}>
+                        <td style={{ padding: '0 8px' }}>
+                          <input type="checkbox"
+                            checked={selectedIds.has(row.id)}
+                            onChange={e => { setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(row.id); else next.delete(row.id); return next; }); }}
+                            onClick={e => e.stopPropagation()}
+                          />
+                        </td>
                         <td>
                           {row.employee?.id ? (
                             <Link to={`/employees/${row.employee.id}`} className="table-link">
@@ -796,7 +810,7 @@ export default function HiredEmployees() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="10">
+                      <td colSpan="11">
                         {resolvedStatusLabel === 'All'
                           ? 'No hiring records found'
                           : `No ${resolvedStatusLabel.toLowerCase()} records found`}
