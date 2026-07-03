@@ -297,6 +297,8 @@ export default function JobsManagement() {
     const p = new URLSearchParams(location.search);
     const toArr = (v) => v ? v.split(',').filter(Boolean) : [];
     return {
+      action: p.get('action') || '',
+      actionId: p.get('id') || '',
       search: p.get('search') || '',
       page: Math.max(parseInt(p.get('page') || '1', 10), 1),
       sortField: p.get('sortField') || 'id',
@@ -382,7 +384,7 @@ export default function JobsManagement() {
 
   // Hydrate all state from URL once on mount
   useEffect(() => {
-    const { search, page, sortField: sf, sortDir: sd, filters: urlFilters } = initialUrlParams;
+    const { action, actionId, search, page, sortField: sf, sortDir: sd, filters: urlFilters } = initialUrlParams;
     if (search) setSearchTerm(search);
     if (page > 1) setCurrentPage(page);
     if (sf !== 'id') setSortField(sf);
@@ -390,6 +392,11 @@ export default function JobsManagement() {
     setFilters(urlFilters);
     setDraftFilters(urlFilters);
     setQueryHydrated(true);
+    if (action === 'add') {
+      setCloneJobId(null); setEditJobId(null); setShowJobFormPanel(true);
+    } else if (action === 'edit' && actionId) {
+      setEditJobId(Number(actionId)); setCloneJobId(null); setShowJobFormPanel(true);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1049,9 +1056,9 @@ export default function JobsManagement() {
                   <h1>Jobs Management</h1>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     {jobPerms.canManage && (
-                      <button className="btn-primary small" onClick={() => { setCloneJobId(null); setEditJobId(null); setShowJobFormPanel(true); }}>
+                      <a className="btn-primary small" href="/jobs?action=add" style={{ textDecoration:'none' }} onClick={e => { e.preventDefault(); setCloneJobId(null); setEditJobId(null); setShowJobFormPanel(true); }}>
                         + Create Job
-                      </button>
+                      </a>
                     )}
                   </div>
                 </div>
@@ -1549,11 +1556,12 @@ export default function JobsManagement() {
                                       onClick={(event) => { event.stopPropagation(); event.preventDefault(); navigate(`/jobs/${job.id}`); }}
                                     >View</a>
                                     {jobPerms.canManage && (
-                                      <button
+                                      <a
                                         className="btn-small btn-edit"
-                                        style={{ minWidth:80 }}
-                                        onClick={(event) => { event.stopPropagation(); setEditJobId(job.id); setShowJobFormPanel(true); }}
-                                      >Edit</button>
+                                        href={`/jobs?action=edit&id=${job.id}`}
+                                        style={{ minWidth:80, textDecoration:'none' }}
+                                        onClick={(event) => { event.stopPropagation(); event.preventDefault(); setEditJobId(job.id); setShowJobFormPanel(true); }}
+                                      >Edit</a>
                                     )}
                                     {jobPerms.canDelete && (
                                       <button

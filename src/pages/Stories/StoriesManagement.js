@@ -110,6 +110,10 @@ export default function StoriesManagement() {
       if (sd !== 'asc') setSortDir(sd);
       if (page > 1) setCurrentPage(page);
     }
+    const action = p.get('action');
+    const actionId = p.get('id');
+    if (action === 'add') { setEditingId(null); setShowForm(true); }
+    else if (action === 'edit' && actionId) { setEditingId(Number(actionId)); setShowForm(true); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -383,9 +387,9 @@ export default function StoriesManagement() {
                 <div className="list-header">
                   <h1>Stories</h1>
                   {canManageStories && (
-                    <button className="btn-primary small" onClick={() => { setEditingId(null); setShowForm(true); }}>
+                    <a className="btn-primary small" href="/stories?action=add" style={{ textDecoration:'none' }} onClick={e => { e.preventDefault(); setEditingId(null); setShowForm(true); }}>
                       + Add Story
-                    </button>
+                    </a>
                   )}
                 </div>
 
@@ -518,7 +522,7 @@ export default function StoriesManagement() {
                             <td>{s.created_at ? new Date(s.created_at).toLocaleDateString() : '-'}</td>
                             <td>
                               {canManageStories && (
-                                <button className="btn-small btn-edit" onClick={() => handleEdit(s.id)} style={{ marginRight:'4px' }}>Edit</button>
+                                <a className="btn-small btn-edit" href={`/stories?action=edit&id=${s.id}`} style={{ marginRight:'4px', textDecoration:'none' }} onClick={e => { e.preventDefault(); handleEdit(s.id); }}>Edit</a>
                               )}
                               {canDeleteStories && (
                                 <button className="btn-small btn-delete" onClick={() => handleDelete(s.id)}>Delete</button>

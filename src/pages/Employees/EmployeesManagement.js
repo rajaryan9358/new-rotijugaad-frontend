@@ -419,6 +419,15 @@ export default function EmployeesManagement() {
     return () => main.removeEventListener('scroll', onScroll);
   }, [canViewEmployees, showForm]);
 
+  useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    const action = p.get('action');
+    const actionId = p.get('id');
+    if (action === 'add') { setEditingId(null); setShowForm(true); }
+    else if (action === 'edit' && actionId) { setEditingId(Number(actionId)); setShowForm(true); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ✅ Ensure these exist ONCE (if you already added them earlier, keep the first copy and delete the later copy)
   const [deactivateDialog, setDeactivateDialog] = useState({ open: false, employeeId: null });
   const [deactivateReason, setDeactivateReason] = useState('');
@@ -1253,12 +1262,14 @@ export default function EmployeesManagement() {
                   <h1>Employees</h1>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {employeePerms.canManage && (
-                    <button
+                    <a
                       className="btn-primary small"
-                      onClick={() => { setEditingId(null); setShowForm(true); }}
+                      href="/employees?action=add"
+                      style={{ textDecoration:'none' }}
+                      onClick={e => { e.preventDefault(); setEditingId(null); setShowForm(true); }}
                     >
                       + Add Employee
-                    </button>
+                    </a>
                   )}
                   {canViewEmployees && (
                     <LogsAction category="employee" title="Employee Logs" />
@@ -1995,13 +2006,14 @@ export default function EmployeesManagement() {
                                       View
                                     </a>
                                     {employeePerms.canManage && (
-                                      <button
+                                      <a
                                         className="btn-small btn-edit"
-                                        style={{ flex: 1 }}
-                                        onClick={(ev) => { ev.stopPropagation(); setEditingId(e.id); setShowForm(true); }}
+                                        href={`/employees?action=edit&id=${e.id}`}
+                                        style={{ flex: 1, textDecoration: 'none' }}
+                                        onClick={(ev) => { ev.stopPropagation(); ev.preventDefault(); setEditingId(e.id); setShowForm(true); }}
                                       >
                                         Edit
-                                      </button>
+                                      </a>
                                     )}
                                     {employeePerms.canDelete && (
                                       <button

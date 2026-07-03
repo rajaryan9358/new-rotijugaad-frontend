@@ -413,6 +413,15 @@ export default function EmployersManagement() {
     setShowForm(true);
   };
 
+  useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    const action = p.get('action');
+    const actionId = p.get('id');
+    if (action === 'add') { setEditingId(null); setShowForm(true); }
+    else if (action === 'edit' && actionId) { setEditingId(Number(actionId)); setShowForm(true); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this employer?')) return;
     try {
@@ -901,12 +910,14 @@ export default function EmployersManagement() {
                 <div className="list-header">
                   <h1>Employers</h1>
                   {employerPerms.canCreate && (
-                    <button
+                    <a
                       className="btn-primary small"
-                      onClick={() => { setEditingId(null); setShowForm(true); }}
+                      href="/employers?action=add"
+                      style={{ textDecoration:'none' }}
+                      onClick={e => { e.preventDefault(); setEditingId(null); setShowForm(true); }}
                     >
                       + Add Employer
-                    </button>
+                    </a>
                   )}
                 </div>
 
@@ -1463,11 +1474,12 @@ export default function EmployersManagement() {
                                       onClick={(ev)=>{ev.stopPropagation();ev.preventDefault();navigate(`/employers/${e.id}`);}}
                                     >View</a>
                                     {employerPerms.canEdit && (
-                                      <button
+                                      <a
                                         className="btn-small btn-edit"
-                                        onClick={(ev)=>{ev.stopPropagation();handleEdit(e.id);}}
-                                        style={{ flex:1 }}
-                                      >Edit</button>
+                                        href={`/employers?action=edit&id=${e.id}`}
+                                        style={{ flex:1, textDecoration:'none' }}
+                                        onClick={(ev)=>{ev.stopPropagation();ev.preventDefault();handleEdit(e.id);}}
+                                      >Edit</a>
                                     )}
                                     {employerPerms.canDelete && (
                                       <button
