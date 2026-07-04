@@ -115,8 +115,8 @@ export default function EmployeesManagement() {
   const [kycVerifiedFromFilter, setKycVerifiedFromFilter] = useState(''); // NEW
   const [kycVerifiedToFilter, setKycVerifiedToFilter] = useState('');     // NEW
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('id');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortField, setSortField] = useState('created_at');
+  const [sortDir, setSortDir] = useState('desc');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -870,8 +870,8 @@ export default function EmployeesManagement() {
     setSubscriptionStatusFilter('');
     setStatusFilter('');
     setNewEmployeeFilter('');
-    setSortField('id');
-    setSortDir('asc');
+    setSortField('created_at');
+    setSortDir('desc');
     setShowFilterPanel(false);
     setJobProfileFilter(''); // added
     setWorkNatureFilter(''); // added

@@ -335,7 +335,7 @@ export default function JobsManagement() {
     Object.entries(filters).forEach(([key, value]) => {
       if (Array.isArray(value)) {
         if (value.length) params[key] = value.join(',');
-      } else if (value !== undefined && value !== null && value !== '') {
+      } else if (value !== undefined && value !== null && value !== '' && !(key === 'job_recency' && value === 'all')) {
         params[key] = value;
       }
     });

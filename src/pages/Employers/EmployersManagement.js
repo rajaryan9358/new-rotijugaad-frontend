@@ -40,8 +40,8 @@ export default function EmployersManagement() {
   const [loading, setLoading] = useState(true);
   const [employers, setEmployers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('id');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortField, setSortField] = useState('created_at');
+  const [sortDir, setSortDir] = useState('desc');
   const [message, setMessage] = useState(null); // already exists
   const [stateFilter, setStateFilter] = useState('');
   const [cityFilter, setCityFilter] = useState('');
@@ -561,8 +561,8 @@ export default function EmployersManagement() {
     setKycVerifiedToFilter('');
     updateUrlParams({ kyc_verified_from: '', kyc_verified_to: '' });
 
-    setSortField('id');
-    setSortDir('asc');
+    setSortField('created_at');
+    setSortDir('desc');
     setShowFilterPanel(false);
     setCurrentPage(1);
   };
