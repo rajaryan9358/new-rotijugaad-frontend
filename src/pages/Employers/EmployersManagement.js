@@ -832,7 +832,7 @@ export default function EmployersManagement() {
         (e.kyc_status || '').toLowerCase() === 'init' ? 'Not submitted for review' : (e.kyc_status || ''),
         e.SubscriptionPlan?.plan_name_english || '',
         e.User?.is_active ? 'Active' : 'Inactive',
-        e.User?.StatusChangedBy?.name || '', // NEW
+        e?.StatusChangedBy?.name || '', // NEW
         e.active_jobs_count ?? 0,
         formatExportDateTime(e.User?.last_active_at) || '',
         getUserLifeDays(userCreatedAt),
@@ -1434,7 +1434,7 @@ export default function EmployersManagement() {
                                   {isActive ? 'Active':'Inactive'}
                                 </span>
                               </td>
-                              <td>{e.User?.StatusChangedBy?.name || '-'}</td> {/* NEW */}
+                              <td>{e?.StatusChangedBy?.name || '-'}</td> {/* NEW */}
                               <td>{e.active_jobs_count ?? 0}</td>
                               <td>{lastSeenLabel}</td>
 

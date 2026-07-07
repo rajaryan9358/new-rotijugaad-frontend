@@ -1090,7 +1090,7 @@ export default function EmployeeDetail() {
         <Detail label="Deactivation Reason" value={basic.User?.deactivation_reason || '-'} />
 
         {/* NEW: status changed by (admin) */}
-        <Detail label="Status Changed By" value={basic.User?.StatusChangedBy?.name || '-'} />
+        <Detail label="Status Changed By" value={basic?.StatusChangedBy?.name || '-'} />
 
         <Detail label="Delete Status" value={basic.User?.delete_pending ? 'Pending deletion' : 'No'} />
         <Detail label="Delete Requested At" value={formatDateTime(basic.User?.delete_requested_at)} />

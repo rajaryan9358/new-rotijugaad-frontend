@@ -639,7 +639,7 @@ export default function EmployeesManagement() {
 
         isActive ? 'Active' : 'Inactive',
         e.User?.deactivation_reason || '',
-        e.User?.StatusChangedBy?.name || '',
+        e?.StatusChangedBy?.name || '',
 
         e.job_profiles_display || '',
 
@@ -1970,7 +1970,7 @@ export default function EmployeesManagement() {
                                 </span>
                               </td>
                               <td>{e.User?.deactivation_reason || '-'}</td>
-                              <td>{e.User?.StatusChangedBy?.name || '-'}</td> {/* NEW */}
+                              <td>{e?.StatusChangedBy?.name || '-'}</td> {/* NEW */}
                               <td>{e.job_profiles_display || '-'}</td> {/* added */}
                               <td>{e.skills_display || '-'}</td>
                               <td>{lastSeenLabel}</td>

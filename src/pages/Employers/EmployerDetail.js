@@ -904,7 +904,7 @@ export default function EmployerDetail() {
         <Detail label="Referred By" value={basic.User?.referred_by || '-'} />
         <Detail label="Preferred Language" value={basic.User?.preferred_language || '-'} />
         <Detail label="User Status" value={renderActiveBadge(basic.User?.is_active)} />
-        <Detail label="Status Changed By" value={basic.User?.StatusChangedBy?.name || '-'} /> {/* NEW */}
+        <Detail label="Status Changed By" value={basic?.StatusChangedBy?.name || '-'} /> {/* NEW */}
         <Detail label="Deactivation Reason" value={basic.User?.deactivation_reason || '-'} />
         <Detail label="Delete Status" value={basic.User?.delete_pending ? 'Pending deletion' : 'No'} />
         <Detail label="Delete Requested At" value={formatDateTime(basic.User?.delete_requested_at)} />
