@@ -73,6 +73,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
   const [allSkills, setAllSkills] = useState([]);
   const [selectedSkillIds, setSelectedSkillIds] = useState([]);
   const [error, setError] = useState(null);
+  const [aadharFocused, setAadharFocused] = useState(false);
   const topRef = useRef(null);
   const [selfiePreview, setSelfiePreview] = useState(null);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
@@ -695,8 +696,14 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
           <input
             id="aadhar_number"
             type="text"
-            value={form.aadhar_number}
-            onChange={e => setField('aadhar_number', e.target.value)}
+            value={
+              aadharFocused || !form.aadhar_number
+                ? form.aadhar_number
+                : 'X'.repeat(Math.max(0, form.aadhar_number.replace(/\D/g, '').length - 4)) + form.aadhar_number.replace(/\D/g, '').slice(-4)
+            }
+            onFocus={() => setAadharFocused(true)}
+            onBlur={() => setAadharFocused(false)}
+            onChange={e => setField('aadhar_number', e.target.value.replace(/\D/g, ''))}
             maxLength="12"
             placeholder="12-digit Aadhar number"
           />

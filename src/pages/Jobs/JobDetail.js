@@ -815,6 +815,7 @@ function JobDetailTab({ job }) {
           {(start12 || end12) && <Detail label="Working Hours" value={timeRange || '-'} />}
           {workDuration && <Detail label="Working Hours Duration" value={workDuration} />}
           <Detail label="Verification Status" value={verificationChip} /> {/* CHANGED */}
+          <Detail label="Status Changed By" value={job.StatusChangedBy?.name || '-'} />
         </div>
         <div style={{ marginTop: 16 }}>
           <strong>Description (English):</strong>

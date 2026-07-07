@@ -15,6 +15,7 @@ import JobForm from '../../components/Forms/JobForm';
 import jobApi from '../../api/jobApi';
 import JobDetail from './JobDetail'; // (to be created below)
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useAuth } from '../../context/AuthContext';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -188,7 +189,7 @@ const DEFAULTS = {
   cb: 36, id: 60, employer: 120, org_name: 140, org_category: 130, employer_phone: 120,
   interviewer_contact: 140, shift_timing: 110, working_hours: 120, work_duration: 90, job_profile: 130, job_designation: 130,
   household: 90, gender: 80, experience: 130, qualification: 120, shift: 110,
-  skills: 130, benefits: 130, verification: 110, vacancies: 90, state: 90, city: 90,
+  skills: 130, benefits: 130, verification: 110, status_changed_by: 130, vacancies: 90, state: 90, city: 90,
   location: 120, salary_type: 100, salary: 100, status: 90, expiry_date: 110,
   status_time: 130, created: 110, job_life: 90, actions: 100
 };
@@ -196,6 +197,7 @@ const DEFAULTS = {
 export default function JobsManagement() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user: adminUser } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -800,8 +802,9 @@ export default function JobsManagement() {
     }
     setStatusUpdatingId(job.id);
     try {
-      if (next === 'approved') await jobApi.approveJob(job.id);
-      else if (next === 'rejected') await jobApi.rejectJob(job.id);
+      const extra = adminUser?.id ? { status_changed_by: adminUser.id } : {};
+      if (next === 'approved') await jobApi.approveJob(job.id, extra);
+      else if (next === 'rejected') await jobApi.rejectJob(job.id, extra);
       setMessage({ type: 'success', text: `Job ${next}` });
       fetchRows();
     } catch (e) {
@@ -817,7 +820,8 @@ export default function JobsManagement() {
     setPendingApproveJob(null);
     setStatusUpdatingId(job.id);
     try {
-      await jobApi.approveJob(job.id, { show_organization: approveShowOrg ? 1 : 0 });
+      const extra = adminUser?.id ? { status_changed_by: adminUser.id } : {};
+      await jobApi.approveJob(job.id, { show_organization: approveShowOrg ? 1 : 0, ...extra });
       setMessage({ type: 'success', text: 'Job approved' });
       fetchRows();
     } catch (e) {
@@ -1322,6 +1326,7 @@ export default function JobsManagement() {
                         <th style={{ width: colWidths.skills }}>Skills{rHandle('skills')}</th>
                         <th style={{ width: colWidths.benefits }}>Benefits{rHandle('benefits')}</th>
                         <th style={{ width: colWidths.verification }}>Verification{rHandle('verification')}</th> {/* NEW */}
+                        <th style={{ width: colWidths.status_changed_by }}>Status Changed By{rHandle('status_changed_by')}</th>
                         <th style={{ width: colWidths.vacancies }}>Vacancies{rHandle('vacancies')}</th> {/* CHANGED */}
                         <th style={{ width: colWidths.state }}>State{rHandle('state')}</th>
                         <th style={{ width: colWidths.city }}>City{rHandle('city')}</th>
@@ -1419,6 +1424,7 @@ export default function JobsManagement() {
                               <td>{job.skills || '-'}</td>
                               <td>{job.benefits || '-'}</td>
                               <td>{renderVerificationBadge(job.verification_status)}</td> {/* NEW */}
+                              <td>{job.StatusChangedBy?.name || '-'}</td>
                               <td>{`${Number(job.hired_total ?? 0)}/${Number(job.no_vacancy ?? 0)}`}</td> {/* CHANGED */}
                               <td>{job.job_state || '-'}</td>
                               <td>{job.job_city || '-'}</td>

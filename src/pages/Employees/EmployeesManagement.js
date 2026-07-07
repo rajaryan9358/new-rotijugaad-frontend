@@ -20,6 +20,7 @@ import skillsApi from '../../api/masters/skillsApi';
 import VolunteerForm from '../../components/Forms/VolunteerForm'; // NEW
 import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPosition } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useAuth } from '../../context/AuthContext';
 import { formatMobile } from '../../utils/formatters';
 import '../Masters/MasterPage.css';
 
@@ -65,6 +66,7 @@ const EMPLOYEE_COL_DEFAULTS = {
 export default function EmployeesManagement() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user: adminUser } = useAuth();
   const recencyIsNew = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('recency') === 'new';
@@ -742,12 +744,13 @@ export default function EmployeesManagement() {
       return;
     }
     try {
+      const extra = adminUser?.id ? { status_changed_by: adminUser.id } : {};
       if (status === 'verified') {
-        await employeesApi.approveEmployee(id);
+        await employeesApi.approveEmployee(id, extra);
       } else if (status === 'rejected') {
-        await employeesApi.rejectEmployee(id);
+        await employeesApi.rejectEmployee(id, extra);
       } else {
-        await employeesApi.updateEmployee(id, { verification_status: status });
+        await employeesApi.updateEmployee(id, { verification_status: status, ...extra });
       }
       await fetchEmployees();
       setMessage({ type: 'success', text: `Verification ${status}` });

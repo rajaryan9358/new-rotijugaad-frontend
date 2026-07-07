@@ -14,6 +14,7 @@ import EmployerForm from '../../components/Forms/EmployerForm'; // added
 import VolunteerForm from '../../components/Forms/VolunteerForm'; // NEW
 import '../Masters/MasterPage.css';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
+import { useAuth } from '../../context/AuthContext';
 import { formatMobile } from '../../utils/formatters';
 import volunteersApi from '../../api/masters/volunteersApi'; // NEW
 import { useResizableColumns } from '../../hooks/useResizableColumns';
@@ -32,6 +33,7 @@ const DEFAULTS = {
 export default function EmployersManagement() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user: adminUser } = useAuth();
   const recencyIsNew = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('recency') === 'new';
@@ -388,8 +390,8 @@ export default function EmployersManagement() {
 
   const handleApprove = async (employerId) => {
     try {
-      // FIX: use dedicated endpoint so backend can stamp verification_at
-      await employersApi.approve(employerId);
+      const extra = adminUser?.id ? { status_changed_by: adminUser.id } : {};
+      await employersApi.approve(employerId, extra);
       setMessage({ type: 'success', text: 'Employer approved' });
       await load();
     } catch (e) {
@@ -399,8 +401,8 @@ export default function EmployersManagement() {
 
   const handleReject = async (employerId) => {
     try {
-      // FIX: use dedicated endpoint so backend can stamp verification_at
-      await employersApi.reject(employerId);
+      const extra = adminUser?.id ? { status_changed_by: adminUser.id } : {};
+      await employersApi.reject(employerId, extra);
       setMessage({ type: 'success', text: 'Employer rejected' });
       await load();
     } catch (e) {

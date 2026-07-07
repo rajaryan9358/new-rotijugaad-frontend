@@ -98,8 +98,8 @@ const employeesApi = {
 	getAdditionalDocumentTypes: () => api.get('/masters/additional-document-types'),
 
 	// verify/KYC (used by EmployeeDetail actions menu)
-	approveEmployee: (id) => api.post(`/employees/${id}/approve`),
-	rejectEmployee: (id) => api.post(`/employees/${id}/reject`),
+	approveEmployee: (id, extra = {}) => api.post(`/employees/${id}/approve`, extra),
+	rejectEmployee: (id, extra = {}) => api.post(`/employees/${id}/reject`, extra),
 	grantEmployeeKyc: (id) => api.post(`/employees/${id}/kyc/grant`),
 	rejectEmployeeKyc: (id) => api.post(`/employees/${id}/kyc/reject`),
 

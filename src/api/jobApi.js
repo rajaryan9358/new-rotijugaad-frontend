@@ -44,7 +44,7 @@ const jobApi = {
   setVerificationStatus: async (id, verification_status, extra = {}) =>
     client.patch(`/jobs/${id}/verification-status`, { verification_status, ...extra }),
   approveJob: async (id, extra = {}) => client.patch(`/jobs/${id}/verification-status`, { verification_status: 'approved', ...extra }),
-  rejectJob: async (id) => client.patch(`/jobs/${id}/verification-status`, { verification_status: 'rejected' }),
+  rejectJob: async (id, extra = {}) => client.patch(`/jobs/${id}/verification-status`, { verification_status: 'rejected', ...extra }),
   setShowOrganization: async (id, show_organization) =>
     client.patch(`/jobs/${id}/show-organization`, { show_organization }),
 
