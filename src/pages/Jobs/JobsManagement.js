@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, useNavigationType, Link } from 'react-router-dom';
 import { getAppBaseUrl } from '../../api/baseUrl';
 import experiencesApi from '../../api/masters/experiencesApi';
 import qualificationsApi from '../../api/masters/qualificationsApi';
@@ -194,9 +194,12 @@ const DEFAULTS = {
   status_time: 130, created: 110, job_life: 90, actions: 100
 };
 
+const JOBS_FILTER_CACHE_KEY = 'jobs_filter_cache_v1';
+
 export default function JobsManagement() {
   const navigate = useNavigate();
   const location = useLocation();
+  const navigationType = useNavigationType();
   const { user: adminUser } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rows, setRows] = useState([]);
@@ -294,6 +297,7 @@ export default function JobsManagement() {
   }), []);
 
   const { colWidths, rHandle } = useResizableColumns('jobs-col-widths', DEFAULTS);
+  const filterCacheRef = useRef(null);
 
   // Parse all filters from URL once on mount
   const initialUrlParams = React.useMemo(() => {
@@ -501,6 +505,44 @@ export default function JobsManagement() {
     syncToUrl(EMPTY_FILTERS, '', 1, 'id', 'desc');
     try { logsApi.create({ category: 'jobs', type: 'update', redirect_to: '/jobs', log_text: 'Cleared job filters' }); } catch (e) { /* ignore */ }
   };
+
+  // Keep filterCacheRef up to date for unmount save
+  useEffect(() => {
+    filterCacheRef.current = { filters, searchTerm, sortField, sortDir, currentPage, pageSize };
+  }, [filters, searchTerm, sortField, sortDir, currentPage, pageSize]);
+
+  // Save to sessionStorage on unmount so back-navigation can restore it
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => {
+    if (filterCacheRef.current)
+      sessionStorage.setItem(JOBS_FILTER_CACHE_KEY, JSON.stringify(filterCacheRef.current));
+  }, []);
+
+  // On POP (back) navigation: restore from sessionStorage and sync URL
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (navigationType !== 'POP') return;
+    const raw = sessionStorage.getItem(JOBS_FILTER_CACHE_KEY);
+    if (!raw) return;
+    try {
+      const cached = JSON.parse(raw);
+      const restoredFilters = { ...EMPTY_FILTERS, ...(cached.filters || {}) };
+      setFilters(restoredFilters);
+      setDraftFilters(restoredFilters);
+      if (cached.searchTerm !== undefined) setSearchTerm(cached.searchTerm);
+      if (cached.sortField) setSortField(cached.sortField);
+      if (cached.sortDir) setSortDir(cached.sortDir);
+      if (cached.currentPage) setCurrentPage(cached.currentPage);
+      if (cached.pageSize) setPageSize(cached.pageSize);
+      syncToUrl(
+        restoredFilters,
+        cached.searchTerm || '',
+        cached.currentPage || 1,
+        cached.sortField || 'id',
+        cached.sortDir || 'desc'
+      );
+    } catch (e) { /* ignore parse errors */ }
+  }, []);
 
   const handleSearchChange = (e) => {
     const val = e.target.value;

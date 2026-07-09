@@ -10,6 +10,53 @@ import shiftsApi from '../../api/masters/shiftsApi';
 import skillsApi from '../../api/masters/skillsApi';
 import './MasterForm.css';
 
+function MultiSelectChips({ label, options, selected, setSelected, optionLabel, optionValue }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  const toggle = v => setSelected(sel => sel.includes(v) ? sel.filter(x => x !== v) : [...sel, v]);
+  return (
+    <div className="form-group" style={{ position: 'relative' }} ref={ref}>
+      <label>{label}</label>
+      <div
+        className="chip-select-box"
+        style={{ minHeight: 38, border: '1px solid #ddd', borderRadius: 6, background: '#fafbfc', padding: '6px 10px', cursor: 'pointer', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}
+        onClick={() => setOpen(o => !o)}
+        tabIndex={0}
+      >
+        {selected.length === 0 && <span style={{ color: '#888', fontSize: 13 }}>Select {(label || '').toLowerCase()}</span>}
+        {selected.map(val => {
+          const opt = options.find(o => o[optionValue] === val);
+          return (
+            <span key={val} style={{ display: 'inline-flex', alignItems: 'center', background: '#6366f1', color: '#fff', padding: '3px 10px', borderRadius: '16px', fontSize: '12px' }}>
+              {opt ? opt[optionLabel] : val}
+              <button type="button" style={{ background: 'none', border: 'none', color: '#fff', marginLeft: 4, cursor: 'pointer', fontSize: '14px', lineHeight: 1 }}
+                onClick={e => { e.stopPropagation(); setSelected(sel => sel.filter(x => x !== val)); }} tabIndex={-1}>×</button>
+            </span>
+          );
+        })}
+        <span style={{ marginLeft: 'auto', color: '#888', fontSize: 12 }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ position: 'absolute', zIndex: 10, background: '#fff', border: '1px solid #ddd', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.10)', marginTop: 2, width: '100%', maxHeight: 180, overflowY: 'auto' }}>
+          {options.map(opt => (
+            <label key={opt[optionValue]} style={{ display: 'flex', alignItems: 'center', fontSize: '13px', padding: '7px 12px', cursor: 'pointer', background: selected.includes(opt[optionValue]) ? '#f3f4f6' : '#fff', gap: '6px' }}
+              onMouseDown={e => e.preventDefault()} onClick={() => toggle(opt[optionValue])}>
+              <input type="checkbox" checked={selected.includes(opt[optionValue])} readOnly style={{ width: '16px', minWidth: '16px', flex: '0 0 auto' }} />
+              {opt[optionLabel]}
+            </label>
+          ))}
+          {options.length === 0 && <div style={{ padding: '8px 12px', fontSize: 13, color: '#94a3b8' }}>No options</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const toBackendAssetUrl = (rawPath) => {
   const value = (rawPath || '').toString().trim();
   if (!value) return '';
@@ -653,31 +700,14 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
           </select>
         </div>
 
-        <div className="form-group">
-          <label>Skills</label>
-          {allSkills.length === 0 ? (
-            <div style={{ fontSize: '12px', color: '#666' }}>Loading skills...</div>
-          ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}>
-              {allSkills.map(skill => (
-                <label key={skill.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', background: selectedSkillIds.includes(skill.id) ? '#e0edff' : '#f5f5f5', border: selectedSkillIds.includes(skill.id) ? '1px solid #bfdbfe' : '1px solid #e0e0e0' }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedSkillIds.includes(skill.id)}
-                    onChange={() => toggleSkill(skill.id)}
-                    style={{ margin: 0 }}
-                  />
-                  {skill.skill_english}
-                </label>
-              ))}
-            </div>
-          )}
-          {selectedSkillIds.length > 0 && (
-            <small style={{ color: '#555', marginTop: '4px', display: 'block' }}>
-              {selectedSkillIds.length} skill{selectedSkillIds.length > 1 ? 's' : ''} selected
-            </small>
-          )}
-        </div>
+        <MultiSelectChips
+          label="Skills"
+          options={allSkills}
+          selected={selectedSkillIds}
+          setSelected={setSelectedSkillIds}
+          optionLabel="skill_english"
+          optionValue="id"
+        />
 
         <div className="form-group">
           <label htmlFor="assistant_code">Assistant Code</label>
