@@ -12,6 +12,7 @@ export default function StoryForm({ storyId, onClose, onSuccess }) {
   const [error, setError] = useState(null);
 
   const [form, setForm] = useState({
+    user_types: [],
     user_type: '',
     title_english: '',
     title_hindi: '',
@@ -38,6 +39,7 @@ export default function StoryForm({ storyId, onClose, onSuccess }) {
         if (res.data?.success === false) throw new Error(res.data?.message || 'Failed to load story');
         const s = res.data?.data || {};
         setForm({
+          user_types: s.user_type ? [s.user_type] : [],
           user_type: s.user_type || '',
           title_english: s.title_english || '',
           title_hindi: s.title_hindi || '',
@@ -114,24 +116,36 @@ export default function StoryForm({ storyId, onClose, onSuccess }) {
     setSaving(true);
     setError(null);
     try {
-      if (!form.user_type || !form.title_english || !form.description_english) {
-        setError('user_type, title_english and description_english are required');
-        return;
-      }
-      const payload = {
-        ...form,
-        sequence: parseInt(form.sequence, 10) || 0,
-        expiry_at: form.expiry_at || null,
-      };
-      console.debug(isEdit ? 'Updating story' : 'Creating story', payload);
       if (isEdit) {
+        if (!form.user_type || !form.title_english || !form.description_english) {
+          setError('user_type, title_english and description_english are required');
+          return;
+        }
+        const payload = { ...form, sequence: parseInt(form.sequence, 10) || 0, expiry_at: form.expiry_at || null };
         const r = await updateStory(storyId, payload);
         if (!r.data?.success) throw new Error(r.data?.message || 'Update failed');
         onSuccess && onSuccess('Story updated');
       } else {
-        const r = await createStory(payload);
-        if (!r.data?.success) throw new Error(r.data?.message || 'Create failed');
-        onSuccess && onSuccess('Story created');
+        const selectedTypes = form.user_types.length > 0 ? form.user_types : [];
+        if (!selectedTypes.length || !form.title_english || !form.description_english) {
+          setError('At least one user type, title_english and description_english are required');
+          return;
+        }
+        const basePayload = {
+          title_english: form.title_english,
+          title_hindi: form.title_hindi,
+          description_english: form.description_english,
+          description_hindi: form.description_hindi,
+          image: form.image,
+          expiry_at: form.expiry_at || null,
+          sequence: parseInt(form.sequence, 10) || 0,
+          is_active: form.is_active,
+        };
+        for (const ut of selectedTypes) {
+          const r = await createStory({ ...basePayload, user_type: ut });
+          if (!r.data?.success) throw new Error(r.data?.message || 'Create failed');
+        }
+        onSuccess && onSuccess(selectedTypes.length > 1 ? 'Stories created for both user types' : 'Story created');
       }
       onClose && onClose();
     } catch (err) {
@@ -165,15 +179,36 @@ export default function StoryForm({ storyId, onClose, onSuccess }) {
       <form onSubmit={submit} className="master-form">
         <div className="form-group">
           <label>User Type *</label>
-          <select
-            value={form.user_type}
-            onChange={e => setField('user_type', e.target.value)}
-            required
-          >
-            <option value="">Select user type</option>
-            <option value="employee">Employee</option>
-            <option value="employer">Employer</option>
-          </select>
+          {isEdit ? (
+            <select
+              value={form.user_type}
+              onChange={e => setField('user_type', e.target.value)}
+              required
+            >
+              <option value="">Select user type</option>
+              <option value="employee">Employee</option>
+              <option value="employer">Employer</option>
+            </select>
+          ) : (
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginTop: '6px' }}>
+              {['employee', 'employer'].map(ut => (
+                <label key={ut} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.user_types.includes(ut)}
+                    onChange={e => {
+                      const next = e.target.checked
+                        ? [...form.user_types, ut]
+                        : form.user_types.filter(t => t !== ut);
+                      setField('user_types', next);
+                    }}
+                    style={{ width: '15px', height: '15px' }}
+                  />
+                  {ut.charAt(0).toUpperCase() + ut.slice(1)}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
         <div className="form-group">
           <label>Title (English)</label>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import contactUnlocksApi from '../../api/contactUnlocksApi';
@@ -53,11 +53,16 @@ const DEFAULTS = {
 };
 
 export default function ContactUnlocksManagement() {
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
-  const [userType, setUserType] = useState('employee');
+  const [userType, setUserType] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    const ut = (params.get('user_type') || '').trim().toLowerCase();
+    return ut === 'employee' || ut === 'employer' ? ut : 'employer';
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('id');
   const [sortDir, setSortDir] = useState('desc');
@@ -65,8 +70,14 @@ export default function ContactUnlocksManagement() {
   const [pageSize, setPageSize] = useState(25);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [createdFromFilter, setCreatedFromFilter] = useState('');
-  const [createdToFilter, setCreatedToFilter] = useState('');
+  const [createdFromFilter, setCreatedFromFilter] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('created_date_start') || '';
+  });
+  const [createdToFilter, setCreatedToFilter] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('created_date_end') || '';
+  });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [draftFilters, setDraftFilters] = useState({ createdFromFilter: '', createdToFilter: '' });
 

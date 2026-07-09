@@ -48,7 +48,9 @@ const jobApi = {
   setShowOrganization: async (id, show_organization) =>
     client.patch(`/jobs/${id}/show-organization`, { show_organization }),
 
-  searchEmployers: async (params = {}) => client.get('/employers', { params })
+  searchEmployers: async (params = {}) => client.get('/employers', { params }),
+
+  notifyExpired: async (id) => client.post(`/jobs/${id}/notify-expired`)
 };
 
 export default jobApi;

@@ -251,6 +251,7 @@ export default function JobsManagement() {
   const [editJobId, setEditJobId] = useState(null);
   const [viewJobId, setViewJobId] = useState(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+  const [notifyingId, setNotifyingId] = useState(null);
   const [unverifiedEmployerJob, setUnverifiedEmployerJob] = useState(null);
   const [pendingApproveJob, setPendingApproveJob] = useState(null);
   const [approveShowOrg, setApproveShowOrg] = useState(true);
@@ -888,6 +889,8 @@ export default function JobsManagement() {
     const s = searchTerm.toLowerCase();
     return rows.filter(job =>
       String(job.id).includes(s) ||
+      String(job.employer_id || '').includes(s) ||
+      (job.employer_phone || '').includes(s) ||
       (job.employer_name || '').toLowerCase().includes(s) ||
       getEmployerOrganizationName(job).toLowerCase().includes(s) ||
       getEmployerBusinessCategory(job).toLowerCase().includes(s) ||
@@ -932,6 +935,19 @@ export default function JobsManagement() {
       setMessage({ type: 'success', text: 'Share link copied to clipboard.' });
     } catch {
       setMessage({ type: 'error', text: 'Failed to copy share link.' });
+    }
+  };
+
+  const handleNotifyExpired = async (jobId) => {
+    if (notifyingId) return;
+    setNotifyingId(jobId);
+    try {
+      await jobApi.notifyExpired(jobId);
+      setMessage({ type: 'success', text: 'Expiry notification sent to employer' });
+    } catch (e) {
+      setMessage({ type: 'error', text: e.response?.data?.message || 'Failed to send notification' });
+    } finally {
+      setNotifyingId(null);
     }
   };
 
@@ -1550,6 +1566,14 @@ export default function JobsManagement() {
                                               {statusUpdatingId === job.id ? 'Updating...' : 'Mark Inactive'}
                                             </button>
                                           )}
+                                          <button
+                                            className="btn-small"
+                                            style={{ minWidth:110 }}
+                                            disabled={notifyingId === job.id}
+                                            onClick={(event) => { event.stopPropagation(); handleNotifyExpired(job.id); }}
+                                          >
+                                            {notifyingId === job.id ? 'Notifying...' : 'Notify'}
+                                          </button>
                                         </>
                                       )}
                                     </div>

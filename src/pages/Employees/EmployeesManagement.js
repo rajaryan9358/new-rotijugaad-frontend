@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { getAppBaseUrl } from '../../api/baseUrl';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import ConfirmDialog from '../../components/ConfirmDialog';
@@ -53,6 +53,8 @@ function getGoogleMapsUrl(lat, lng) {
     : '';
 }
 
+const EMPLOYEES_FILTER_CACHE_KEY = 'employees_filter_cache_v1';
+
 const EMPLOYEE_COL_DEFAULTS = {
   id: 60, name: 150, phone: 120, email: 180, assistant_code: 130,
   dob: 100, gender: 80, age: 60, state: 100, city: 100,
@@ -66,6 +68,7 @@ const EMPLOYEE_COL_DEFAULTS = {
 export default function EmployeesManagement() {
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const { user: adminUser } = useAuth();
   const recencyIsNew = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -439,6 +442,43 @@ export default function EmployeesManagement() {
   // FIRST (valid) copy
   const filtersSignature = React.useMemo(() => JSON.stringify(filterValues), [filterValues]);
   const lastFilterSignatureRef = React.useRef(filtersSignature);
+
+  const filterCacheRef = useRef(null);
+  useEffect(() => {
+    filterCacheRef.current = { ...filterValues, sortField, sortDir, currentPage };
+  }, [filterValues, sortField, sortDir, currentPage]);
+  useEffect(() => () => {
+    if (filterCacheRef.current)
+      sessionStorage.setItem(EMPLOYEES_FILTER_CACHE_KEY, JSON.stringify(filterCacheRef.current));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (navigationType !== 'POP') return;
+    try {
+      const c = JSON.parse(sessionStorage.getItem(EMPLOYEES_FILTER_CACHE_KEY) || 'null');
+      if (!c) return;
+      const setters = {
+        stateFilter: setStateFilter, cityFilter: setCityFilter,
+        prefStateFilter: setPrefStateFilter, prefCityFilter: setPrefCityFilter,
+        qualificationFilter: setQualificationFilter, salaryFreqFilter: setSalaryFreqFilter,
+        shiftFilter: setShiftFilter, planFilter: setPlanFilter, genderFilter: setGenderFilter,
+        subscriptionStatusFilter: setSubscriptionStatusFilter, newEmployeeFilter: setNewEmployeeFilter,
+        jobProfileFilter: setJobProfileFilter, workNatureFilter: setWorkNatureFilter,
+        workDurationFilter: setWorkDurationFilter, workDurationFreqFilter: setWorkDurationFreqFilter,
+        assistantCodeFilter: setAssistantCodeFilter, createdFromFilter: setCreatedFromFilter,
+        createdToFilter: setCreatedToFilter, skillFilter: setSkillFilter,
+      };
+      const draftUpdates = {};
+      for (const [key, setter] of Object.entries(setters)) {
+        if (c[key] !== undefined) { setter(c[key]); draftUpdates[key] = c[key]; }
+      }
+      if (c.search !== undefined) setSearchTerm(c.search);
+      if (c.sortField !== undefined) setSortField(c.sortField);
+      if (c.sortDir !== undefined) setSortDir(c.sortDir);
+      if (Object.keys(draftUpdates).length) setDraftFilters(p => ({ ...p, ...draftUpdates }));
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const queryFilters = useMemo(() => {
     const params = new URLSearchParams(location.search);

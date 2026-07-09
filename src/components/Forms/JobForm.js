@@ -200,7 +200,6 @@ export default function JobForm({
   const [genders, setGenders] = useState([
     { value: 'male', label: 'Male' },
     { value: 'female', label: 'Female' },
-    { value: 'any', label: 'Any' }
   ]);
   const [qualifications, setQualifications] = useState([]);
   const [jobBenefits, setJobBenefits] = useState([]);

@@ -545,36 +545,38 @@ export default function DeletedUsers() {
               </div>
             )}
 
-            {!loading && canView && totalPages > 1 && (
+            {!loading && canView && totalCount > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', padding: '10px 4px' }}>
                 <span style={{ fontSize: '13px', color: '#64748b' }}>
                   Showing {rows.length ? ((currentPage - 1) * pageSize + 1) : 0}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
                 </span>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button
-                    className="btn-secondary btn-small"
-                    disabled={currentPage <= 1}
-                    onClick={() => { setCurrentPage(1); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: 1, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
-                  >«</button>
-                  <button
-                    className="btn-secondary btn-small"
-                    disabled={currentPage <= 1}
-                    onClick={() => { const p = currentPage - 1; setCurrentPage(p); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: p, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
-                  >‹ Prev</button>
-                  <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '80px', textAlign: 'center' }}>
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    className="btn-secondary btn-small"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => { const p = currentPage + 1; setCurrentPage(p); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: p, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
-                  >Next ›</button>
-                  <button
-                    className="btn-secondary btn-small"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => { setCurrentPage(totalPages); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: totalPages, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
-                  >»</button>
-                </div>
+                {totalPages > 1 && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                      className="btn-secondary btn-small"
+                      disabled={currentPage <= 1}
+                      onClick={() => { setCurrentPage(1); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: 1, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
+                    >«</button>
+                    <button
+                      className="btn-secondary btn-small"
+                      disabled={currentPage <= 1}
+                      onClick={() => { const p = currentPage - 1; setCurrentPage(p); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: p, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
+                    >‹ Prev</button>
+                    <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '80px', textAlign: 'center' }}>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      className="btn-secondary btn-small"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => { const p = currentPage + 1; setCurrentPage(p); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: p, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
+                    >Next ›</button>
+                    <button
+                      className="btn-secondary btn-small"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => { setCurrentPage(totalPages); setSelectedIds(new Set()); syncToUrl({ search: searchTerm, page: totalPages, userType: userTypeFilter, newUser: newUserFilter, createdFrom: createdFromFilter, createdTo: createdToFilter }); }}
+                    >»</button>
+                  </div>
+                )}
               </div>
             )}
           </div>

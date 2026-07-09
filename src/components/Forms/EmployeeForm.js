@@ -73,7 +73,6 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
   const [allSkills, setAllSkills] = useState([]);
   const [selectedSkillIds, setSelectedSkillIds] = useState([]);
   const [error, setError] = useState(null);
-  const [aadharFocused, setAadharFocused] = useState(false);
   const topRef = useRef(null);
   const [selfiePreview, setSelfiePreview] = useState(null);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
@@ -488,6 +487,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             placeholder="Employee name"
             required
           />
+          <small style={{ color: '#6b7280', fontSize: '12px', marginTop: '4px', display: 'block' }}>As per Aadhar Card</small>
         </div>
 
         <div className="form-group">
@@ -605,18 +605,6 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
         </div>
 
         <div className="form-group">
-          <label htmlFor="expected_salary">Expected Salary</label>
-          <input
-            id="expected_salary"
-            type="number"
-            step="0.01"
-            value={form.expected_salary}
-            onChange={e => setField('expected_salary', e.target.value)}
-            placeholder="e.g., 25000"
-          />
-        </div>
-
-        <div className="form-group">
           <label htmlFor="expected_salary_frequency">Expected Salary Frequency</label>
           <select
             id="expected_salary_frequency"
@@ -627,6 +615,30 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             <option value="day">Day</option>
             <option value="month">Month</option>
           </select>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="expected_salary">Expected Salary</label>
+          <input
+            id="expected_salary"
+            type="number"
+            step="1"
+            min={form.expected_salary_frequency === 'day' ? 100 : form.expected_salary_frequency === 'month' ? 1000 : undefined}
+            max={form.expected_salary_frequency === 'day' ? 9999 : form.expected_salary_frequency === 'month' ? 99999 : undefined}
+            value={form.expected_salary}
+            onChange={e => setField('expected_salary', e.target.value)}
+            placeholder={
+              form.expected_salary_frequency === 'day' ? '100 – 9999 per day' :
+              form.expected_salary_frequency === 'month' ? '1000 – 99999 per month' :
+              'e.g., 25000'
+            }
+          />
+          {form.expected_salary_frequency === 'day' && (
+            <small style={{ color: '#6b7280', fontSize: '12px', marginTop: '4px', display: 'block' }}>Min 3 digits, max 4 digits (100 – 9999)</small>
+          )}
+          {form.expected_salary_frequency === 'month' && (
+            <small style={{ color: '#6b7280', fontSize: '12px', marginTop: '4px', display: 'block' }}>Min 4 digits, max 5 digits (1000 – 99999)</small>
+          )}
         </div>
 
         <div className="form-group">
@@ -696,14 +708,18 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
           <input
             id="aadhar_number"
             type="text"
-            value={
-              aadharFocused || !form.aadhar_number
-                ? form.aadhar_number
-                : 'X'.repeat(Math.max(0, form.aadhar_number.replace(/\D/g, '').length - 4)) + form.aadhar_number.replace(/\D/g, '').slice(-4)
-            }
-            onFocus={() => setAadharFocused(true)}
-            onBlur={() => setAadharFocused(false)}
-            onChange={e => setField('aadhar_number', e.target.value.replace(/\D/g, ''))}
+            value={(() => {
+              const digits = (form.aadhar_number || '').replace(/\D/g, '');
+              if (digits.length <= 4) return digits;
+              return 'X'.repeat(digits.length - 4) + digits.slice(-4);
+            })()}
+            onChange={e => {
+              const raw = e.target.value;
+              const prevDigits = (form.aadhar_number || '').replace(/\D/g, '');
+              const leadingXs = (raw.match(/^X*/)?.[0] || '').length;
+              const restored = prevDigits.slice(0, leadingXs) + raw.slice(leadingXs);
+              setField('aadhar_number', restored.replace(/\D/g, '').slice(0, 12));
+            }}
             maxLength="12"
             placeholder="12-digit Aadhar number"
           />

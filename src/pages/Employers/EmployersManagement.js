@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import LogsAction from '../../components/LogsAction';
@@ -20,6 +20,7 @@ import volunteersApi from '../../api/masters/volunteersApi'; // NEW
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 
 const DEFAULT_PAGE_SIZE = 25;
+const EMPLOYERS_FILTER_CACHE_KEY = 'employers_filter_cache_v1';
 const PAGE_SCROLL_KEY = 'employers-scroll';
 
 const DEFAULTS = {
@@ -33,6 +34,7 @@ const DEFAULTS = {
 export default function EmployersManagement() {
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const { user: adminUser } = useAuth();
   const recencyIsNew = React.useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -631,6 +633,45 @@ export default function EmployersManagement() {
     () => JSON.stringify(queryFilters),
     [queryFilters]
   );
+
+  const filterCacheRef = useRef(null);
+  useEffect(() => {
+    filterCacheRef.current = {
+      searchTerm, stateFilter, cityFilter, categoryFilter, planFilter,
+      subscriptionStatusFilter, newEmployerFilter, assistedByFilter,
+      organizationTypeFilter, createdFromFilter, createdToFilter,
+      sortField, sortDir, currentPage,
+    };
+  }, [searchTerm, stateFilter, cityFilter, categoryFilter, planFilter, subscriptionStatusFilter, newEmployerFilter, assistedByFilter, organizationTypeFilter, createdFromFilter, createdToFilter, sortField, sortDir, currentPage]);
+  useEffect(() => () => {
+    if (filterCacheRef.current)
+      sessionStorage.setItem(EMPLOYERS_FILTER_CACHE_KEY, JSON.stringify(filterCacheRef.current));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (navigationType !== 'POP') return;
+    try {
+      const c = JSON.parse(sessionStorage.getItem(EMPLOYERS_FILTER_CACHE_KEY) || 'null');
+      if (!c) return;
+      const setters = {
+        stateFilter: setStateFilter, cityFilter: setCityFilter,
+        categoryFilter: setCategoryFilter, planFilter: setPlanFilter,
+        subscriptionStatusFilter: setSubscriptionStatusFilter,
+        newEmployerFilter: setNewEmployerFilter, assistedByFilter: setAssistedByFilter,
+        organizationTypeFilter: setOrganizationTypeFilter,
+        createdFromFilter: setCreatedFromFilter, createdToFilter: setCreatedToFilter,
+      };
+      const draftUpdates = {};
+      for (const [key, setter] of Object.entries(setters)) {
+        if (c[key] !== undefined) { setter(c[key]); draftUpdates[key] = c[key]; }
+      }
+      if (c.searchTerm !== undefined) setSearchTerm(c.searchTerm);
+      if (c.sortField !== undefined) setSortField(c.sortField);
+      if (c.sortDir !== undefined) setSortDir(c.sortDir);
+      if (Object.keys(draftUpdates).length) setDraftFilters(p => ({ ...p, ...draftUpdates }));
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!canViewEmployers) return;
