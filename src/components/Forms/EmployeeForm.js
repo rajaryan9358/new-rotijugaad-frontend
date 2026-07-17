@@ -102,7 +102,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
     aadhar_verified_at: '',
     selfie_link: '',
     verification_status: 'pending',
-    kyc_status: 'pending',
+    kyc_status: '',
     total_contact_credit: 0,
     contact_credit: 0,
     total_interest_credit: 0,
@@ -124,6 +124,9 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
   const [selfiePreview, setSelfiePreview] = useState(null);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
   const [legacyDataUrl, setLegacyDataUrl] = useState(false);
+  const [originalKyc, setOriginalKyc] = useState({ aadhar_verified_at: null, selfie_link: '' });
+  const [kycWarnOpen, setKycWarnOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState(null);
   const presetAppliedRef = useRef(null);
   const isPresetUser = Boolean(form.user_id);
   // mobile stays editable during edit; locked only on create when preset/forced
@@ -172,7 +175,7 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             aadhar_verified_at: e.aadhar_verified_at ? e.aadhar_verified_at.split('T')[0] : '',
             selfie_link: e.selfie_link || '',
             verification_status: e.verification_status || 'pending',
-            kyc_status: e.kyc_status || 'pending',
+            kyc_status: e.kyc_status || '',
             total_contact_credit: e.total_contact_credit || 0,
             contact_credit: e.contact_credit || 0,
             total_interest_credit: e.total_interest_credit || 0,
@@ -191,6 +194,10 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
               })
               .catch(() => {});
           }
+          setOriginalKyc({
+            aadhar_verified_at: e.aadhar_verified_at || null,
+            selfie_link: e.selfie_link || '',
+          });
           if (e.selfie_link) {
             setSelfiePreview(toBackendAssetUrl(e.selfie_link));
             if (e.selfie_link.startsWith('data:image')) { // added
@@ -352,6 +359,15 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
         if (legacyDataUrl && form.selfie_link.startsWith('data:image')) {
           delete payload.selfie_link;
         }
+        // Warn if verified Aadhaar or selfie is being removed
+        const removingAadhar = originalKyc.aadhar_verified_at && !form.aadhar_number;
+        const removingSelfie = originalKyc.selfie_link && !form.selfie_link;
+        if (removingAadhar || removingSelfie) {
+          setPendingPayload(payload);
+          setKycWarnOpen(true);
+          setSaving(false);
+          return;
+        }
         await employeesApi.updateEmployee(employeeId, payload);
         await employeesApi.saveEmployeeSkills(employeeId, selectedSkillIds).catch(() => {});
         onSuccess && onSuccess({ type: 'success', text: 'Employee updated' });
@@ -496,6 +512,28 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
   const removeSelfie = () => { // modified
     setField('selfie_link', '');
     setSelfiePreview(null);
+  };
+
+  const handleForceSave = async () => {
+    if (!pendingPayload) return;
+    setSaving(true);
+    setKycWarnOpen(false);
+    try {
+      const forcePayload = {
+        ...pendingPayload,
+        kyc_status: 'init',
+        aadhar_verified_at: null,
+      };
+      await employeesApi.updateEmployee(employeeId, forcePayload);
+      await employeesApi.saveEmployeeSkills(employeeId, selectedSkillIds).catch(() => {});
+      onSuccess && onSuccess({ type: 'success', text: 'Employee updated' });
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Save failed');
+    } finally {
+      setSaving(false);
+      setPendingPayload(null);
+    }
   };
 
   if (loading) return <div className="loading">Loading...</div>;
@@ -740,17 +778,19 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
             type="text"
             value={(() => {
               const digits = (form.aadhar_number || '').replace(/\D/g, '');
+              if (digits.length === 0) return '';
               if (digits.length <= 4) return digits;
-              return 'X'.repeat(digits.length - 4) + digits.slice(-4);
+              const masked = 'X'.repeat(digits.length - 4) + digits.slice(-4);
+              return masked.match(/.{1,4}/g)?.join(' ') ?? masked;
             })()}
             onChange={e => {
-              const raw = e.target.value;
+              const raw = e.target.value.replace(/\s/g, '');
               const prevDigits = (form.aadhar_number || '').replace(/\D/g, '');
               const leadingXs = (raw.match(/^X*/)?.[0] || '').length;
               const restored = prevDigits.slice(0, leadingXs) + raw.slice(leadingXs);
               setField('aadhar_number', restored.replace(/\D/g, '').slice(0, 12));
             }}
-            maxLength="12"
+            maxLength="14"
             placeholder="12-digit Aadhar number"
           />
         </div>
@@ -921,6 +961,51 @@ export default function EmployeeForm({ employeeId, onClose, onSuccess, presetUse
           )}
         </div>
       </form>
+
+      {kycWarnOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 10, padding: '28px 32px',
+            maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+          }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 17, color: '#1a1a2e' }}>
+              Aadhaar & Profile Photo Required
+            </h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#444', lineHeight: 1.5 }}>
+              This employee already has a verified Aadhaar and/or profile photo on record.
+              Removing them will reset their KYC status to <strong>init</strong> and clear
+              the verification date. This action cannot be undone automatically.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => { setKycWarnOpen(false); setPendingPayload(null); }}
+                style={{
+                  padding: '8px 18px', borderRadius: 6, border: '1px solid #ccc',
+                  background: '#f5f5f5', cursor: 'pointer', fontSize: 14
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleForceSave}
+                disabled={saving}
+                style={{
+                  padding: '8px 18px', borderRadius: 6, border: 'none',
+                  background: '#dc3545', color: '#fff', cursor: 'pointer', fontSize: 14,
+                  opacity: saving ? 0.7 : 1
+                }}
+              >
+                {saving ? 'Saving...' : 'Force Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
