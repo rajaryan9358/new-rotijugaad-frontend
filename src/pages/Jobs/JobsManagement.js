@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { escapeCell, formatExportDateTime as fmtDT, downloadCsv } from '../../utils/csvUtils';
 
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
@@ -100,16 +101,7 @@ function SingleSelect({
   );
 }
 
-const formatExportDateTime = (value) => {
-  if (!value) return '';
-  try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-  } catch {
-    return '';
-  }
-};
+const formatExportDateTime = fmtDT;
 const buildExportFilename = () => {
   const pad = (n)=>String(n).padStart(2,'0');
   const now = new Date();
@@ -623,11 +615,6 @@ export default function JobsManagement() {
       'Job Profile','Household','Gender','Experience','Qualification','Shift','Skills','Benefits',
       'Vacancies','State','City','Salary Type','Salary','Status','Verification','Expiry Date','Updated','Created'
     ];
-    const escapeCell = (val) => {
-      if (val === null || val === undefined) return '';
-      const str = String(val);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g,'""')}"` : str;
-    };
     const rows = exportRows.map(job => [
       job.id,
       job.employer_name || job.employer_id || '',
@@ -655,16 +642,7 @@ export default function JobsManagement() {
       formatExportDateTime(job.updated_at),
       formatExportDateTime(job.created_at)
     ]);
-    const csv = [headers.map(escapeCell).join(','), ...rows.map(r => r.map(escapeCell).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = buildExportFilename();
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, rows, buildExportFilename());
 
     try {
       const active = Object.entries(filters || {})

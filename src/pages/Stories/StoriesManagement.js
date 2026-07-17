@@ -10,6 +10,7 @@ import StoryForm from '../../components/Forms/StoryForm';
 import '../Masters/MasterPage.css';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { escapeCell, formatExportDateTime, downloadCsv } from '../../utils/csvUtils';
 
 const DEFAULTS = { id: 60, user_type: 90, title_en: 130, title_hi: 130, image: 80, seq: 60, active: 70, expiry: 110, created_at: 110, actions: 90 };
 
@@ -172,17 +173,6 @@ export default function StoriesManagement() {
     return `stories_${dd}-${MM}-${yyyy}_${hh}_${mm}_${ss}_${suffix}_.csv`;
   };
 
-  const formatExportDateTime = (value) => {
-    if (!value) return '';
-    try {
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return '';
-      return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-    } catch {
-      return '';
-    }
-  };
-
   const exportToCSV = async () => {
     if (!canExportStories) {
       setMessage({ type: 'error', text: 'You do not have permission to export stories.' });
@@ -227,11 +217,6 @@ export default function StoriesManagement() {
     }
 
     const headers = ['ID','User Type','Title (EN)','Title (HI)','Sequence','Active','Expiry','Created At','Image URL'];
-    const escape = (value) => {
-      if (value === null || value === undefined) return '';
-      const str = String(value);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
     const rows = exportRows.map((story) => [
       story.id,
       story.user_type || '',
@@ -243,16 +228,7 @@ export default function StoriesManagement() {
       formatExportDateTime(story.created_at),
       story.image || ''
     ]);
-    const csv = [headers.map(escape).join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = buildExportFilename();
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, rows, buildExportFilename());
 
     try {
       await logsApi.create({

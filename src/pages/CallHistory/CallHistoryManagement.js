@@ -8,6 +8,7 @@ import { formatMobile } from '../../utils/formatters';
 import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
 
+import { escapeCell, formatExportDateTime, downloadCsv } from '../../utils/csvUtils';
 import '../Masters/MasterPage.css';
 
 export default function CallHistoryManagement() {
@@ -422,21 +423,6 @@ export default function CallHistoryManagement() {
 
     const headers = [...baseHeaders, ...extraHeaders];
 
-    const escapeCell = (val) => {
-      if (val === null || val === undefined) return '';
-      const s = String(val);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const formatExportDateTime = (value) => {
-      if (!value) return '';
-      try {
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
-        return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-      } catch {
-        return '';
-      }
-    };
     const rows = exportRows.map((r) => {
       const base = [
         r.id,
@@ -470,16 +456,7 @@ export default function CallHistoryManagement() {
 
       return [...base, ...extra];
     });
-    const csv = [headers.map(escapeCell).join(','), ...rows.map((row) => row.map(escapeCell).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = buildExportFilename();
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, rows, buildExportFilename());
 
     try {
       await logsApi.create({

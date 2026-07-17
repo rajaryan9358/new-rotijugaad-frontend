@@ -10,6 +10,7 @@ import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
 import '../Masters/MasterPage.css';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { escapeCell, formatExportDateTime, downloadCsv } from '../../utils/csvUtils';
 
 const DEFAULTS = { id: 60, report_type: 120, reporter_name: 140, reported_entity: 140, reason: 140, description: 200, created: 120, read_at: 140, actions: 90 };
 
@@ -383,21 +384,6 @@ export default function ViolationReportsManagement() {
     }
 
     const headers = ['ID','Report Type','Reporter','Reported Entity','Reason','Status','Read At','Created At'];
-    const escape = (val) => {
-      if (val === null || val === undefined) return '';
-      const str = String(val);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
-    const formatExportDateTime = (value) => {
-      if (!value) return '';
-      try {
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
-        return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-      } catch {
-        return '';
-      }
-    };
     const rowsCsv = exportRows.map((row) => [
       row.id,
       row.report_type || '',
@@ -410,16 +396,7 @@ export default function ViolationReportsManagement() {
       formatExportDateTime(row.read_at),
       formatExportDateTime(row.created_at)
     ]);
-    const csv = [headers.map(escape).join(','), ...rowsCsv.map(r => r.map(escape).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = buildExportFilename();
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, rowsCsv, buildExportFilename());
 
     try {
       const typeLabel = reportTypeFilter || 'all';

@@ -9,6 +9,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { formatMobile } from '../../utils/formatters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { escapeCell, formatExportDateTime as fmtDT, downloadCsv } from '../../utils/csvUtils';
 
 const normalizeUserTypeParam = (value) => {
   const normalized = (value || '').trim().toLowerCase();
@@ -156,16 +157,7 @@ export default function PendingDeletionUsers() {
     try { return new Date(value).toLocaleString(); } catch { return value; }
   };
 
-  const formatExportDateTime = (value) => {
-    if (!value) return '';
-    try {
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return '';
-      return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-    } catch {
-      return '';
-    }
-  };
+  const formatExportDateTime = fmtDT;
 
   const linkButtonStyle = {
     background: 'none',
@@ -311,11 +303,6 @@ export default function PendingDeletionUsers() {
       }
 
       const headers = ['ID', 'Name', 'Mobile', 'Type', 'Entity', 'Requested At'];
-      const escape = (value) => {
-        if (value === null || value === undefined) return '';
-        const str = String(value);
-        return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-      };
       const rows = exportRows.map((row) => [
         row.id,
         row.name || '',
@@ -324,16 +311,7 @@ export default function PendingDeletionUsers() {
         row.entity?.name || '',
         formatExportDateTime(row.deletion_requested_at || row.delete_requested_at)
       ]);
-      const csv = [headers.map(escape).join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = buildExportFilename();
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadCsv(headers, rows, buildExportFilename());
 
       try {
         await logsApi.create({

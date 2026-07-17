@@ -10,6 +10,7 @@ import LogsAction from '../../components/LogsAction';
 import logsApi from '../../api/logsApi';
 import '../Masters/MasterPage.css';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { escapeCell, formatExportDateTime as fmtDT, downloadCsv } from '../../utils/csvUtils';
 
 const DEFAULTS = { id: 60, invoice: 110, user_type: 90, user: 140, plan: 130, total_price: 100, status: 90, order_id: 160, payment_id: 160, created: 120, actions: 90 };
 
@@ -409,21 +410,6 @@ export default function PaymentHistoryManagement() {
     }
 
     const headers = ['ID','Invoice #','User Type','User','Plan','Total Price','Status','Order ID','Payment ID','Expiry','Created At'];
-    const escapeCsv = (val) => {
-      if (val === null || val === undefined) return '';
-      const str = String(val);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
-    const formatExportDateTime = (value) => {
-      if (!value) return '';
-      try {
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
-        return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-      } catch {
-        return '';
-      }
-    };
     const rowsCsv = exportRows.map((row) => [
       row.id,
       row.invoice_number || '',
@@ -434,19 +420,10 @@ export default function PaymentHistoryManagement() {
       row.status || '',
       row.order_id || '',
       row.payment_id || '',
-      formatExportDateTime(row.expiry_at),
-      formatExportDateTime(row.created_at)
+      fmtDT(row.expiry_at),
+      fmtDT(row.created_at)
     ]);
-    const csv = [headers.map(escapeCsv).join(','), ...rowsCsv.map((r) => r.map(escapeCsv).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = buildExportFilename();
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, rowsCsv, buildExportFilename());
 
     try {
       await logsApi.create({

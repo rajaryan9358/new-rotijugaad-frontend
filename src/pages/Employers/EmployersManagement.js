@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { formatMobile } from '../../utils/formatters';
 import volunteersApi from '../../api/masters/volunteersApi'; // NEW
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { escapeCell as escape, formatExportDateTime, downloadCsv } from '../../utils/csvUtils';
 
 const DEFAULT_PAGE_SIZE = 25;
 const EMPLOYERS_FILTER_CACHE_KEY = 'employers_filter_cache_v1';
@@ -758,17 +759,6 @@ export default function EmployersManagement() {
     return `employers_${dd}-${MM}-${yyyy}_${hh}_${mm}_${ss}_${suffix}_.csv`;
   };
 
-  const formatExportDateTime = (value) => {
-    if (!value) return '';
-    try {
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return '';
-      return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-    } catch {
-      return '';
-    }
-  };
-
   // NEW: render credit balances (same style as EmployeesManagement)
   const renderCreditBalances = React.useCallback((e) => {
     const c = `${Number(e.contact_credit || 0)}/${Number(e.total_contact_credit || 0)}`;
@@ -849,12 +839,6 @@ export default function EmployersManagement() {
       'Credit Expiry',
       'Created At'
     ];
-    const escape = (value) => {
-      if (value === null || value === undefined) return '';
-      const str = String(value);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
-
     const rows = exportRows.map((e) => {
       const userCreatedAt = e.User?.created_at || null;
       return [
@@ -886,16 +870,7 @@ export default function EmployersManagement() {
       ];
     });
 
-    const csv = [headers.map(escape).join(','), ...rows.map((row) => row.map(escape).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = buildExportFilename();
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, rows, buildExportFilename());
 
     try {
       await logsApi.create({

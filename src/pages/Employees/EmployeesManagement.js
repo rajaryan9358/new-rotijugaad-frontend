@@ -22,6 +22,7 @@ import { getSidebarState, saveSidebarState, saveScrollPosition, getScrollPositio
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { useAuth } from '../../context/AuthContext';
 import { formatMobile } from '../../utils/formatters';
+import { escapeCell, formatExportDateTime, downloadCsv } from '../../utils/csvUtils';
 import '../Masters/MasterPage.css';
 
 // HOISTED helpers (fixes runtime ReferenceError during render/HMR)
@@ -630,11 +631,6 @@ export default function EmployeesManagement() {
       'Interest Credit (used/total)',
       'Credit Expiry'
     ];
-    const escapeCell = (value) => {
-      if (value === null || value === undefined) return '';
-      const str = String(value);
-      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-    };
     const rows = exportRows.map(e => {
       const userCreatedAt = e.User?.created_at || null;
       const isActive = e.User?.is_active === true;
@@ -694,16 +690,7 @@ export default function EmployeesManagement() {
         formatExportDateTime(e.credit_expiry_at)
       ];
     });
-    const csv = [headers.map(escapeCell).join(','), ...rows.map(r => r.map(escapeCell).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = buildExportFilename();
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, rows, buildExportFilename());
 
     try {
       await logsApi.create({
@@ -714,19 +701,6 @@ export default function EmployeesManagement() {
       });
     } catch (e) {
       // never block export on logging
-    }
-  };
-
-  // Helper for export-friendly timestamps
-  const formatExportDateTime = (value) => {
-    if (!value) return '';
-    try {
-      const date = new Date(value);
-      const datePart = date.toLocaleDateString();
-      const timePart = date.toLocaleTimeString();
-      return `${datePart} ${timePart}`.trim();
-    } catch {
-      return value;
     }
   };
 

@@ -13,6 +13,7 @@ import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { formatMobile } from '../../utils/formatters';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import '../Masters/MasterPage.css';
+import { escapeCell, formatExportDateTime, downloadCsv } from '../../utils/csvUtils';
 
 const DEFAULT_PAGE_SIZE = 25;
 const LAST_ACTIVE_SINCE_OPTIONS = [
@@ -452,16 +453,6 @@ export default function UsersManagement() {
     return `users_${dd}-${MM}-${yyyy}_${hh}_${mm}_${ss}_${suffix}_.csv`;
   };
 
-  const formatExportDateTime = (value) => {
-    if (!value) return '';
-    try {
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return '';
-      return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-    } catch {
-      return '';
-    }
-  };
   const formatDisplayDateTime = (value) => {
     if (!value) return '-';
     try {
@@ -585,11 +576,6 @@ export default function UsersManagement() {
       'Profile Completed',
       'Created At'
     ];
-    const escape = (val) => {
-      if (val === null || val === undefined) return '';
-      const s = String(val);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
     const rows = exportRows.map(u => [
       u.id,
       formatMobile(u.mobile),
@@ -601,22 +587,12 @@ export default function UsersManagement() {
       u.kyc_status || '',
       u.is_active ? 'Active' : 'Inactive',
       u.deactivation_reason || '',
-      // NEW
       u.StatusChangedBy?.name || '',
       formatExportDateTime(u.last_active_at),
       formatExportDateTime(u.profile_completed_at),
       formatExportDateTime(u.created_at)
     ]);
-    const csv = [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = buildExportFilename();
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, rows, buildExportFilename());
 
     try {
       await logsApi.create({

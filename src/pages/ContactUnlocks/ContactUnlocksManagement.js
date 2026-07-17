@@ -7,6 +7,7 @@ import callHistoryApi from '../../api/callHistoryApi';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
 import { formatMobile } from '../../utils/formatters';
+import { escapeCell, formatExportDateTime, downloadCsv } from '../../utils/csvUtils';
 import '../Masters/MasterPage.css';
 
 const TAB_OPTIONS = [
@@ -282,17 +283,11 @@ export default function ContactUnlocksManagement() {
           'ID', 'Unlocked At', 'Employer', 'Organization', 'Employer Mobile', 'Employee', 'Employee Mobile', 'Job Profiles', 'Location', 'Verification', 'KYC'
         ];
 
-    const escapeCell = (val) => {
-      if (val === null || val === undefined) return '';
-      const s = String(val);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-
     const csvRows = exportRows.map((row) => {
       if (userType === 'employee') {
         return [
           row.id,
-          formatDateTime(row.created_at),
+          formatExportDateTime(row.created_at),
           row.employee_name || '',
           canShowEmployeePhone ? formatMobile(row.employee_mobile) : '',
           row.employer_name || '',
@@ -308,7 +303,7 @@ export default function ContactUnlocksManagement() {
 
       return [
         row.id,
-        formatDateTime(row.created_at),
+        formatExportDateTime(row.created_at),
         row.employer_name || '',
         row.organization_name || '',
         canShowEmployerPhone ? formatMobile(row.employer_mobile) : '',
@@ -321,16 +316,7 @@ export default function ContactUnlocksManagement() {
       ];
     });
 
-    const csv = [headers.map(escapeCell).join(','), ...csvRows.map((row) => row.map(escapeCell).join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = buildExportFilename();
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(headers, csvRows, buildExportFilename());
   };
 
   if (!canView) {

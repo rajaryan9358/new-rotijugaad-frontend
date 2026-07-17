@@ -9,6 +9,7 @@ import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import '../Masters/MasterPage.css';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { escapeCell, formatExportDateTime, downloadCsv } from '../../utils/csvUtils';
 
 const headerCellStyle = { cursor: 'pointer' };
 const linkButtonStyle = {
@@ -125,11 +126,6 @@ export default function ReferralsPage({ title, userType }) {
   const sortIndicator = (field) => (sortField === field ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
 
   const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '-');
-  const formatCsvDateTime = (value) => {
-    if (!value) return '';
-    const date = new Date(value);
-    return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-  };
 
   const handleExportCsv = async () => {
     if (!canExport) {
@@ -163,11 +159,6 @@ export default function ReferralsPage({ title, userType }) {
         ...(showAdsColumn ? ['Ads Credit'] : []),
         'Created At'
       ];
-      const escapeCell = (value) => {
-        if (value === null || value === undefined) return '';
-        const str = String(value);
-        return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
-      };
       const exportRows = rows.map((ref) => [
         ref.id,
         ref.referrer_name || `#${ref.referral_id || ''}`,
@@ -177,18 +168,9 @@ export default function ReferralsPage({ title, userType }) {
         ref.contact_credit ?? 0,
         ref.interest_credit ?? 0,
         ...(showAdsColumn ? [ref.ads_credit ?? 0] : []),
-        formatCsvDateTime(ref.created_at)
+        formatExportDateTime(ref.created_at)
       ]);
-      const csv = [headers.map(escapeCell).join(','), ...exportRows.map((row) => row.map(escapeCell).join(','))].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `${title.toLowerCase().replace(/\s+/g, '_') || 'referrals'}.csv`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
+      downloadCsv(headers, exportRows, `${title.toLowerCase().replace(/\s+/g, '_') || 'referrals'}.csv`);
 
       // audit log: export
       logsApi

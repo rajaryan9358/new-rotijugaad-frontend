@@ -11,6 +11,7 @@ import { getSidebarState, saveSidebarState } from '../../utils/stateManager';
 import { formatMobile } from '../../utils/formatters';
 import '../Masters/MasterPage.css';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { escapeCell, formatExportDateTime as fmtDT, downloadCsv } from '../../utils/csvUtils';
 
 const statusFilters = [
   { label: 'All', value: '' },
@@ -427,13 +428,7 @@ export default function HiredEmployees() {
     setCurrentPage(1);
   };
 
-  const formatExportDateTime = (value) => {
-    if (!value) return '';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime())
-      ? ''
-      : `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`.trim();
-  };
+  const formatExportDateTime = fmtDT;
 
   const formatSalaryRange = (min, max) => {
     const toNum = (v) => {
@@ -463,7 +458,6 @@ export default function HiredEmployees() {
       const dataset = res.data?.data || [];
       if (!dataset.length) return;
 
-      const csvRows = [];
       const headers = [
         'Employee Name', 'Employee Mobile',
         'Employer Name', 'Employer Mobile',
@@ -472,35 +466,22 @@ export default function HiredEmployees() {
         'Salary Range',
         'Status', 'OTP', 'Contact At'
       ];
-      csvRows.push(headers.join(','));
-
-      dataset.forEach(row => {
-        const csvRow = [
-          row.employee?.name || '',
-          formatMobile(row.employee?.mobile),
-          row.employer?.name || '',
-          formatMobile(row.employer?.mobile),
-          row.job?.employer_organization_name || '',
-          row.job?.profile_name || '',
-          row.job?.status || '',
-          row.employee?.profile_status || '',
-          row.job?.interviewer_mobile || '',
-          formatSalaryRange(row.job?.salary_min, row.job?.salary_max),
-          row.status || 'hired',
-          row.otp || '',
-          formatExportDateTime(row.contact_date)
-        ];
-        csvRows.push(csvRow.join(','));
-      });
-
-      const csvString = csvRows.join('\n');
-      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.setAttribute('href', url);
-      a.setAttribute('download', `hired_employees_${new Date().toISOString().slice(0, 10)}.csv`);
-      a.click();
-      URL.revokeObjectURL(url);
+      const csvRows = dataset.map(row => [
+        row.employee?.name || '',
+        formatMobile(row.employee?.mobile),
+        row.employer?.name || '',
+        formatMobile(row.employer?.mobile),
+        row.job?.employer_organization_name || '',
+        row.job?.profile_name || '',
+        row.job?.status || '',
+        row.employee?.profile_status || '',
+        row.job?.interviewer_mobile || '',
+        formatSalaryRange(row.job?.salary_min, row.job?.salary_max),
+        row.status || 'hired',
+        row.otp || '',
+        formatExportDateTime(row.contact_date)
+      ]);
+      downloadCsv(headers, csvRows, `hired_employees_${new Date().toISOString().slice(0, 10)}.csv`);
 
       try {
         const parts = [];

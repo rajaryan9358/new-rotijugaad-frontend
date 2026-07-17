@@ -7,6 +7,7 @@ import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import logsApi from '../../api/logsApi';
 import '../Masters/MasterPage.css';
 import { useResizableColumns } from '../../hooks/useResizableColumns';
+import { escapeCell, formatExportDateTime, downloadCsv } from '../../utils/csvUtils';
 
 const DEFAULTS = { date: 170, category: 160, admin: 180, type: 90, log: 300 };
 
@@ -22,12 +23,6 @@ const buildFilterSummary = ({ category, adminId, dateFrom, dateTo }) => {
   return parts.length ? parts.join(', ') : 'none';
 };
 
-const escapeCsv = (value) => {
-  const s = value === null || value === undefined ? '' : String(value);
-  const needsQuotes = s.includes('"') || s.includes(',') || s.includes('\n') || s.includes('\r');
-  if (!needsQuotes) return s;
-  return `"${s.replace(/"/g, '""')}"`;
-};
 export default function LogsPage() {
   const navigate = useNavigate();
   const { colWidths, rHandle } = useResizableColumns('logs-col-widths', DEFAULTS);
@@ -122,17 +117,6 @@ export default function LogsPage() {
     saveSidebarState(next);
   };
 
-  const downloadCsv = (filename, csvText) => {
-    const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  };
 
   const handleExport = async () => {
     if (!canExport) return;
@@ -157,7 +141,7 @@ export default function LogsPage() {
         if (allRows.length >= 10000) break;
       } while (exportPage <= totalPages);
 
-      const header = [
+      const headers = [
         'id',
         'created_at',
         'category',
@@ -169,26 +153,19 @@ export default function LogsPage() {
         'log_text',
       ];
 
-      const lines = [header.join(',')].concat(
-        allRows.map((r) => {
-          const adminName = r.admin?.name || '';
-          const adminEmail = r.admin?.email || '';
-          return [
-            escapeCsv(r.id),
-            escapeCsv(r.created_at),
-            escapeCsv(r.category),
-            escapeCsv(r.type),
-            escapeCsv(r.rj_employee_id),
-            escapeCsv(adminName),
-            escapeCsv(adminEmail),
-            escapeCsv(r.redirect_to),
-            escapeCsv(r.log_text),
-          ].join(',');
-        })
-      );
+      const csvRows = allRows.map((r) => [
+        r.id,
+        formatExportDateTime(r.created_at),
+        r.category,
+        r.type,
+        r.rj_employee_id,
+        r.admin?.name || '',
+        r.admin?.email || '',
+        r.redirect_to,
+        r.log_text,
+      ]);
 
-      const csvText = lines.join('\n');
-      downloadCsv('logs.csv', csvText);
+      downloadCsv(headers, csvRows, 'logs.csv');
 
       // Audit the export (non-blocking)
       try {
