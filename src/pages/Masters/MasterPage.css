@@ -1,0 +1,357 @@
+.content-wrapper {
+  padding: 30px;
+  max-width: 100%;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.list-header h1 {
+  color: #0098DB;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.list-header .btn-primary.small {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 4px;
+  height: auto;
+  align-self: flex-end;
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.list-header .btn-secondary.small {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 4px;
+  height: auto;
+  align-self: flex-end;
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.inline-message {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.inline-message.success {
+  background: #e6fffa;
+  color: #056b56;
+  border: 1px solid #b3f0dd;
+}
+
+.inline-message.error {
+  background: #fff0f0;
+  color: #9b1c1c;
+  border: 1px solid #f6c6c6;
+}
+
+.msg-close {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.table-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* Keep overflow visible so sticky table headers work */
+  overflow: visible;
+  width: 100%;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 600px;
+}
+
+.col-resizable td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
+}
+
+.col-resizable th:last-child,
+.col-resizable td:last-child {
+  overflow: visible;
+  white-space: nowrap;
+  max-width: none;
+  width: auto;
+}
+
+.col-resizable thead th {
+  white-space: nowrap;
+  position: sticky;
+}
+
+.col-resizable thead th .resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.col-resizable thead th .resize-handle:hover,
+.col-resizable thead th .resize-handle:active {
+  background: rgba(37, 99, 235, 0.3);
+}
+
+.data-table thead {
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #ddd;
+}
+
+/* Sticky table header while the page scrolls */
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background-color: #f5f5f5;
+}
+
+
+/* Deleted Users: ensure full tbody background stays white even when horizontally scrolled */
+.main-content.deleted-users-page .data-table tbody td {
+  background-color: white;
+}
+.data-table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  color: #555;
+  font-size: 14px;
+}
+
+.data-table.draggable tbody tr {
+  cursor: move;
+  transition: background-color 0.2s;
+}
+
+.draggable-row {
+  border-bottom: 1px solid #eee;
+}
+
+.draggable-row.dragging {
+  background-color: #e3f2fd;
+  opacity: 0.7;
+}
+
+.draggable-row:hover {
+  background-color: #f9f9f9;
+}
+
+.drag-handle {
+  width: 30px;
+  padding: 12px 8px;
+  text-align: center;
+  color: #999;
+  font-size: 16px;
+  user-select: none;
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-icon {
+  display: inline-block;
+  letter-spacing: 2px;
+  font-weight: bold;
+}
+
+.badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.badge.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 8px;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.btn-edit {
+  background-color: #0098DB;
+  color: white;
+}
+
+.btn-edit:hover {
+  background-color: #0078b4;
+}
+
+.btn-delete {
+  background-color: #E74C3C;
+  color: white;
+}
+
+.btn-delete:hover {
+  background-color: #C0392B;
+}
+
+.no-data {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 40px !important;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 18px;
+  color: #0098DB;
+}
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.dashboard-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 260px;
+  padding: 24px;
+  overflow: auto;
+  background-color: #f5f5f5;
+  transition: margin-left 0.3s ease;
+}
+
+.main-content.sidebar-closed {
+  margin-left: 0;
+}
+
+/* Users tables: remove top padding so sticky headers sit flush */
+.main-content.users-management-page,
+.main-content.stories-management-page,
+.main-content.reviews-management-page,
+.main-content.employer-referrals-page,
+.main-content.employee-referrals-page,
+.main-content.payment-history-management-page,
+.main-content.notifications-management-page,
+.main-content.logs-page,
+.main-content.jobs-management-page,
+.main-content.employee-subscription-plans-page,
+.main-content.employer-subscription-plans-page,
+.main-content.plan-benefits-page,
+.main-content.violation-reports-management-page,
+.main-content.employees-management-page,
+.main-content.employers-management-page,
+.main-content.call-history-management-page,
+.main-content.admins-management-page,
+.main-content.roles-management-page,
+.main-content.hired-employees-page,
+.main-content.pending-deletion-users-page,
+.main-content.deleted-users-page,
+.main-content.business-categories-page,
+.main-content.distances-page,
+.main-content.document-types-page,
+.main-content.employee-call-experience-page,
+.main-content.employee-report-reasons-page,
+.main-content.employer-call-experience-page,
+.main-content.employer-report-reasons-page,
+.main-content.experiences-page,
+.main-content.job-benefits-page,
+.main-content.job-profiles-page,
+.main-content.qualifications-page,
+.main-content.referral-credits-page,
+.main-content.report-reasons-page,
+.main-content.salary-ranges-page,
+.main-content.salary-types-page,
+.main-content.shifts-page,
+.main-content.skills-page,
+.main-content.vacancy-numbers-page,
+.main-content.volunteers-page,
+.main-content.work-natures-page {
+  padding-top: 0;
+}
+@media (max-width: 768px) {
+  .content-wrapper {
+    padding: 15px;
+  }
+
+  .list-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .list-header h1 {
+    font-size: 22px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 10px;
+    font-size: 12px;
+  }
+}
