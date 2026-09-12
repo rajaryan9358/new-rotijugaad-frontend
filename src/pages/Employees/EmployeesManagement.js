@@ -6,6 +6,7 @@ import Header from '../../components/Header';
 import Sidebar from '../../components/Sidebar';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import LogsAction from '../../components/LogsAction';
+import BulkCreditsDialog from '../../components/BulkCreditsDialog';
 import EmployeeForm from '../../components/Forms/EmployeeForm';
 import employeesApi from '../../api/employeesApi';
 import logsApi from '../../api/logsApi';
@@ -130,6 +131,7 @@ export default function EmployeesManagement() {
   const [message, setMessage] = useState(null);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkCreditsDialog, setShowBulkCreditsDialog] = useState(false);
   const locationButtonStyle = useMemo(() => ({
     background: 'none',
     border: 'none',
@@ -183,6 +185,7 @@ export default function EmployeesManagement() {
     canDelete: hasPermission(PERMISSIONS.EMPLOYEES_DELETE),
     canVerify: hasPermission(PERMISSIONS.EMPLOYEES_VERIFY),
     canExport: hasPermission(PERMISSIONS.EMPLOYEES_EXPORT),
+    canAddCredit: hasPermission(PERMISSIONS.EMPLOYEES_ADD_CREDIT),
 
     // Sensitive fields
     canShowPhoneAddress: hasPermission(PERMISSIONS.EMPLOYEES_SHOW_PHONE_ADDRESS),
@@ -553,39 +556,141 @@ export default function EmployeesManagement() {
     return `employees_${dd}-${MM}-${yyyy}_${hh}_${mm}_${ss}_${suffix}_.csv`;
   };
 
-  const exportToCSV = async () => {
-    if (!employeePerms.canExport) {
-      setMessage({ type: 'error', text: 'You do not have permission to export employees.' });
-      return;
-    }
-    const baseParams = buildQueryParams({ page: 1 });
+  const buildEmployeeExportHeaders = () => [
+    'ID',
+    'Name',
+    'Phone Number',
+    'Email',
+    'Assistant Code', // NEW
+    'DOB',
+    'Gender',
+    'Age',
+    'State',
+    'City',
+    'Latitude',
+    'Longitude',
+    'Pref State',
+    'Pref City',
+    'Qualification',
+    'Expected Salary',
+    'Salary Frequency',
+    'Preferred Shift',
+    'Verification',
+    'KYC',
+    'Subscription Plan',
+    'Subscription Expiry',
+    'Status',
+    'Deactivation Reason',
+    'Status Changed By',
+    'Job Profiles',
+    'Last Seen',
+    'Employee Created At',
+    'User Created At',
+    'User Life (days)',
+    'Contact Credit (used/total)',
+    'Interest Credit (used/total)',
+    'Credit Expiry'
+  ];
+
+  const buildEmployeeExportRow = (e) => {
+    const userCreatedAt = e.User?.created_at || null;
+    const isActive = e.User?.is_active === true;
+
+    const verificationLabel = getReviewStatusLabel(e.verification_status);
+    const verificationExport = e.verification_at
+      ? `${verificationLabel} (${formatExportDateTime(e.verification_at)})`
+      : verificationLabel;
+
+    const kycLabel = getReviewStatusLabel(e.kyc_status);
+    const kycExport = e.kyc_verification_at
+      ? `${kycLabel} (${formatExportDateTime(e.kyc_verification_at)})`
+      : kycLabel;
+
+    return [
+      e.id,
+      e.name || '',
+      formatMobile(e.User?.mobile),
+      e.email || '',
+      e.assistant_code || '', // NEW
+      formatDateOnly(e.dob) || '',
+      formatGender(e.gender),
+      calculateAge(e.dob),
+
+      e.State?.state_english || '',
+      e.City?.city_english || '',
+      e.lat ?? '',
+      e.lng ?? '',
+      e.PreferredState?.state_english || '',
+      e.PreferredCity?.city_english || '',
+      e.Qualification?.qualification_english || '',
+
+      e.expected_salary ?? '',
+      e.expected_salary_frequency || '',
+      e.Shift?.shift_english || '',
+
+      verificationExport, // CHANGED (was e.verification_status)
+      kycExport,          // CHANGED (was e.kyc_status)
+
+      e.SubscriptionPlan?.plan_name_english || '',
+      formatExportDateTime(e.credit_expiry_at),
+
+      isActive ? 'Active' : 'Inactive',
+      e.User?.deactivation_reason || '',
+      e?.StatusChangedBy?.name || '',
+
+      e.job_profiles_display || '',
+
+      formatExportDateTime(e.User?.last_active_at),
+
+      formatExportDateTime(e.created_at),
+      formatExportDateTime(userCreatedAt),
+      getUserLifeDays(userCreatedAt),
+
+      `${e.contact_credit || 0}/${e.total_contact_credit || 0}`,
+      `${e.interest_credit || 0}/${e.total_interest_credit || 0}`,
+      formatExportDateTime(e.credit_expiry_at)
+    ];
+  };
+
+  const fetchAllEmployeesForExport = async (baseParams) => {
     const exportRows = [];
     let page = 1;
     let totalPagesFromServer = null;
     let totalRecordsFromServer = null;
     const requestedPageSize = baseParams.pageSize || pageSize || 25;
 
+    while (true) {
+      const res = await employeesApi.getEmployees({ ...baseParams, page });
+      const payload = res.data || {};
+      const batch = Array.isArray(payload.data) ? payload.data : [];
+      exportRows.push(...batch);
+
+      const metaInfo = payload.meta || {};
+      if (typeof metaInfo.totalPages === 'number') totalPagesFromServer = metaInfo.totalPages;
+      if (typeof metaInfo.total === 'number') totalRecordsFromServer = metaInfo.total;
+      const serverPageSize = metaInfo.pageSize || requestedPageSize || batch.length || 1;
+
+      const shouldContinue = (() => {
+        if (totalRecordsFromServer !== null) return exportRows.length < totalRecordsFromServer;
+        if (totalPagesFromServer !== null) return page < totalPagesFromServer;
+        return batch.length === serverPageSize;
+      })();
+
+      if (!shouldContinue) break;
+      page += 1;
+    }
+    return exportRows;
+  };
+
+  const exportToCSV = async () => {
+    if (!employeePerms.canExport) {
+      setMessage({ type: 'error', text: 'You do not have permission to export employees.' });
+      return;
+    }
+    const baseParams = buildQueryParams({ page: 1 });
+    let exportRows;
     try {
-      while (true) {
-        const res = await employeesApi.getEmployees({ ...baseParams, page });
-        const payload = res.data || {};
-        const batch = Array.isArray(payload.data) ? payload.data : [];
-        exportRows.push(...batch);
-
-        const metaInfo = payload.meta || {};
-        if (typeof metaInfo.totalPages === 'number') totalPagesFromServer = metaInfo.totalPages;
-        if (typeof metaInfo.total === 'number') totalRecordsFromServer = metaInfo.total;
-        const serverPageSize = metaInfo.pageSize || requestedPageSize || batch.length || 1;
-
-        const shouldContinue = (() => {
-          if (totalRecordsFromServer !== null) return exportRows.length < totalRecordsFromServer;
-          if (totalPagesFromServer !== null) return page < totalPagesFromServer;
-          return batch.length === serverPageSize;
-        })();
-
-        if (!shouldContinue) break;
-        page += 1;
-      }
+      exportRows = await fetchAllEmployeesForExport(baseParams);
     } catch (e) {
       console.error('Export error:', e);
       setMessage({ type: 'error', text: 'Failed to export employees' });
@@ -596,100 +701,8 @@ export default function EmployeesManagement() {
       setMessage({ type: 'error', text: 'No employees found for current filters.' });
       return;
     }
-    const headers = [
-      'ID',
-      'Name',
-      'Phone Number',
-      'Email',
-      'Assistant Code', // NEW
-      'DOB',
-      'Gender',
-      'Age',
-      'State',
-      'City',
-      'Latitude',
-      'Longitude',
-      'Pref State',
-      'Pref City',
-      'Qualification',
-      'Expected Salary',
-      'Salary Frequency',
-      'Preferred Shift',
-      'Verification',
-      'KYC',
-      'Subscription Plan',
-      'Subscription Expiry',
-      'Status',
-      'Deactivation Reason',
-      'Status Changed By',
-      'Job Profiles',
-      'Last Seen',
-      'Employee Created At',
-      'User Created At',
-      'User Life (days)',
-      'Contact Credit (used/total)',
-      'Interest Credit (used/total)',
-      'Credit Expiry'
-    ];
-    const rows = exportRows.map(e => {
-      const userCreatedAt = e.User?.created_at || null;
-      const isActive = e.User?.is_active === true;
-
-      const verificationLabel = getReviewStatusLabel(e.verification_status);
-      const verificationExport = e.verification_at
-        ? `${verificationLabel} (${formatExportDateTime(e.verification_at)})`
-        : verificationLabel;
-
-      const kycLabel = getReviewStatusLabel(e.kyc_status);
-      const kycExport = e.kyc_verification_at
-        ? `${kycLabel} (${formatExportDateTime(e.kyc_verification_at)})`
-        : kycLabel;
-
-      return [
-        e.id,
-        e.name || '',
-        formatMobile(e.User?.mobile),
-        e.email || '',
-        e.assistant_code || '', // NEW
-        formatDateOnly(e.dob) || '',
-        formatGender(e.gender),
-        calculateAge(e.dob),
-
-        e.State?.state_english || '',
-        e.City?.city_english || '',
-        e.lat ?? '',
-        e.lng ?? '',
-        e.PreferredState?.state_english || '',
-        e.PreferredCity?.city_english || '',
-        e.Qualification?.qualification_english || '',
-
-        e.expected_salary ?? '',
-        e.expected_salary_frequency || '',
-        e.Shift?.shift_english || '',
-
-        verificationExport, // CHANGED (was e.verification_status)
-        kycExport,          // CHANGED (was e.kyc_status)
-
-        e.SubscriptionPlan?.plan_name_english || '',
-        formatExportDateTime(e.credit_expiry_at),
-
-        isActive ? 'Active' : 'Inactive',
-        e.User?.deactivation_reason || '',
-        e?.StatusChangedBy?.name || '',
-
-        e.job_profiles_display || '',
-
-        formatExportDateTime(e.User?.last_active_at),
-
-        formatExportDateTime(e.created_at),
-        formatExportDateTime(userCreatedAt),
-        getUserLifeDays(userCreatedAt),
-
-        `${e.contact_credit || 0}/${e.total_contact_credit || 0}`,
-        `${e.interest_credit || 0}/${e.total_interest_credit || 0}`,
-        formatExportDateTime(e.credit_expiry_at)
-      ];
-    });
+    const headers = buildEmployeeExportHeaders();
+    const rows = exportRows.map(buildEmployeeExportRow);
     downloadCsv(headers, rows, buildExportFilename());
 
     try {
@@ -698,6 +711,40 @@ export default function EmployeesManagement() {
         type: 'export',
         redirect_to: '/employees',
         log_text: `Employees exported to CSV (${exportRows.length} rows)`,
+      });
+    } catch (e) {
+      // never block export on logging
+    }
+  };
+
+  // --- Bulk Credits dialog handlers ---
+  const previewBulkCreditsCount = async (filters) => {
+    const res = await employeesApi.getEmployees({ ...filters, page: 1, pageSize: 1 });
+    return res.data?.meta?.total ?? 0;
+  };
+
+  const grantBulkCredits = async (filters, payload) => {
+    const res = await employeesApi.bulkAddCredits({ ...filters, ...payload });
+    await fetchEmployees();
+    return res.data?.data || {};
+  };
+
+  const exportBulkFilteredCSV = async (filters) => {
+    const baseParams = { ...filters, pageSize: pageSize || 25, sortField, sortDir };
+    const exportRows = await fetchAllEmployeesForExport(baseParams);
+    if (!exportRows.length) {
+      throw new Error('No employees found for the selected filters.');
+    }
+    const headers = buildEmployeeExportHeaders();
+    const rows = exportRows.map(buildEmployeeExportRow);
+    downloadCsv(headers, rows, buildExportFilename());
+
+    try {
+      await logsApi.create({
+        category: 'employee',
+        type: 'export',
+        redirect_to: '/employees',
+        log_text: `Employees exported to CSV via Bulk Credits filter (${exportRows.length} rows)`,
       });
     } catch (e) {
       // never block export on logging
@@ -1315,6 +1362,11 @@ export default function EmployeesManagement() {
                     {employeePerms.canExport && (
                       <button className="btn-secondary btn-small" onClick={exportToCSV}>
                         Export CSV
+                      </button>
+                    )}
+                    {employeePerms.canAddCredit && (
+                      <button className="btn-secondary btn-small" onClick={() => setShowBulkCreditsDialog(true)}>
+                        Bulk Credits
                       </button>
                     )}
                   </div>
@@ -2145,6 +2197,16 @@ export default function EmployeesManagement() {
               onConfirm={handleDeleteConfirmed}
               confirmLabel="Delete"
               cancelLabel="Cancel"
+            />
+
+            <BulkCreditsDialog
+              open={showBulkCreditsDialog}
+              title="Bulk Credits — Employees"
+              showAdsCredit={false}
+              onClose={() => setShowBulkCreditsDialog(false)}
+              onPreviewCount={previewBulkCreditsCount}
+              onGrant={grantBulkCredits}
+              onExport={exportBulkFilteredCSV}
             />
 
             {/* NEW: Deactivation reason modal */}

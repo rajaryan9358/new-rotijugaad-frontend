@@ -27,6 +27,7 @@ const employersApi = {
   rejectKyc: (id) => client.post(`/employers/${id}/kyc/reject`),
   changeSubscription: (id, payload) => client.post(`/employers/${id}/change-subscription`, payload),
   addCredits: (id, payload) => client.post(`/employers/${id}/add-credits`, payload),
+  bulkAddCredits: (payload = {}) => client.post('/employers/bulk/add-credits', payload),
   getApplicants: (id, params) => client.get(`/employers/${id}/applicants`, { params }),
   getShortlistedCandidates: (id, params) => client.get(`/employers/${id}/shortlisted-candidates`, { params }),
   getCreditHistory: (id, params) => client.get(`/employers/${id}/credit-history`, { params }),

@@ -31,6 +31,7 @@ const employeesApi = {
 		api.post(`/employees/${id}/change-subscription`, { subscription_plan_id }),
 	addCredits: (id, { contact_credits, interest_credits, credit_expiry_at, reason } = {}) =>
 		api.post(`/employees/${id}/add-credits`, { contact_credits, interest_credits, credit_expiry_at, reason }),
+	bulkAddCredits: (payload = {}) => api.post('/employees/bulk/add-credits', payload),
 
 	// job profiles
 	getEmployeeJobProfiles: (id) => api.get(`/employees/${id}/job-profiles`),

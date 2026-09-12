@@ -12,6 +12,7 @@ import businessCategoriesApi from '../../api/masters/businessCategoriesApi';
 import employerSubscriptionPlansApi from '../../api/subscriptions/employerSubscriptionPlansApi';
 import EmployerForm from '../../components/Forms/EmployerForm'; // added
 import VolunteerForm from '../../components/Forms/VolunteerForm'; // NEW
+import BulkCreditsDialog from '../../components/BulkCreditsDialog';
 import '../Masters/MasterPage.css';
 import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 import { useAuth } from '../../context/AuthContext';
@@ -59,6 +60,7 @@ export default function EmployersManagement() {
   const [newEmployerFilter, setNewEmployerFilter] = useState(recencyIsNew ? 'new' : '');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkCreditsDialog, setShowBulkCreditsDialog] = useState(false);
   const [draftFilters, setDraftFilters] = useState({
     stateFilter: '',
     cityFilter: '',
@@ -112,6 +114,7 @@ export default function EmployersManagement() {
     canDelete: hasPermission(PERMISSIONS.EMPLOYERS_DELETE),
     canExport: hasPermission(PERMISSIONS.EMPLOYERS_EXPORT),
     canVerify: hasPermission(PERMISSIONS.EMPLOYERS_VERIFY),
+    canAddCredit: hasPermission(PERMISSIONS.EMPLOYERS_ADD_CREDIT),
 
     // Sensitive fields
     canShowPhoneAddress: hasPermission(PERMISSIONS.EMPLOYERS_SHOW_PHONE_ADDRESS),
@@ -773,34 +776,98 @@ export default function EmployersManagement() {
     );
   }, []);
 
-  const exportToCSV = async () => {
-    const baseParams = buildQueryParams({ page: 1 });
+  const buildEmployerExportHeaders = () => [
+    'ID',
+    'Name',
+    'Phone Number',
+    'Organization Type',
+    'Organization',
+    'Assisted By',
+    'Email',
+    'Business Category',
+    'Address',
+    'State',
+    'City',
+    'Verification',
+    'KYC',
+    'Subscription Plan',
+    'Active',
+    'Status Changed By', // NEW
+    'Active Jobs',
+    'Last Seen',
+    'User Life (days)',
+    // NEW: credit balances
+    'Contact Credit (used/total)',
+    'Interest Credit (used/total)',
+    'Ads Credit (used/total)',
+    'Credit Expiry',
+    'Created At'
+  ];
+
+  const buildEmployerExportRow = (e) => {
+    const userCreatedAt = e.User?.created_at || null;
+    return [
+      e.id,
+      e.name || '',
+      formatMobile(e.User?.mobile),
+      e.organization_type || '',
+      e.organization_name || '',
+      e.assisted_by || '',
+      e.email || '',
+      getBusinessCategoryName(e),
+      e.address || '',
+      e.State?.state_english || '',
+      e.City?.city_english || '',
+      (e.verification_status || '').toLowerCase() === 'init' ? 'Not submitted for review' : (e.verification_status || ''),
+      (e.kyc_status || '').toLowerCase() === 'init' ? 'Not submitted for review' : (e.kyc_status || ''),
+      e.SubscriptionPlan?.plan_name_english || '',
+      e.User?.is_active ? 'Active' : 'Inactive',
+      e?.StatusChangedBy?.name || '', // NEW
+      e.active_jobs_count ?? 0,
+      formatExportDateTime(e.User?.last_active_at) || '',
+      getUserLifeDays(userCreatedAt),
+      // NEW: credit balances
+      `${e.contact_credit || 0}/${e.total_contact_credit || 0}`,
+      `${e.interest_credit || 0}/${e.total_interest_credit || 0}`,
+      `${e.ad_credit || 0}/${e.total_ad_credit || 0}`,
+      formatExportDateTime(e.credit_expiry_at) || '',
+      formatExportDateTime(e.created_at) || ''
+    ];
+  };
+
+  const fetchAllEmployersForExport = async (baseParams) => {
     const exportRows = [];
     let page = 1;
     let totalPagesFromServer = null;
     let totalRecordsFromServer = null;
     const requestedLimit = baseParams.limit || pageSize || DEFAULT_PAGE_SIZE;
 
+    while (true) {
+      const res = await employersApi.getAll({ ...baseParams, page });
+      const batch = Array.isArray(res.data?.data) ? res.data.data : [];
+      exportRows.push(...batch);
+
+      const metaInfo = res.data?.meta || {};
+      if (typeof metaInfo.totalPages === 'number') totalPagesFromServer = metaInfo.totalPages;
+      if (typeof metaInfo.total === 'number') totalRecordsFromServer = metaInfo.total;
+      const serverLimit = metaInfo.limit || requestedLimit || batch.length || 1;
+
+      let shouldContinue = false;
+      if (totalRecordsFromServer !== null) shouldContinue = exportRows.length < totalRecordsFromServer;
+      else if (totalPagesFromServer !== null) shouldContinue = page < totalPagesFromServer;
+      else shouldContinue = batch.length === serverLimit;
+
+      if (!shouldContinue) break;
+      page += 1;
+    }
+    return exportRows;
+  };
+
+  const exportToCSV = async () => {
+    const baseParams = buildQueryParams({ page: 1 });
+    let exportRows;
     try {
-      while (true) {
-        const res = await employersApi.getAll({ ...baseParams, page });
-        const batch = Array.isArray(res.data?.data) ? res.data.data : [];
-        exportRows.push(...batch);
-
-        const metaInfo = res.data?.meta || {};
-        if (typeof metaInfo.totalPages === 'number') totalPagesFromServer = metaInfo.totalPages;
-        if (typeof metaInfo.total === 'number') totalRecordsFromServer = metaInfo.total;
-        const serverLimit = metaInfo.limit || requestedLimit || batch.length || 1;
-
-        // CHANGED: avoid no-loop-func
-        let shouldContinue = false;
-        if (totalRecordsFromServer !== null) shouldContinue = exportRows.length < totalRecordsFromServer;
-        else if (totalPagesFromServer !== null) shouldContinue = page < totalPagesFromServer;
-        else shouldContinue = batch.length === serverLimit;
-
-        if (!shouldContinue) break;
-        page += 1;
-      }
+      exportRows = await fetchAllEmployersForExport(baseParams);
     } catch (e) {
       console.error('Export employers error:', e);
       setMessage({ type: 'error', text: 'Failed to export employers' });
@@ -812,63 +879,8 @@ export default function EmployersManagement() {
       return;
     }
 
-    const headers = [
-      'ID',
-      'Name',
-      'Phone Number',
-      'Organization Type',
-      'Organization',
-      'Assisted By',
-      'Email',
-      'Business Category',
-      'Address',
-      'State',
-      'City',
-      'Verification',
-      'KYC',
-      'Subscription Plan',
-      'Active',
-      'Status Changed By', // NEW
-      'Active Jobs',
-      'Last Seen',
-      'User Life (days)',
-      // NEW: credit balances
-      'Contact Credit (used/total)',
-      'Interest Credit (used/total)',
-      'Ads Credit (used/total)',
-      'Credit Expiry',
-      'Created At'
-    ];
-    const rows = exportRows.map((e) => {
-      const userCreatedAt = e.User?.created_at || null;
-      return [
-        e.id,
-        e.name || '',
-        formatMobile(e.User?.mobile),
-        e.organization_type || '',
-        e.organization_name || '',
-        e.assisted_by || '',
-        e.email || '',
-        getBusinessCategoryName(e),
-        e.address || '',
-        e.State?.state_english || '',
-        e.City?.city_english || '',
-        (e.verification_status || '').toLowerCase() === 'init' ? 'Not submitted for review' : (e.verification_status || ''),
-        (e.kyc_status || '').toLowerCase() === 'init' ? 'Not submitted for review' : (e.kyc_status || ''),
-        e.SubscriptionPlan?.plan_name_english || '',
-        e.User?.is_active ? 'Active' : 'Inactive',
-        e?.StatusChangedBy?.name || '', // NEW
-        e.active_jobs_count ?? 0,
-        formatExportDateTime(e.User?.last_active_at) || '',
-        getUserLifeDays(userCreatedAt),
-        // NEW: credit balances
-        `${e.contact_credit || 0}/${e.total_contact_credit || 0}`,
-        `${e.interest_credit || 0}/${e.total_interest_credit || 0}`,
-        `${e.ad_credit || 0}/${e.total_ad_credit || 0}`,
-        formatExportDateTime(e.credit_expiry_at) || '',
-        formatExportDateTime(e.created_at) || ''
-      ];
-    });
+    const headers = buildEmployerExportHeaders();
+    const rows = exportRows.map(buildEmployerExportRow);
 
     downloadCsv(headers, rows, buildExportFilename());
 
@@ -883,6 +895,40 @@ export default function EmployersManagement() {
       // never block export on logging
     }
 
+  };
+
+  // --- Bulk Credits dialog handlers ---
+  const previewBulkCreditsCount = async (filters) => {
+    const res = await employersApi.getAll({ ...filters, page: 1, limit: 1 });
+    return res.data?.meta?.total ?? 0;
+  };
+
+  const grantBulkCredits = async (filters, payload) => {
+    const res = await employersApi.bulkAddCredits({ ...filters, ...payload });
+    await load();
+    return res.data?.data || {};
+  };
+
+  const exportBulkFilteredCSV = async (filters) => {
+    const baseParams = { ...filters, limit: pageSize || DEFAULT_PAGE_SIZE, sortField, sortDir };
+    const exportRows = await fetchAllEmployersForExport(baseParams);
+    if (!exportRows.length) {
+      throw new Error('No employers found for the selected filters.');
+    }
+    const headers = buildEmployerExportHeaders();
+    const rows = exportRows.map(buildEmployerExportRow);
+    downloadCsv(headers, rows, buildExportFilename());
+
+    try {
+      await logsApi.create({
+        category: 'employer',
+        type: 'export',
+        redirect_to: '/employers',
+        log_text: `Employers exported to CSV via Bulk Credits filter (${exportRows.length} rows)`,
+      });
+    } catch (e) {
+      // never block export on logging
+    }
   };
 
   if (!canViewEmployers) {
@@ -978,6 +1024,9 @@ export default function EmployersManagement() {
                     </button>
                     {employerPerms.canExport && (
                       <button className="btn-secondary btn-small" onClick={exportToCSV}>Export CSV</button>
+                    )}
+                    {employerPerms.canAddCredit && (
+                      <button className="btn-secondary btn-small" onClick={() => setShowBulkCreditsDialog(true)}>Bulk Credits</button>
                     )}
                   </div>
                 </div>
@@ -1578,6 +1627,16 @@ export default function EmployersManagement() {
                 onSuccess={(msg) => { setMessage(msg); fetchVolunteers(); }}
               />
             )}
+
+            <BulkCreditsDialog
+              open={showBulkCreditsDialog}
+              title="Bulk Credits — Employers"
+              showAdsCredit={true}
+              onClose={() => setShowBulkCreditsDialog(false)}
+              onPreviewCount={previewBulkCreditsCount}
+              onGrant={grantBulkCredits}
+              onExport={exportBulkFilteredCSV}
+            />
           </div>
         </main>
       </div>
