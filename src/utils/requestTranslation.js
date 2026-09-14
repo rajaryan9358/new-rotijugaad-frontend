@@ -1,4 +1,10 @@
-const TRANSLATE_ENDPOINT = process.env.REACT_APP_TRANSLATE_ENDPOINT || '/api/translate';
+import { getApiBaseUrl } from '../api/baseUrl';
+
+// NOTE: every other API call in this app resolves against getApiBaseUrl()
+// (e.g. https://labormint.com/api), not a bare relative path — the admin panel
+// is not served from the same origin as the backend, so a relative '/api/translate'
+// resolves against the admin panel's own hosting origin instead of the API host.
+const TRANSLATE_ENDPOINT = process.env.REACT_APP_TRANSLATE_ENDPOINT || `${getApiBaseUrl()}/translate`;
 
 export const requestTranslation = async ({
   text,
