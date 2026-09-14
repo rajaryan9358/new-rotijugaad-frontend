@@ -15,9 +15,14 @@ export const requestTranslation = async ({
     throw new Error('Translation text is required.');
   }
 
+  const token = localStorage.getItem('token');
+
   const response = await fetch(TRANSLATE_ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ text, sourceLanguage, targetLanguage }),
   });
 
